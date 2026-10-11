@@ -1,0 +1,1228 @@
+import * as THREE from "three";
+import "./style.css";
+import "./cards.css";
+import { unitArt, mapArt, forestArt, obstacles } from "./art.js";
+import { Game, W, H, BASE, days, dist, inside } from "./game.js";
+import { CombatVFX } from "./combat-vfx.js";
+import { HealthBar } from "./health-bar.js";
+import { WeaponRig } from "./weapon-rig.js";
+import { CardUI } from "./card-ui.js";
+import { cards } from "./cards.js";
+import { subscribeConfig, configLoadError } from "./config/store.js";
+import { cardRadius } from "./config/schema.js";
+import { iconURL } from "./config/icons.js";
+import { getWeaponSpec } from "./weapons.js";
+import { WaveProgress } from "./wave-progress.js";
+
+const $ = (id) => document.getElementById(id),
+  arena = $("arena");
+const waveProgress = new WaveProgress($("wave-progress"));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color("#284b34");
+const camera = new THREE.OrthographicCamera(-8, 8, 6, -6, 0.1, 100);
+camera.position.z = 20;
+const MIN_ZOOM = 1,
+  MAX_ZOOM = 3.2;
+let overviewY = 0;
+camera.zoom = innerWidth <= 700 ? 1.65 : 1.28;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+arena.prepend(renderer.domElement);
+renderer.domElement.setAttribute(
+  "aria-label",
+  "战场：点击英雄选择，点击草地逐格移动",
+);
+renderer.domElement.tabIndex = 0;
+const textures = {},
+  arts = {},
+  whiteTextures = {};
+for (const type of [
+  "blue",
+  "green",
+  "purple",
+  "base",
+  "grunt",
+  "runner",
+  "tank",
+  "boss",
+  "tower",
+]) {
+  arts[type] = unitArt(type);
+  textures[type] = new THREE.CanvasTexture(arts[type]);
+  textures[type].colorSpace = THREE.SRGBColorSpace;
+  const white = document.createElement("canvas");
+  white.width = white.height = 128;
+  const ctx = white.getContext("2d");
+  ctx.drawImage(arts[type], 0, 0);
+  ctx.globalCompositeOperation = "source-in";
+  ctx.fillStyle = "#fff7dd";
+  ctx.fillRect(0, 0, 128, 128);
+  whiteTextures[type] = new THREE.CanvasTexture(white);
+  whiteTextures[type].colorSpace = THREE.SRGBColorSpace;
+}
+const artUrls = Object.fromEntries(
+  Object.entries(arts).map(([key, value]) => [key, value.toDataURL()]),
+);
+const geometry = new THREE.PlaneGeometry(1, 1);
+function plane(w, h, color, opacity = 1) {
+  const m = new THREE.Mesh(
+    geometry,
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: opacity < 1,
+      opacity,
+      depthWrite: false,
+    }),
+  );
+  m.scale.set(w, h, 1);
+  return m;
+}
+function imagePlane(texture, w = 1, h = w) {
+  const m = new THREE.Mesh(
+    geometry,
+    new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: false,
+    }),
+  );
+  m.scale.set(w, h, 1);
+  return m;
+}
+function pos(x, y, z = 1) {
+  return new THREE.Vector3(x - 7, 5 - y, z);
+}
+const mapTexture = new THREE.CanvasTexture(mapArt());
+mapTexture.colorSpace = THREE.SRGBColorSpace;
+const board = imagePlane(mapTexture, 15, 11);
+board.position.z = 0;
+scene.add(board);
+const forestTexture = new THREE.CanvasTexture(forestArt());
+forestTexture.colorSpace = THREE.SRGBColorSpace;
+forestTexture.wrapS = forestTexture.wrapT = THREE.RepeatWrapping;
+forestTexture.repeat.set(3, 3);
+const forest = imagePlane(forestTexture, 90, 60);
+forest.position.z = -0.1;
+scene.add(forest);
+const selection = plane(0.97, 0.97, "#d7efa2", 0.15);
+selection.position.z = 0.12;
+scene.add(selection);
+const outlineTexture = (() => {
+  const c = document.createElement("canvas");
+  c.width = c.height = 96;
+  const g = c.getContext("2d");
+  g.strokeStyle = "#d5ed9c";
+  g.lineWidth = 4;
+  g.setLineDash([13, 6]);
+  g.strokeRect(4, 4, 88, 88);
+  return new THREE.CanvasTexture(c);
+})();
+const selectionOutline = imagePlane(outlineTexture, 1.02);
+selectionOutline.position.z = 0.16;
+scene.add(selectionOutline);
+const hover = plane(0.96, 0.96, "#ddf4b6", 0.2);
+hover.position.z = 0.2;
+hover.visible = false;
+scene.add(hover);
+const rangeGroup = new THREE.Group(),
+  moveGroup = new THREE.Group(),
+  pathGroup = new THREE.Group();
+scene.add(rangeGroup, moveGroup, pathGroup);
+const unitMeshes = new Map(),
+  effects = [];
+let game,
+  inspectedUnitId = null,
+  moveKey = "",
+  moveCells = new Set(),
+  paused = false,
+  speed = 1,
+  sound = false,
+  audioCtx,
+  toastTimer,
+  bannerTimer,
+  resultTimer,
+  frame = 0,
+  uiTimer = 0,
+  pointerCell = null,
+  rangeKey = "",
+  pathKey = "",
+  lastTime = performance.now(),
+  wallTime = 0;
+let best = 0;
+try {
+  best = Number(localStorage.getItem("friday-defense-best") || 0);
+} catch {}
+const baseSprite = imagePlane(textures.base, 1.36, 1.36);
+baseSprite.position.copy(pos(7, 5, 1));
+scene.add(baseSprite);
+const baseWhite = imagePlane(whiteTextures.base, 1.36);
+baseWhite.position.copy(pos(7, 5, 1.05));
+baseWhite.material.opacity = 0;
+scene.add(baseWhite);
+function motionState(sprite, white, size) {
+  return {
+    sprite,
+    white,
+    size,
+    hitTimer: 0,
+    hitDirection: new THREE.Vector2(0, 1),
+    attack: 0,
+    attackDuration: 0.3,
+    attackDirection: new THREE.Vector2(1, 0),
+  };
+}
+const baseMotion = motionState(baseSprite, baseWhite, 1.36);
+const combatVFX = new CombatVFX(scene, (unit) =>
+  unit === BASE
+    ? baseSprite.position.clone()
+    : unitMeshes.get(unit.id)?.group.position.clone() ||
+      pos(unit.x, unit.y, 1.1),
+);
+function textTexture(text, color = "#f3edc5", size = 24) {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 64;
+  const g = c.getContext("2d");
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.font = `800 ${size}px "Noto Sans SC",sans-serif`;
+  g.strokeStyle = "#203c2c";
+  g.lineWidth = 6;
+  g.strokeText(text, 128, 32);
+  g.fillStyle = color;
+  g.fillText(text, 128, 32);
+  return new THREE.CanvasTexture(c);
+}
+
+const baseGlow = plane(1.6, 1.6, "#d8d27c", 0.055);
+baseGlow.position.copy(pos(7, 5, 0.1));
+scene.add(baseGlow);
+const gateGroup = new THREE.Group();
+scene.add(gateGroup);
+let gateKey = "";
+function updateGates() {
+  const gates = game.currentWave().spawns,
+    key = JSON.stringify(gates.map(({ x, y }) => [x, y]));
+  if (key === gateKey) return;
+  gateKey = key;
+  for (const m of [...gateGroup.children]) {
+    m.material.map.dispose();
+    m.material.dispose();
+    m.removeFromParent();
+  }
+  for (const gate of gates) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 96;
+    const g = c.getContext("2d");
+    g.strokeStyle = "#e7a082";
+    g.globalAlpha = 0.6;
+    g.lineWidth = 3;
+    g.setLineDash([5, 6]);
+    g.strokeRect(9, 9, 78, 78);
+    g.setLineDash([]);
+    g.beginPath();
+    g.moveTo(30, 38);
+    g.lineTo(48, 54);
+    g.lineTo(66, 38);
+    g.stroke();
+    const m = imagePlane(new THREE.CanvasTexture(c), 0.88);
+    m.position.copy(pos(gate.x, gate.y, 0.15));
+    m.rotation.z = Math.atan2(7 - gate.x, 5 - gate.y);
+    gateGroup.add(m);
+  }
+}
+
+const fireflies = [];
+const glowTexture = (() => {
+  const c = document.createElement("canvas");
+  c.width = c.height = 32;
+  const g = c.getContext("2d"),
+    r = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  r.addColorStop(0, "#d5ff89");
+  r.addColorStop(0.2, "#a7ed66aa");
+  r.addColorStop(1, "#8ed85200");
+  g.fillStyle = r;
+  g.fillRect(0, 0, 32, 32);
+  return new THREE.CanvasTexture(c);
+})();
+for (let i = 0; i < 22; i++) {
+  const m = imagePlane(glowTexture, 0.1 + Math.random() * 0.1);
+  m.position.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 10, 2);
+  scene.add(m);
+  fireflies.push({
+    m,
+    x: m.position.x,
+    y: m.position.y,
+    phase: Math.random() * 10,
+  });
+}
+function resize() {
+  const w = arena.clientWidth,
+    h = arena.clientHeight,
+    compact = w <= 700;
+  const top = compact ? 122 : h < 540 ? 70 : 100,
+    bottom = compact ? 185 : h < 540 ? 155 : 195;
+  const scale = Math.min(
+    w / (compact ? 15.6 : 16.5),
+    Math.max(100, h - top - bottom) / 11.5,
+  );
+  const width = w / scale,
+    height = h / scale;
+  camera.left = -width / 2;
+  camera.right = width / 2;
+  camera.top = height / 2;
+  camera.bottom = -height / 2;
+  const nextOverviewY = (top - bottom) / (2 * scale);
+  camera.position.y += nextOverviewY - overviewY;
+  overviewY = nextOverviewY;
+  constrainCamera();
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+  renderer.setSize(w, h, false);
+}
+new ResizeObserver(resize).observe(arena);
+function constrainCamera() {
+  const halfWidth = (camera.right - camera.left) / (2 * camera.zoom);
+  const halfHeight = (camera.top - camera.bottom) / (2 * camera.zoom);
+  const limitX = Math.max(0.3, 7.5 - halfWidth + 0.5);
+  const limitY = Math.max(0.5, 5.5 - halfHeight + 2.3);
+  camera.position.x = THREE.MathUtils.clamp(camera.position.x, -limitX, limitX);
+  camera.position.y = THREE.MathUtils.clamp(
+    camera.position.y,
+    overviewY - limitY,
+    overviewY + limitY,
+  );
+  camera.updateMatrixWorld();
+}
+function worldFromScreen(clientX, clientY) {
+  const r = renderer.domElement.getBoundingClientRect();
+  return new THREE.Vector3(
+    ((clientX - r.left) / r.width) * 2 - 1,
+    (-(clientY - r.top) / r.height) * 2 + 1,
+    0,
+  ).unproject(camera);
+}
+function zoomAt(clientX, clientY, nextZoom) {
+  const before = worldFromScreen(clientX, clientY);
+  camera.zoom = THREE.MathUtils.clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
+  camera.updateProjectionMatrix();
+  const after = worldFromScreen(clientX, clientY);
+  camera.position.x += before.x - after.x;
+  camera.position.y += before.y - after.y;
+  constrainCamera();
+  hover.visible = false;
+}
+function overview() {
+  camera.zoom = MIN_ZOOM;
+  camera.position.set(0, overviewY, 20);
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+  hover.visible = false;
+}
+function toast(text) {
+  $("toast").textContent = text;
+  $("toast").classList.add("visible");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $("toast").classList.remove("visible"), 2600);
+}
+function banner(text) {
+  $("wave-banner").textContent = text;
+  $("wave-banner").classList.add("visible");
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(
+    () => $("wave-banner").classList.remove("visible"),
+    2200,
+  );
+}
+function tone(freq = 440, duration = 0.06, type = "sine", volume = 0.025) {
+  if (!sound) return;
+  try {
+    audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    const o = audioCtx.createOscillator(),
+      g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(volume, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    o.connect(g);
+    g.connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime + duration);
+  } catch {}
+}
+function floating(unit, text, color = "#fbefc3") {
+  const tex = textTexture(text, color, 29),
+    m = imagePlane(tex, 1.25, 0.32);
+  m.position.copy(pos(unit.x, unit.y - 0.45, 4));
+  scene.add(m);
+  effects.push({ m, life: 0.8, max: 0.8, vy: 0.65, texture: tex });
+}
+function burst(unit, color) {
+  for (let i = 0; i < 7; i++) {
+    const m = plane(0.07, 0.07, color);
+    m.position.copy(pos(unit.x, unit.y, 3));
+    scene.add(m);
+    const a = Math.random() * Math.PI * 2;
+    effects.push({
+      m,
+      life: 0.5,
+      max: 0.5,
+      vx: Math.cos(a) * 1.4,
+      vy: Math.sin(a) * 1.4,
+    });
+  }
+}
+function shoot(attack) {
+  const { source, target } = attack,
+    visual = unitMeshes.get(source.id) || addVisual(source);
+  syncWeapon(visual, source);
+  if (visual.weapon) {
+    const targetPosition =
+      unitMeshes.get(target.id)?.group.position || pos(target.x, target.y, 1.1);
+    visual.weapon.aimAt(targetPosition, true);
+    const muzzle = visual.weapon.muzzleWorld();
+    combatVFX.attack({ ...attack, muzzle });
+    visual.weapon.fire();
+  } else combatVFX.attack(attack);
+  visual.attackDuration = Math.max(0.25, attack.duration);
+  visual.attack = visual.attackDuration;
+  visual.attackDirection
+    .set(target.x - source.x, source.y - target.y)
+    .normalize();
+  visual.recoil = !!getWeaponSpec(source);
+}
+function applyMotion(v, dt, id = 0) {
+  v.hitTimer = Math.max(0, v.hitTimer - dt);
+  v.attack = Math.max(0, v.attack - dt);
+  const hit = v.hitTimer > 0 ? 1 - v.hitTimer / 0.32 : 1;
+  const shake =
+    Math.sin(hit * Math.PI * 4) * Math.exp(-hit * 4) * (v.hitTimer > 0 ? 1 : 0);
+  const swing =
+    v.attack > 0 ? Math.sin((1 - v.attack / v.attackDuration) * Math.PI) : 0;
+  const lunge = swing * (v.recoil ? -0.07 : 0.12);
+  v.sprite.position.x =
+    v.hitDirection.x * shake * 0.19 + v.attackDirection.x * lunge;
+  v.sprite.position.y =
+    v.hitDirection.y * shake * 0.19 +
+    v.attackDirection.y * lunge +
+    Math.sin(game.time * 2.7 + id) * 0.01;
+  v.sprite.rotation.z =
+    shake * 0.18 * (v.hitDirection.x >= 0 ? -1 : 1) -
+    v.attackDirection.x * swing * 0.1;
+  const squash = Math.max(0, shake) * 0.16;
+  v.sprite.scale.set(
+    v.size * (1 + squash + swing * 0.04),
+    v.size * (1 - squash - swing * 0.05),
+    1,
+  );
+  v.white.position.copy(v.sprite.position);
+  v.white.position.z += 0.012;
+  v.white.rotation.copy(v.sprite.rotation);
+  v.white.scale.copy(v.sprite.scale);
+  v.white.material.opacity =
+    v.hitTimer > 0.22 ? 0.92 : Math.max(0, v.hitTimer / 0.22) * 0.25;
+}
+function onEvent(e) {
+  if (e.type === "reset") inspectedUnitId = null;
+  if (e.type === "deploy" || e.type === "move") inspectedUnitId = null;
+  if (e.type === "select") inspectedUnitId = game.heroes[game.selected]?.id ?? null;
+  if (e.type === "toast") toast(e.text);
+  if (e.type === "attack") {
+    shoot(e);
+    if (e.source.side === "hero")
+      tone(e.kind === "orb" ? 660 : 330, 0.04, "triangle", 0.012);
+  }
+  if (e.type === "impact") combatVFX.land(e);
+  if (e.type === "spawn" || e.type === "deploy") addVisual(e.unit);
+  if (e.type === "hit") {
+    floating(
+      e.unit,
+      `−${e.damage}`,
+      e.unit.side === "enemy" ? "#fff0ba" : "#ffa393",
+    );
+    const v =
+      e.unit === BASE
+        ? baseMotion
+        : unitMeshes.get(e.unit.id) || addVisual(e.unit);
+    v.hitTimer = 0.32;
+    v.hitDirection
+      .set(
+        e.source ? e.unit.x - e.source.x : 0,
+        e.source ? e.source.y - e.unit.y : 1,
+      )
+      .normalize();
+    v.healthBar?.hit();
+    combatVFX.hit(e.unit, e.source);
+  }
+  if (e.type === "death") {
+    const v = unitMeshes.get(e.unit.id);
+    if (v) {
+      v.dying = 0.4;
+      v.deathScale = v.size;
+    }
+    combatVFX.death(e.unit, e.source);
+    if (e.unit.side !== "enemy") burst(e.unit, "#a5d8de");
+    if (e.unit.side === "enemy") tone(170, 0.045, "triangle", 0.009);
+    else
+      toast(
+        `${e.unit.name || "咖啡炮台"}已倒下${e.unit.name ? "，下一波归队" : ""}`,
+      );
+  }
+  if (e.type === "heal" || e.type === "upgrade") {
+    floating(
+      e.unit,
+      e.type === "heal" ? "+" + Math.ceil(e.amount) : "Lv." + e.unit.level,
+      "#ccec9c",
+    );
+    burst(e.unit, "#d6f4a0");
+    tone(650, 0.2);
+    if (e.useIcon) {
+      const map = new THREE.TextureLoader().load(iconURL(e.useIcon));
+      map.colorSpace = THREE.SRGBColorSpace;
+      const m = imagePlane(map, 0.6);
+      m.position.copy(pos(e.unit.x, e.unit.y - 0.4, 3.6));
+      scene.add(m);
+      effects.push({ m, texture: map, life: 0.65, max: 0.65, vy: 0.4 });
+    }
+  }
+  if (e.type === "equip") {
+    floating(e.unit, cards[e.card].name, "#e7c0fa");
+    burst(e.unit, "#c7ace8");
+    combatVFX.shield(e.unit);
+  }
+  if (e.type === "lifeSteal")
+    floating(e.unit, "+" + Math.ceil(e.amount), "#bdd994");
+  if (e.type === "cardImpact") {
+    combatVFX.castCard(e.visual, e.x, e.y, e.radius);
+    const map = new THREE.TextureLoader().load(iconURL(e.useIcon));
+    map.colorSpace = THREE.SRGBColorSpace;
+    const m = imagePlane(map, 0.8);
+    m.position.copy(pos(e.x, e.y, 3.6));
+    scene.add(m);
+    effects.push({ m, texture: map, life: 0.5, max: 0.5, vy: 0.3 });
+  }
+  if (e.type === "wave") {
+    banner(`第 ${e.day} 天 · 第 ${e.wave} 波`);
+    tone(220, 0.25, "triangle");
+  }
+  if (e.type === "clear") {
+    banner(`第 ${e.day} 天 · 守住了！`);
+    tone(880, 0.3);
+  }
+  if (e.type === "build") burst(e.unit, "#eddaa1");
+  if (e.type === "end") {
+    resultTimer = setTimeout(() => showResult(e.won), 500);
+  }
+  if (e.type === "select") tone(550, 0.05);
+  uiTimer = 1;
+}
+game = new Game(onEvent);
+$("base-avatar").src = artUrls.base;
+const cardUI = new CardUI({
+  game,
+  canInteract: () => !paused && !["reward", "won", "lost"].includes(game.phase),
+  onSelect: () => {
+    rangeKey = "";
+    uiTimer = 1;
+  },
+  onAim: previewCard,
+  onDrop: (key, e) => {
+    const p = cellFromEvent(e);
+    return game.playCard(key, p.x, p.y);
+  },
+});
+const cardRange = new THREE.Group();
+scene.add(cardRange);
+function previewCard(e) {
+  clearGroup(cardRange);
+  if (!e || !cardUI.activeKey) {
+    hover.visible = false;
+    return;
+  }
+  const { x, y } = cellFromEvent(e),
+    c = cards[cardUI.activeKey];
+  const valid = game.cardTarget(cardUI.activeKey, x, y).valid;
+  hover.visible = inside(x, y);
+  hover.position.copy(pos(x, y, 0.2));
+  hover.material.color.set(valid ? "#94d58d" : "#d16b63");
+  const radius = cardRadius(c);
+  for (let yy = y - radius; yy <= y + radius; yy++)
+    for (let xx = x - radius; xx <= x + radius; xx++)
+      if (inside(xx, yy) && dist({ x, y }, { x: xx, y: yy }) <= radius) {
+        const m = plane(0.92, 0.92, valid ? "#94d58d" : "#d16b63", 0.23);
+        m.position.copy(pos(xx, yy, 0.22));
+        cardRange.add(m);
+      }
+  return valid;
+}
+function inspectedUnit() {
+  return [...game.heroes, ...game.towers, ...game.enemies].find(
+    (u) => u.id === inspectedUnitId && u.hp > 0,
+  );
+}
+function updateInspector() {
+  const unit = inspectedUnit();
+  $("unit-inspector").hidden = !unit;
+  if (!unit) return;
+  const movable = game.heroes.includes(unit);
+  $("unit-inspector").dataset.side = unit.side;
+  $("unit-side").textContent = unit.side === "enemy" ? "敌方" : movable ? "我方英雄" : "我方建筑";
+  $("unit-name").textContent = unit.name || "咖啡炮台";
+  const src = iconURL(unit.useIcon || unit.type, true);
+  if ($("unit-icon").getAttribute("src") !== src) $("unit-icon").src = src;
+  $("unit-atk").textContent = Math.round(unit.atk);
+  $("unit-hp").textContent = `${Math.ceil(unit.hp)} / ${Math.round(unit.maxHp)}`;
+  $("unit-rate").textContent = unit.rate.toFixed(1);
+  $("unit-range").textContent = Math.round(unit.range);
+  $("unit-move-hint").hidden = !movable || !!cardUI.activeKey;
+}
+function updateUI() {
+  updateInspector();
+  updateGates();
+  $("kills").textContent = game.kills;
+  $("base-hp").textContent = Math.ceil(game.baseHp) + " / " + game.baseMaxHp;
+  $("base-health").style.width = (game.baseHp / game.baseMaxHp) * 100 + "%";
+  waveProgress.update(game);
+  $("start").hidden = !["ready", "between"].includes(game.phase);
+  $("start").disabled = !["ready", "between"].includes(game.phase) || paused;
+  $("start-label").textContent =
+    "⚑ 开始今天";
+  $("pause").textContent = paused ? "▶" : "Ⅱ";
+  $("speed").textContent = speed + "×";
+  const c = cards[cardUI.activeKey];
+  $("map-hint").textContent =
+    paused && !$("dialog").open
+      ? "Ⅱ 暂停"
+      : c
+        ? c.name +
+          " · " +
+          (c.target === "hero"
+            ? "选择我方英雄"
+            : c.target === "ground"
+              ? "放置到空地"
+              : "选择敌人") +
+          " · Esc 取消"
+        : !game.heroes.length
+          ? "拖入英雄 · 守护下班打卡机"
+          : "";
+  $("map-hint").classList.toggle("paused", paused && !$("dialog").open);
+  cardUI.render();
+}
+const customUnitTextures = new Map();
+function unitTexturePair(u) {
+  const icon = u.useIcon || u.type;
+  if (textures[icon])
+    return { normal: textures[icon], white: whiteTextures[icon] };
+  if (!customUnitTextures.has(icon)) {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 128;
+    const white = document.createElement("canvas");
+    white.width = white.height = 128;
+    const pair = {
+      normal: new THREE.CanvasTexture(canvas),
+      white: new THREE.CanvasTexture(white),
+    };
+    pair.normal.colorSpace = pair.white.colorSpace = THREE.SRGBColorSpace;
+    const img = new Image();
+    img.onload = () => {
+      canvas.getContext("2d").drawImage(img, 0, 0, 128, 128);
+      const g = white.getContext("2d");
+      g.drawImage(img, 0, 0, 128, 128);
+      g.globalCompositeOperation = "source-in";
+      g.fillStyle = "#fff7dd";
+      g.fillRect(0, 0, 128, 128);
+      pair.normal.needsUpdate = pair.white.needsUpdate = true;
+    };
+    img.src = iconURL(icon);
+    customUnitTextures.set(icon, pair);
+  }
+  return customUnitTextures.get(icon);
+}
+function syncAppearance(v, u) {
+  const pair = unitTexturePair(u);
+  if (v.sprite.material.map !== pair.normal) {
+    v.sprite.material.map = pair.normal;
+    v.sprite.material.needsUpdate = true;
+    v.white.material.map = pair.white;
+    v.white.material.needsUpdate = true;
+  }
+}
+function addVisual(u) {
+  if (unitMeshes.has(u.id)) return unitMeshes.get(u.id);
+  const group = new THREE.Group(),
+    sprite = imagePlane(
+      unitTexturePair(u).normal,
+      u.type === "boss" ? 1.1 : 0.91,
+    );
+  sprite.position.z = 0.03;
+  group.add(sprite);
+  const white = imagePlane(
+    unitTexturePair(u).white,
+    u.type === "boss" ? 1.1 : 0.91,
+  );
+  white.position.z = 0.042;
+  white.material.opacity = 0;
+  group.add(white);
+  const healthBar = new HealthBar(group, u, u.type === "boss" ? 1.1 : 0.91);
+  group.position.copy(pos(u.x, u.y, 1.1));
+  scene.add(group);
+  const v = {
+    group,
+    healthBar,
+    dying: 0,
+    ...motionState(sprite, white, u.type === "boss" ? 1.1 : 0.91),
+  };
+  syncWeapon(v, u);
+  unitMeshes.set(u.id, v);
+  return v;
+}
+function syncWeapon(visual, unit) {
+  if (visual.weapon?.id === unit.weapon) return;
+  visual.weapon?.dispose();
+  visual.weapon = getWeaponSpec(unit)
+    ? new WeaponRig(unit.weapon, visual.group)
+    : null;
+}
+function clearGroup(group) {
+  while (group.children.length) {
+    const m = group.children[0];
+    group.remove(m);
+    m.material.dispose();
+  }
+}
+function updateRanges() {
+  const h = inspectedUnit();
+  if (!h || cardUI.activeKey) {
+    selection.visible = selectionOutline.visible = false;
+    clearGroup(rangeGroup);
+    clearGroup(pathGroup);
+    clearGroup(moveGroup);
+    moveCells.clear();
+    rangeKey = pathKey = moveKey = "";
+    return;
+  }
+  const movable = game.heroes.includes(h);
+  const occupancy = [...game.heroes, ...game.enemies, ...game.towers]
+    .filter((u) => u.hp > 0).map((u) => `${u.x},${u.y}`).join("|");
+  const nextMoveKey = `${h.id}:${h.x},${h.y}:${occupancy}`;
+  if (nextMoveKey !== moveKey) {
+    moveKey = nextMoveKey;
+    clearGroup(moveGroup);
+    const cells = movable ? game.reachableCells(h) : [];
+    moveCells = new Set(cells.map((p) => `${p.x},${p.y}`));
+    for (const p of cells) {
+      const m = plane(0.94, 0.94, "#a8dc86", 0.2);
+      m.position.copy(pos(p.x, p.y, 0.11));
+      moveGroup.add(m);
+    }
+  }
+  const key = `${h.id},${h.x},${h.y},${h.range},${h.hp > 0}`;
+  if (key !== rangeKey) {
+    rangeKey = key;
+    clearGroup(rangeGroup);
+    if (h.hp > 0)
+      for (let y = 0; y < H; y++)
+        for (let x = 0; x < W; x++)
+          if (dist(h, { x, y }) <= h.range && !obstacles.has(`${x},${y}`)) {
+            const m = plane(0.95, 0.95, h.side === "enemy" ? "#b46c61" : "#c0dba1", 0.07);
+            m.position.copy(pos(x, y, 0.1));
+            rangeGroup.add(m);
+          }
+  }
+  const path = movable ? h.path : [];
+  const pkey = path.map((p) => `${p.x},${p.y}`).join("|");
+  if (pkey !== pathKey) {
+    pathKey = pkey;
+    clearGroup(pathGroup);
+    path.forEach((p, i) => {
+      const m = plane(
+        i === path.length - 1 ? 0.22 : 0.09,
+        i === path.length - 1 ? 0.22 : 0.09,
+        "#e8f5b3",
+        0.65,
+      );
+      m.position.copy(pos(p.x, p.y, 0.3));
+      m.rotation.z = Math.PI / 4;
+      pathGroup.add(m);
+    });
+  }
+  const v = unitMeshes.get(h.id);
+  selection.material.color.set(h.side === "enemy" ? "#cf8071" : "#d7efa2");
+  selectionOutline.material.color.set(h.side === "enemy" ? "#e8a29a" : "#ffffff");
+  selection.visible = h.hp > 0;
+  selectionOutline.visible = h.hp > 0 && h.side === "enemy";
+  if (v) {
+    selection.position.set(v.group.position.x, v.group.position.y, 0.12);
+    selectionOutline.position.set(v.group.position.x, v.group.position.y, 0.16);
+  }
+}
+function cellFromEvent(e) {
+  const v = worldFromScreen(e.clientX, e.clientY);
+  return { x: Math.round(v.x + 7), y: Math.round(5 - v.y) };
+}
+function clickCell(x, y) {
+  if (["won", "lost", "reward"].includes(game.phase)) return;
+  if (!inside(x, y)) return;
+  if (cardUI.activeKey) {
+    if (paused) return;
+    if (game.playCard(cardUI.activeKey, x, y)) cardUI.cancel();
+  } else {
+    const idx = game.heroes.findIndex(
+      (h) => h.hp > 0 && h.x === x && h.y === y,
+    );
+    if (idx >= 0) {
+      if (inspectedUnitId === game.heroes[idx].id) inspectedUnitId = null;
+      else game.select(idx);
+    }
+    else {
+      const unit = [...game.towers, ...game.enemies].find(
+        (u) => u.hp > 0 && u.x === x && u.y === y,
+      );
+      if (unit) inspectedUnitId = inspectedUnitId === unit.id ? null : unit.id;
+      else if (!paused && inspectedUnitId === game.heroes[game.selected]?.id)
+        game.move(x, y);
+    }
+  }
+  updateUI();
+}
+const pointers = new Map();
+let gesture = null;
+const midpoint = (points) => ({
+  x: (points[0].x + points[1].x) / 2,
+  y: (points[0].y + points[1].y) / 2,
+});
+const separation = (points) =>
+  Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+renderer.domElement.addEventListener(
+  "wheel",
+  (e) => {
+    e.preventDefault();
+    if ($("dialog").open || $("reward-dialog").open) return;
+    const delta =
+      e.deltaY *
+      (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? arena.clientHeight : 1);
+    zoomAt(
+      e.clientX,
+      e.clientY,
+      camera.zoom * Math.exp(-THREE.MathUtils.clamp(delta, -300, 300) * 0.0015),
+    );
+  },
+  { passive: false },
+);
+renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
+renderer.domElement.addEventListener("pointermove", (e) => {
+  if (pointers.has(e.pointerId)) {
+    const previous = [...pointers.values()];
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const current = [...pointers.values()];
+    if (current.length >= 2) {
+      gesture.dragged = true;
+      const from = midpoint(previous),
+        to = midpoint(current);
+      const anchor = worldFromScreen(from.x, from.y);
+      const distance = separation(previous);
+      if (distance > 1)
+        zoomAt(from.x, from.y, (camera.zoom * separation(current)) / distance);
+      const moved = worldFromScreen(to.x, to.y);
+      camera.position.x += anchor.x - moved.x;
+      camera.position.y += anchor.y - moved.y;
+      constrainCamera();
+    } else if (gesture) {
+      if (
+        Math.hypot(e.clientX - gesture.startX, e.clientY - gesture.startY) > 5
+      )
+        gesture.dragged = true;
+      if (gesture.dragged) {
+        const from = worldFromScreen(gesture.lastX, gesture.lastY),
+          to = worldFromScreen(e.clientX, e.clientY);
+        camera.position.x += from.x - to.x;
+        camera.position.y += from.y - to.y;
+        constrainCamera();
+      }
+    }
+    gesture.lastX = e.clientX;
+    gesture.lastY = e.clientY;
+    if (gesture.dragged) {
+      arena.classList.add("panning");
+      hover.visible = false;
+      return;
+    }
+  }
+  if (cardUI.activeKey) {
+    previewCard(e);
+    return;
+  }
+  pointerCell = cellFromEvent(e);
+  const { x, y } = pointerCell;
+  hover.visible = inside(x, y);
+  hover.position.copy(pos(x, y, 0.2));
+  hover.material.color.set(
+    moveCells.has(`${x},${y}`) ? "#94d58d" : game.blocked(x, y, null, true) ? "#c88779" : "#d6eeb7",
+  );
+});
+renderer.domElement.addEventListener("pointerleave", () => {
+  hover.visible = false;
+  clearGroup(cardRange);
+  pointerCell = null;
+});
+renderer.domElement.addEventListener("pointerdown", (e) => {
+  if (e.button > 2 || $("dialog").open) return;
+  e.preventDefault();
+  renderer.domElement.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1)
+    gesture = {
+      startX: e.clientX,
+      startY: e.clientY,
+      lastX: e.clientX,
+      lastY: e.clientY,
+      dragged: false,
+      button: e.button,
+    };
+  else gesture.dragged = true;
+});
+function releasePointer(e, cancelled = false) {
+  if (!pointers.has(e.pointerId)) return;
+  const tap =
+    !cancelled &&
+    pointers.size === 1 &&
+    gesture &&
+    !gesture.dragged &&
+    gesture.button === 0;
+  pointers.delete(e.pointerId);
+  if (renderer.domElement.hasPointerCapture(e.pointerId))
+    renderer.domElement.releasePointerCapture(e.pointerId);
+  if (!pointers.size) {
+    gesture = null;
+    arena.classList.remove("panning");
+  } else {
+    const point = [...pointers.values()][0];
+    gesture.lastX = point.x;
+    gesture.lastY = point.y;
+    gesture.dragged = true;
+  }
+  if (tap) {
+    const { x, y } = cellFromEvent(e);
+    clickCell(x, y);
+  }
+}
+renderer.domElement.addEventListener("pointerup", (e) => releasePointer(e));
+renderer.domElement.addEventListener("pointercancel", (e) =>
+  releasePointer(e, true),
+);
+renderer.domElement.addEventListener("lostpointercapture", (e) =>
+  releasePointer(e, true),
+);
+function togglePause() {
+  if (["won", "lost"].includes(game.phase)) return;
+  paused = !paused;
+  updateUI();
+}
+$("start").onclick = () => {
+  game.startDay();
+  updateUI();
+};
+$("pause").onclick = togglePause;
+$("speed").onclick = () => {
+  speed = speed === 1 ? 2 : 1;
+  updateUI();
+};
+$("sound").onclick = () => {
+  sound = !sound;
+  $("sound").innerHTML = sound ? "♫" : '♫<span class="sound-slash">/</span>';
+  $("sound").setAttribute("aria-label", sound ? "关闭声音" : "开启声音");
+  $("sound").title = sound ? "关闭声音" : "开启声音";
+  tone(600, 0.1);
+};
+document.addEventListener("keydown", (e) => {
+  if ($("dialog").open) return;
+  if (
+    ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(
+      e.code,
+    )
+  )
+    e.preventDefault();
+  if (e.code === "Space") togglePause();
+
+  if (e.code === "Digit0" || e.code === "Home") overview();
+  if (e.code === "Escape") {
+    cardUI.cancel();
+    updateUI();
+  }
+  if (["Digit1", "Digit2", "Digit3"].includes(e.code)) {
+    cardUI.cancel();
+    game.select(Number(e.code.at(-1)) - 1);
+  }
+  const dirs = {
+    KeyW: [0, -1],
+    ArrowUp: [0, -1],
+    KeyS: [0, 1],
+    ArrowDown: [0, 1],
+    KeyA: [-1, 0],
+    ArrowLeft: [-1, 0],
+    KeyD: [1, 0],
+    ArrowRight: [1, 0],
+  };
+  if (dirs[e.code] && !paused && !["won", "lost"].includes(game.phase)) {
+    const h = game.heroes[game.selected],
+      d = dirs[e.code];
+    if (h && h.id === inspectedUnitId) game.move(h.x + d[0], h.y + d[1]);
+  }
+  updateUI();
+});
+let modalWasPaused = false;
+function openDialog(content) {
+  modalWasPaused = paused;
+  paused = true;
+  $("dialog-content").innerHTML = content;
+  $("dialog").showModal();
+  updateUI();
+}
+function closeDialog() {
+  $("dialog").close();
+  paused = modalWasPaused;
+  updateUI();
+}
+$("close-dialog").onclick = closeDialog;
+$("dialog").addEventListener("cancel", (e) => {
+  e.preventDefault();
+  closeDialog();
+});
+$("help").onclick = () =>
+  openDialog(
+    `<h2>操作</h2><div class="help-row"><b>1 / 2 / 3</b><span>选择英雄</span></div><div class="help-row"><b>点击地面 / WASD</b><span>移动 · 自动攻击</span></div><div class="help-row"><b>滚轮 / 双指</b><span>缩放</span></div><div class="help-row"><b>拖动 / 0</b><span>移动视野 / 全图</span></div><div class="help-row"><b>拖拽卡牌</b><span>英雄放空地 · 资源与装备给英雄</span></div><div class="help-row"><b>战斗牌 / Esc</b><span>攻击敌人 / 取消选牌</span></div><div class="help-row"><b>空格</b><span>暂停</span></div><button class="primary-button" id="understood">继续</button>`,
+  );
+$("dialog-content").addEventListener("click", (e) => {
+  if (e.target.closest("#understood")) closeDialog();
+  if (e.target.closest("#confirm-restart") || e.target.closest("#play-again")) {
+    closeDialog();
+    reset();
+  }
+});
+$("restart").onclick = () =>
+  openDialog(
+    `<div class="result-icon">↻</div><h2>重新开局？</h2><button class="primary-button" id="confirm-restart">重开</button>`,
+  );
+function showResult(won) {
+  best = Math.max(best, game.kills);
+  try {
+    localStorage.setItem("friday-defense-best", String(best));
+  } catch {}
+  openDialog(
+    `<div class="result-icon">${won ? "✳" : "☂"}</div><h2>${won ? "准时下班！" : "被迫加班…"}</h2><div class="result-stats"><div><b>${game.day + 1}/${days.length}</b><span>天数</span></div><div><b>${game.kills}</b><span>击退</span></div><div><b>${best}</b><span>最佳</span></div></div><button id="play-again" class="primary-button">再来</button>`,
+  );
+}
+function reset() {
+  clearTimeout(resultTimer);
+  for (const v of unitMeshes.values()) {
+    v.weapon?.dispose();
+    v.healthBar.dispose();
+    scene.remove(v.group);
+    v.group.children.forEach((m) => m.material.dispose());
+  }
+  unitMeshes.clear();
+  for (const pair of customUnitTextures.values()) {
+    pair.normal.dispose();
+    pair.white.dispose();
+  }
+  customUnitTextures.clear();
+  gateKey = "";
+  for (const e of effects) {
+    scene.remove(e.m);
+    e.m.material.dispose();
+    e.texture?.dispose();
+  }
+  effects.length = 0;
+  combatVFX.reset();
+  baseMotion.hitTimer = baseMotion.attack = 0;
+  baseSprite.position.copy(pos(7, 5, 1));
+  baseSprite.rotation.z = 0;
+  baseSprite.scale.set(1.36, 1.36, 1);
+  baseWhite.material.opacity = 0;
+  paused = false;
+  speed = 1;
+  rangeKey = pathKey = "";
+  game.reset();
+  cardUI.reset();
+  clearTimeout(bannerTimer);
+  $("wave-banner").classList.remove("visible");
+  clearGroup(pathGroup);
+  updateUI();
+  toast("重新出发");
+}
+function animate(now) {
+  requestAnimationFrame(animate);
+  const realDt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  wallTime += realDt;
+  const dt = paused || game.phase === "reward" ? 0 : realDt * speed;
+  if (dt) {
+    let left = dt;
+    while (left > 0) {
+      const step = Math.min(left, 0.025);
+      combatVFX.update(step);
+      game.tick(step);
+      left -= step;
+    }
+  }
+  const alive = [...game.heroes, ...game.enemies, ...game.towers].filter(
+      (u) => u.hp > 0,
+    ),
+    ids = new Set(alive.map((u) => u.id));
+  for (const [id, v] of unitMeshes)
+    if (!ids.has(id)) {
+      v.dying = Math.max(0, (v.dying || 0.4) - dt);
+      const progress = 1 - v.dying / 0.4;
+      v.sprite.rotation.z = v.hitDirection.x * 0.3 + progress * 0.75;
+      v.sprite.position.y = -progress * 0.16;
+      v.sprite.scale.setScalar(v.size * (1 + progress * 0.18));
+      v.sprite.material.opacity = 1 - progress;
+      v.white.material.opacity = (1 - progress) * 0.65;
+      v.white.position.copy(v.sprite.position);
+      v.white.position.z += 0.012;
+      v.white.rotation.copy(v.sprite.rotation);
+      v.white.scale.copy(v.sprite.scale);
+      v.healthBar.update(0, v.healthBar.maxHp, dt);
+      v.healthBar.mesh.material.opacity *= 1 - progress;
+      v.weapon?.setOpacity(1 - progress);
+      if (v.dying <= 0) {
+        v.weapon?.dispose();
+        v.healthBar.dispose();
+        scene.remove(v.group);
+        v.group.children.forEach((m) => m.material.dispose());
+        unitMeshes.delete(id);
+      }
+    }
+  for (const u of alive) {
+    const v = unitMeshes.get(u.id) || addVisual(u),
+      target = pos(u.x, u.y, 1.1);
+    v.dying = 0;
+    v.sprite.material.opacity = 1;
+    v.group.position.lerp(target, Math.min(1, dt * 15));
+    v.group.position.z = 1.1 + u.y * 0.005;
+    v.healthBar.update(u.hp, u.maxHp, dt, u.level || 0, u.equipment || []);
+    applyMotion(v, dt, u.id);
+    syncAppearance(v, u);
+    syncWeapon(v, u);
+    if (v.weapon) {
+      const candidates =
+        u.side === "enemy"
+          ? [...game.heroes, ...game.towers]
+              .filter((h) => h.hp > 0)
+              .concat(BASE)
+          : game.enemies.filter((e) => e.hp > 0);
+      const targetUnit = candidates
+        .filter((t) => dist(u, t) <= u.range)
+        .sort((a, b) => dist(u, a) - dist(u, b))[0];
+      const targetPoint = targetUnit
+        ? unitMeshes.get(targetUnit.id)?.group.position ||
+          pos(targetUnit.x, targetUnit.y, 1.1)
+        : null;
+      v.weapon.setOpacity(1);
+      v.weapon.update(
+        dt,
+        targetPoint,
+        1 - Math.max(0, u.cooldown) * u.rate,
+        v.sprite.position,
+      );
+    }
+  }
+  applyMotion(baseMotion, dt);
+  updateRanges();
+  selection.material.opacity = 0.11 + Math.sin(wallTime * 3) * 0.035;
+  baseGlow.material.opacity = 0.05 + Math.sin(wallTime * 2) * 0.018;
+  for (let i = effects.length - 1; i >= 0; i--) {
+    const e = effects[i];
+    e.life -= dt;
+    e.m.position.y += (e.vy || 0) * dt;
+    e.m.position.x += (e.vx || 0) * dt;
+    e.m.material.transparent = true;
+    e.m.material.opacity = Math.max(0, e.life / e.max);
+    if (e.life <= 0) {
+      scene.remove(e.m);
+      e.m.material.dispose();
+      e.texture?.dispose();
+      effects.splice(i, 1);
+    }
+  }
+  for (const f of fireflies) {
+    f.m.position.x = f.x + Math.sin(wallTime * 0.4 + f.phase) * 0.17;
+    f.m.position.y = f.y + Math.cos(wallTime * 0.35 + f.phase) * 0.12;
+    f.m.material.opacity = 0.45 + Math.sin(wallTime + f.phase) * 0.35;
+  }
+  uiTimer += realDt;
+  if (uiTimer > 0.12) {
+    uiTimer = 0;
+    updateUI();
+  }
+  frame++;
+  renderer.render(scene, camera);
+}
+subscribeConfig((config, mode) => {
+  cardUI.cancel();
+  if (mode === "restart") {
+    $("dialog").close();
+    $("reward-dialog").close();
+    game.config = config;
+    reset();
+  } else {
+    game.applyConfig(config);
+    if ($("reward-dialog").open) $("reward-dialog").close();
+    cardUI.signature = "";
+    rangeKey = "";
+    updateUI();
+    toast("配置已同步");
+  }
+});
+if (configLoadError) toast(configLoadError);
+updateUI();
+resize();
+requestAnimationFrame(animate);
+if (import.meta.env.DEV)
+  window.__game = {
+    snapshot: () => ({
+      ...game.snapshot(),
+      paused,
+      speed,
+      selectedCard: cardUI.activeKey,
+      inspectedUnitId,
+      movableCells: [...moveCells],
+      frames: frame,
+      camera: { zoom: camera.zoom, x: camera.position.x, y: camera.position.y },
+      combat: combatVFX.snapshot(),
+      weapons: [...unitMeshes.entries()]
+        .filter(([, v]) => v.weapon)
+        .map(([id, v]) => ({ id, ...v.weapon.snapshot() })),
+      healthBars: [...unitMeshes.entries()].map(([id, v]) => ({
+        id,
+        ...v.healthBar.snapshot(),
+      })),
+      hitAnimations: [...unitMeshes.entries()]
+        .filter(([, v]) => v.hitTimer > 0)
+        .map(([id, v]) => ({
+          id,
+          time: v.hitTimer,
+          x: v.sprite.position.x,
+          y: v.sprite.position.y,
+          flash: v.white.material.opacity,
+        })),
+    }),
+    clickCell,
+    advance: (seconds) => {
+      for (let t = 0; t < seconds; t += 0.025) {
+        combatVFX.update(0.025);
+        game.tick(0.025);
+      }
+      updateUI();
+    },
+    cellToScreen: (x, y) => {
+      const p = pos(x, y).project(camera),
+        r = renderer.domElement.getBoundingClientRect();
+      return {
+        x: r.left + ((p.x + 1) * r.width) / 2,
+        y: r.top + ((1 - p.y) * r.height) / 2,
+      };
+    },
+  };

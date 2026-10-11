@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#233b2b" />
+    <title>规则工坊 · 周五保卫战</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <div id="config-app">
+      <header class="workshop-header">
+        <div>
+          <a href="/" target="_blank" rel="noopener" class="back-game"
+            >↗ 返回战场</a
+          >
+          <h1>规则工坊 <span>周五保卫战</span></h1>
+        </div>
+        <div class="toolbar">
+          <button id="import-config">导入配置</button
+          ><input
+            id="import-file"
+            type="file"
+            accept="application/json,.json"
+            hidden
+          /><button id="export-config">导出配置</button
+          ><button id="save-config" class="primary">保存并同步</button
+          ><button id="save-restart">保存并重开</button>
+        </div>
+      </header>
+      <div class="workspace">
+        <aside class="workshop-nav">
+          <div class="nav-caption">游戏内容</div>
+          <nav id="sections"></nav>
+          <div class="migration-note">
+            <b>带着规则去另一台设备</b>
+            <p>导出 JSON → 另一台设备导入并保存。图片随文件一起迁移。</p>
+            <button id="restore-defaults">恢复默认草稿</button>
+          </div>
+        </aside>
+        <main class="workshop-main">
+          <div class="document-bar">
+            <label>配置名称 <input id="config-name" maxlength="80" /></label
+            ><span id="save-state" role="status">已保存</span>
+          </div>
+          <p class="sync-note">
+            保存后，同源游戏页面立即同步。已部署单位按生命比例更新；初始手牌在新开局生效。需要完整应用初始配置时，选择「保存并重开」。
+          </p>
+          <div id="config-message" role="status" hidden></div>
+          <div id="editor"></div>
+        </main>
+      </div>
+    </div>
+    <script type="module" src="/src/config/editor.js"></script>
+  </body>
+</html>

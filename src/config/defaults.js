@@ -1,4 +1,8 @@
+import { CATGIRL_CARD, HERO_CONTENT_VERSION } from "./hero-content.js";
+import { migrateLevelGrowth } from "../level-stats.js";
+import { migrateTerrain } from "../terrain.js";
 export const DEFAULT_CONFIG = {
+  "heroContentVersion": HERO_CONTENT_VERSION,
   "version": 2,
   "name": "周五保卫战 · 默认规则",
   "initial": {
@@ -7,6 +11,7 @@ export const DEFAULT_CONFIG = {
       "hero_blue": 1,
       "hero_green": 1,
       "hero_purple": 1,
+      "hero_catgirl": 1,
       "training": 2,
       "coffee": 2,
       "tower": 1,
@@ -18,7 +23,6 @@ export const DEFAULT_CONFIG = {
     "levelGrowth": {
       "maxHp": 65,
       "atk": 12,
-      "rate": 0.1,
       "heal": 100
     },
     "waveHeal": 0.25,
@@ -44,7 +48,52 @@ export const DEFAULT_CONFIG = {
         "rate": 1.4,
         "weapon": "",
         "speed": 5.2631578947368425
-      }
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "battleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "level",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "name": "越战越勇",
+          "enabled": true,
+          "trigger": {
+            "event": "heroBattleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "stat",
+              "stat": "speed",
+              "mode": "add",
+              "value": 0.5,
+              "duration": "day"
+            }
+          ]
+        }
+      ]
     },
     "hero_green": {
       "name": "小叶",
@@ -64,7 +113,32 @@ export const DEFAULT_CONFIG = {
         "range": 4,
         "rate": 1.3,
         "speed": 5.2631578947368425
-      }
+      },
+      "triggerRules": [
+        {
+          "name": "并肩作战",
+          "enabled": true,
+          "trigger": {
+            "event": "battleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "selfAndNearest",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "stat",
+              "stat": "rate",
+              "mode": "add",
+              "value": 0.2,
+              "duration": "day"
+            }
+          ]
+        }
+      ]
     },
     "hero_purple": {
       "name": "咕咕",
@@ -84,8 +158,30 @@ export const DEFAULT_CONFIG = {
         "range": 3,
         "rate": 0.8,
         "speed": 5.2631578947368425
-      }
+      },
+      "triggerRules": [
+        {
+          "name": "战意回响",
+          "enabled": true,
+          "trigger": {
+            "event": "battleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "nearest",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "triggerBattleStart"
+            }
+          ]
+        }
+      ]
     },
+    "hero_catgirl": structuredClone(CATGIRL_CARD),
     "training": {
       "name": "实战心得",
       "category": "resource",
@@ -1441,3 +1537,5 @@ export const DEFAULT_CONFIG = {
     }
   ]
 };
+migrateLevelGrowth(DEFAULT_CONFIG);
+migrateTerrain(DEFAULT_CONFIG);

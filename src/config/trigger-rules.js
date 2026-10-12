@@ -1,0 +1,46 @@
+// Event, source filter, target selection and payload are independent registries.
+export const triggerEvents = {
+  battleStart: "开战（点击迎战）",
+  heroBattleStart: "英雄触发开战效果后",
+};
+export const triggerScopes = { any: "任意英雄（含自身）", self: "仅自身", others: "其他英雄" };
+export const triggerTargets = {
+  self: "自身", nearest: "最近的其他英雄", selfAndNearest: "自身 + 最近的其他英雄",
+  allAllies: "范围内所有英雄（含自身）", eventHero: "触发事件的英雄",
+};
+export const triggerEffects = {
+  level: { label: "提升等级", defaults: { value: 1 } },
+  heal: { label: "恢复生命", defaults: { value: 50 } },
+  stat: { label: "属性加成", defaults: { stat: "rate", mode: "add", value: 0.2, duration: "day" } },
+  triggerBattleStart: { label: "额外触发一次开战效果", defaults: {} },
+};
+export const newTriggerRule = () => ({
+  name: "开战成长", enabled: true,
+  trigger: { event: "battleStart", scope: "any", radius: -1 },
+  target: { kind: "self", radius: -1, count: 1 },
+  effects: [{ type: "level", value: 1 }],
+});
+export function defaultHeroRules(key) {
+  const rule = newTriggerRule();
+  if (key === "hero_blue") return [rule, {
+    ...newTriggerRule(), name: "越战越勇",
+    trigger: { event: "heroBattleStart", scope: "any", radius: -1 },
+    effects: [{ type: "stat", stat: "speed", mode: "add", value: 0.5, duration: "day" }],
+  }];
+  if (key === "hero_green") return [{
+    ...rule, name: "并肩作战", target: { kind: "selfAndNearest", radius: -1, count: 1 },
+    effects: [{ type: "stat", stat: "rate", mode: "add", value: 0.2, duration: "day" }],
+  }];
+  if (key === "hero_purple") return [{
+    ...rule, name: "战意回响", target: { kind: "nearest", radius: -1, count: 1 },
+    effects: [{ type: "triggerBattleStart" }],
+  }];
+  return [];
+}
+export function migrateHeroRules(c) {
+  if (c?.version === 2 && c.cards && typeof c.cards === "object")
+    for (const [key, card] of Object.entries(c.cards))
+      if (card?.category === "hero" && card.triggerRules === undefined)
+        card.triggerRules = defaultHeroRules(key);
+  return c;
+}

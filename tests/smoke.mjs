@@ -164,8 +164,32 @@ try {
       throw new Error("card VFX must release all meshes");
     vfx.castCard("lightning", 7, 5, 0);
     vfx.reset();
+    const upgrading = { id: 99, x: 7, y: 5 };
+    vfx.upgrade(upgrading);
+    vfx.update(0.2);
+    const upgrade = vfx.effects[0];
+    const upgradeScale = upgrade.mesh.scale.y;
+    const upgradeAge = upgrade.age;
+    vfx.update(0);
+    const upgradePaused = upgrade.age === upgradeAge && upgrade.mesh.scale.y === upgradeScale;
+    upgrading.x = 8;
+    vfx.update(0.1);
+    const upgradeFollows = upgrade.mesh.position.x === 1 && upgrade.mesh.scale.y > upgradeScale;
+    vfx.upgrade(upgrading);
+    const upgradeMerged = vfx.effects.length === 1 && upgrade.age === 0;
+    vfx.update(0.8);
+    const upgradeFades = upgrade.mesh.material.opacity < 0.3;
+    vfx.update(0.2);
+    const upgradeExpired = scene.children.length === 0;
+    vfx.upgrade(upgrading);
+    vfx.reset();
     const clean = scene.children.length === 0;
     return {
+      upgradePaused,
+      upgradeFollows,
+      upgradeMerged,
+      upgradeFades,
+      upgradeExpired,
       hiddenAtSpawn,
       heroVisible,
       damaged,
@@ -189,6 +213,11 @@ try {
     "stillVisible",
     "persists",
     "clean",
+    "upgradePaused",
+    "upgradeFollows",
+    "upgradeMerged",
+    "upgradeFades",
+    "upgradeExpired",
   ])
     assert.equal(feedbackChecks[key], true, key);
   assert.ok(
@@ -248,6 +277,8 @@ try {
   await drop("hero_green", 5, 5);
   await drop("hero_purple", 9, 5);
   await drop("training", 7, 3);
+  assert.ok((await state()).combat.activeKinds.includes("upgrade"), "training plays golden upgrade VFX");
+  await page.screenshot({ path: "logs/upgrade-effect.png" });
   assert.equal((await state()).heroes[0].level, 2);
   assert.equal((await state()).cards.training, 1);
   const deployed = await state();
@@ -308,8 +339,12 @@ try {
   await page.locator("#start").click();
   assert.equal((await state()).phase, "waiting");
   assert.equal(await page.locator("#start").isVisible(), false, "start control disappears once the day begins");
+  const afterStart = (await state()).heroes[0];
+  assert.ok((await state()).combat.counts.upgrades >= 3, "battle-start upgrades also play VFX");
+  assert.equal(afterStart.level, 4, "start and nearest-hero echo both level up the vanguard");
+  assert.ok(afterStart.dayEffects.some(e => e.stat === "speed"));
   await drop("training", 7, 3);
-  assert.equal((await state()).heroes[0].level, 3, "cards remain usable while waiting for a wave");
+  assert.equal((await state()).heroes[0].level, afterStart.level + 1, "cards remain usable while waiting for a wave");
   await page.evaluate(() => window.__game.advance(5));
   const enemy = (await state()).enemies[0];
   await drop("lightning", enemy.x, enemy.y);
@@ -358,6 +393,14 @@ try {
   await page.locator("#confirm-restart").click();
   assert.equal((await state()).heroes.length, 0);
   assert.equal((await state()).cards.training, 2);
+  await drop("hero_catgirl", 7, 3);
+  assert.equal((await state()).heroes[0].useIcon, "catgirl");
+  await clickUnit(7, 3);
+  assert.equal(await page.locator("#unit-name").textContent(), "米娅");
+  await page.screenshot({ path: "logs/catgirl-battlefield.png" });
+  await clickUnit(7, 4);
+  await page.waitForTimeout(350);
+  assert.equal((await state()).heroes[0].y, 4);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   await page.waitForFunction(() => window.__game?.snapshot().frames > 5);

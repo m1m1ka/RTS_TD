@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node tests/engine.mjs && node tests/config.mjs && node tests/waves.mjs",
+    "test": "node tests/engine.mjs && node tests/config.mjs && node tests/waves.mjs && node tests/triggers.mjs && node tests/terrain.mjs",
     "test:browser": "node tests/smoke.mjs",
     "test:config": "node tests/config-browser.mjs"
   },

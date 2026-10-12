@@ -1,8 +1,10 @@
-import { obstacles } from "./art.js";
+import { obstacleKeys, reachableTerrain } from "./terrain.js";
 import { getWeaponSpec } from "./weapons.js";
 import { getConfig, subscribeConfig } from "./config/store.js";
 import { cardRadius } from "./config/schema.js";
 import { waveCount } from "./config/migrate.js";
+import { HeroTriggers } from "./hero-triggers.js";
+import { levelStats } from "./level-stats.js";
 export const W = 15,
   H = 11,
   BASE = { x: 7, y: 5 };
@@ -66,12 +68,44 @@ export class Game {
     this.attacks = [];
     this.attackId = 0;
     this.heroes = [];
+    this.heroTriggers = new HeroTriggers(this);
+    this.obstacles = new Set();
+    this.syncTerrain();
     this.emit("reset");
+  }
+  syncTerrain() {
+    const next = obstacleKeys(this.config.days[this.day]);
+    if (next.size === this.obstacles.size && [...next].every((key) => this.obstacles.has(key))) return;
+    const reachable = reachableTerrain(next);
+    const units = [...this.heroes, ...this.towers, ...this.enemies].filter((u) => u.hp > 0);
+    const affected = units.filter((u) => next.has(`${u.x},${u.y}`) || !reachable.has(`${u.x},${u.y}`));
+    const occupied = new Set(units.filter((u) => !affected.includes(u)).map((u) => `${u.x},${u.y}`));
+    const gates = new Set(this.config.days[this.day].waves.flatMap((w) => w.spawns).map((p) => `${p.x},${p.y}`));
+    const moves = [];
+    for (const unit of affected) {
+      const free = [];
+      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+        const key = `${x},${y}`;
+        if (key !== "7,5" && reachable.has(key) && !next.has(key) && !occupied.has(key) && !gates.has(key)) free.push({ x, y });
+      }
+      free.sort((a, b) => dist(a, unit) - dist(b, unit));
+      if (!free.length) {
+        this.emit("toast", { text: "地图空地不足，障碍将在重新开局后应用" });
+        return;
+      }
+      moves.push([unit, free[0]]);
+      occupied.add(`${free[0].x},${free[0].y}`);
+    }
+    this.obstacles = next;
+    for (const [unit, position] of moves) Object.assign(unit, position);
+    for (const hero of this.heroes) {
+      if (hero.path.length) hero.path = this.path(hero, hero.path.at(-1), { units: true }) || [];
+    }
   }
   blocked(x, y, ignore, units = false) {
     return (
       !inside(x, y) ||
-      obstacles.has(`${x},${y}`) ||
+      this.obstacles.has(`${x},${y}`) ||
       (x === 7 && y === 5) ||
       this.towers.some(
         (t) => t.hp > 0 && t !== ignore && t.x === x && t.y === y,
@@ -152,7 +186,7 @@ export class Game {
       if (x < 1 || x > 13 || y < 1 || y > 9 || this.blocked(x, y, null, true))
         return { valid: false, reason: "需要一块内部空地" };
       if (card.effects.some((e) => e.type === "summon") &&
-        [...this.config.days.flatMap((d) => d.waves), ...(this.dayPlan?.waves || [])]
+        this.currentDay().waves
           .some((w) => w.spawns.some((p) => p.x === x && p.y === y)))
         return { valid: false, reason: "敌方出生点不能放置炮台" };
     } else if (card.target === "hero") {
@@ -201,6 +235,8 @@ export class Game {
         side: "hero",
         equipment: [],
         permanentEffects: [],
+        dayEffects: [],
+        triggerPermanentEffects: [],
       };
       hero = unit;
       this.rebuildHero(unit, false);
@@ -212,7 +248,7 @@ export class Game {
       } else {
         this.towers.push(unit);
         if (
-          [...this.config.days.flatMap((d) => d.waves), ...(this.dayPlan?.waves || [])]
+          this.currentDay().waves
             .flatMap((w) => w.spawns)
             .some((g) => !this.path(g, BASE, { adjacent: true }))
         ) {
@@ -311,10 +347,8 @@ export class Game {
       splash: undefined,
       splashRadius: 1,
     });
-    const growth = this.config.initial.levelGrowth,
-      levels = Math.max(0, unit.level - 1);
-    for (const key of ["maxHp", "atk", "rate"])
-      unit[key] += growth[key] * levels;
+    const growth = this.config.initial.levelGrowth;
+    Object.assign(unit, levelStats(card.unit, unit.level, growth));
     const passive = (e) => !["level", "heal", "summon"].includes(e.type);
     for (const e of [
       ...card.effects.filter(passive),
@@ -324,6 +358,8 @@ export class Game {
     for (const key of unit.equipment)
       for (const e of this.config.cards[key]?.effects || [])
         this.applyUnitEffect(unit, e);
+    for (const e of [...(unit.triggerPermanentEffects || []), ...(unit.dayEffects || [])])
+      this.applyUnitEffect(unit, e);
     unit.maxHp = Math.max(1, unit.maxHp);
     unit.rate = Math.min(50, Math.max(0.05, unit.rate));
     unit.speed = Math.min(50, Math.max(0.05, unit.speed));
@@ -352,6 +388,7 @@ export class Game {
     const mappedDay = config.days.findIndex((d) => d.id === oldDay?.id);
     this.day = mappedDay >= 0 ? mappedDay : Math.min(this.day, config.days.length - 1);
     const nextDay = config.days[this.day];
+    this.syncTerrain();
     if (this.dayPlan) {
       const nextIndex = nextDay.waves.findIndex((w) => w.id === this.dayPlan.waves[this.wave]?.id);
       // Preserve this wave's issued orders; edits to later waves apply immediately.
@@ -370,9 +407,10 @@ export class Game {
       if (!spec) continue;
       const ratio = e.hp / e.maxHp,
         w = this.activeWave || this.currentWave();
+      const stats = levelStats(spec, e.level || 1);
       Object.assign(e, spec, {
-        maxHp: Math.max(1, Math.round(spec.maxHp * w.hpScale)),
-        atk: Math.round(spec.atk * w.atkScale),
+        maxHp: Math.max(1, Math.round(stats.maxHp * w.hpScale)),
+        atk: Math.round(stats.atk * w.atkScale),
       });
       e.hp = ratio <= 0 ? 0 : Math.max(1, e.maxHp * ratio);
     }
@@ -402,6 +440,7 @@ export class Game {
       this.spawned = 0;
       this.spawnQueues = [];
       this.phase = "between";
+      this.syncTerrain();
     }
     return true;
   }
@@ -420,6 +459,9 @@ export class Game {
     this.dayPlan = structuredClone(this.config.days[this.day]);
     this.dayEnemySpecs = structuredClone(this.config.enemies);
     this.wave = 0;
+    // Lock the start action before resolving effects; clicking again cannot replay it.
+    this.phase = "waiting";
+    this.heroTriggers.start();
     this.emit("day", { day: this.day + 1 });
     this.waitForWave(this.config.initial.firstWaveDelay);
   }
@@ -442,6 +484,7 @@ export class Game {
     this.spawnQueues = this.activeWave.spawns.map((p) => ({
       x: p.x, y: p.y, interval: p.interval, nextAt: p.delay, spawned: 0,
       types: p.enemies.flatMap((e) => Array(e.count).fill(e.type)),
+      levels: p.enemies.flatMap((e) => Array(e.count).fill(e.level ?? 1)),
     }));
     this.emit("wave", { day: this.day + 1, wave: this.wave + 1 });
   }
@@ -452,11 +495,14 @@ export class Game {
       scale = data.hpScale;
     // A live edit may remove a type from future config; retain active-wave specs.
     const definition = spec || this.activeEnemySpecs[enemyId];
+    const level = queue.levels?.[queue.spawned] ?? 1;
+    const stats = levelStats(definition, level);
     const e = {
       ...definition,
       x: queue.x, y: queue.y,
-      maxHp: Math.max(1, Math.round(definition.maxHp * scale)),
-      atk: Math.round(definition.atk * data.atkScale),
+      maxHp: Math.max(1, Math.round(stats.maxHp * scale)),
+      atk: Math.round(stats.atk * data.atkScale),
+      level,
       id: ++this.id,
       enemyId,
       side: "enemy",
@@ -655,6 +701,10 @@ export class Game {
         this.wave++;
         this.waitForWave(this.dayPlan.waves[this.wave].startDelay);
       } else {
+        for (const hero of this.heroes) {
+          hero.dayEffects = [];
+          this.rebuildHero(hero, false);
+        }
         this.phase = "reward";
         this.rewardOptions = structuredClone(this.dayPlan.rewards);
         this.emit("clear", { day: this.day + 1 });
@@ -664,6 +714,10 @@ export class Game {
 
   snapshot() {
     return {
+      obstacles: [...this.obstacles].map((key) => {
+        const [x, y] = key.split(",").map(Number);
+        return { x, y };
+      }),
       phase: this.phase,
       day: this.day + 1,
       wave: this.wave + 1,

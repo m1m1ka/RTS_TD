@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import "./style.css";
 import "./cards.css";
-import { unitArt, mapArt, forestArt, obstacles } from "./art.js";
+import { unitArt, mapArt, forestArt } from "./art.js";
 import { Game, W, H, BASE, days, dist, inside } from "./game.js";
 import { CombatVFX } from "./combat-vfx.js";
 import { HealthBar } from "./health-bar.js";
@@ -38,6 +38,7 @@ const textures = {},
   arts = {},
   whiteTextures = {};
 for (const type of [
+  "catgirl",
   "blue",
   "green",
   "purple",
@@ -429,6 +430,10 @@ function onEvent(e) {
   if (e.type === "deploy" || e.type === "move") inspectedUnitId = null;
   if (e.type === "select") inspectedUnitId = game.heroes[game.selected]?.id ?? null;
   if (e.type === "toast") toast(e.text);
+  if (e.type === "heroBattleStart") {
+    burst(e.unit, e.extra ? "#c6b5df" : "#b6d893");
+    if (e.extra) floating(e.unit, "回响", "#d6c5ed");
+  }
   if (e.type === "attack") {
     shoot(e);
     if (e.source.side === "hero")
@@ -471,12 +476,11 @@ function onEvent(e) {
       );
   }
   if (e.type === "heal" || e.type === "upgrade") {
-    floating(
-      e.unit,
-      e.type === "heal" ? "+" + Math.ceil(e.amount) : "Lv." + e.unit.level,
-      "#ccec9c",
-    );
-    burst(e.unit, "#d6f4a0");
+    if (e.type === "heal")
+      floating(e.unit, "+" + Math.ceil(e.amount), "#ccec9c");
+    else floating(e.unit, "等级提升", "#ffda72");
+    if (e.type === "upgrade") combatVFX.upgrade(e.unit);
+    else burst(e.unit, "#d6f4a0");
     tone(650, 0.2);
     if (e.useIcon) {
       const map = new THREE.TextureLoader().load(iconURL(e.useIcon));
@@ -578,7 +582,17 @@ function updateInspector() {
   $("unit-range").textContent = Math.round(unit.range);
   $("unit-move-hint").hidden = !movable || !!cardUI.activeKey;
 }
+let terrainKey = "";
+function updateTerrain() {
+  const key = [...game.obstacles].sort().join(";");
+  if (key === terrainKey) return;
+  terrainKey = key;
+  mapTexture.image = mapArt(game.obstacles);
+  mapTexture.needsUpdate = true;
+  rangeKey = moveKey = pathKey = "";
+}
 function updateUI() {
+  updateTerrain();
   updateInspector();
   updateGates();
   $("kills").textContent = game.kills;
@@ -588,7 +602,7 @@ function updateUI() {
   $("start").hidden = !["ready", "between"].includes(game.phase);
   $("start").disabled = !["ready", "between"].includes(game.phase) || paused;
   $("start-label").textContent =
-    "⚑ 开始今天";
+    "⚑ 迎战";
   $("pause").textContent = paused ? "▶" : "Ⅱ";
   $("speed").textContent = speed + "×";
   const c = cards[cardUI.activeKey];
@@ -629,7 +643,7 @@ function unitTexturePair(u) {
     img.onload = () => {
       canvas.getContext("2d").drawImage(img, 0, 0, 128, 128);
       const g = white.getContext("2d");
-      g.drawImage(img, 0, 0, 128, 128);
+      g.drawImage(canvas, 0, 0, 128, 128);
       g.globalCompositeOperation = "source-in";
       g.fillStyle = "#fff7dd";
       g.fillRect(0, 0, 128, 128);
@@ -725,7 +739,7 @@ function updateRanges() {
     if (h.hp > 0)
       for (let y = 0; y < H; y++)
         for (let x = 0; x < W; x++)
-          if (dist(h, { x, y }) <= h.range && !obstacles.has(`${x},${y}`)) {
+          if (dist(h, { x, y }) <= h.range && !game.obstacles.has(`${x},${y}`)) {
             const m = plane(0.95, 0.95, h.side === "enemy" ? "#b46c61" : "#c0dba1", 0.07);
             m.position.copy(pos(x, y, 0.1));
             rangeGroup.add(m);
@@ -951,7 +965,7 @@ document.addEventListener("keydown", (e) => {
     cardUI.cancel();
     updateUI();
   }
-  if (["Digit1", "Digit2", "Digit3"].includes(e.code)) {
+  if (/^Digit[1-9]$/.test(e.code)) {
     cardUI.cancel();
     game.select(Number(e.code.at(-1)) - 1);
   }
@@ -992,7 +1006,7 @@ $("dialog").addEventListener("cancel", (e) => {
 });
 $("help").onclick = () =>
   openDialog(
-    `<h2>操作</h2><div class="help-row"><b>1 / 2 / 3</b><span>选择英雄</span></div><div class="help-row"><b>点击地面 / WASD</b><span>移动 · 自动攻击</span></div><div class="help-row"><b>滚轮 / 双指</b><span>缩放</span></div><div class="help-row"><b>拖动 / 0</b><span>移动视野 / 全图</span></div><div class="help-row"><b>拖拽卡牌</b><span>英雄放空地 · 资源与装备给英雄</span></div><div class="help-row"><b>战斗牌 / Esc</b><span>攻击敌人 / 取消选牌</span></div><div class="help-row"><b>空格</b><span>暂停</span></div><button class="primary-button" id="understood">继续</button>`,
+    `<h2>操作</h2><div class="help-row"><b>1–9</b><span>选择英雄</span></div><div class="help-row"><b>点击地面 / WASD</b><span>移动 · 自动攻击</span></div><div class="help-row"><b>滚轮 / 双指</b><span>缩放</span></div><div class="help-row"><b>拖动 / 0</b><span>移动视野 / 全图</span></div><div class="help-row"><b>拖拽卡牌</b><span>英雄放空地 · 资源与装备给英雄</span></div><div class="help-row"><b>战斗牌 / Esc</b><span>攻击敌人 / 取消选牌</span></div><div class="help-row"><b>空格</b><span>暂停</span></div><button class="primary-button" id="understood">继续</button>`,
   );
 $("dialog-content").addEventListener("click", (e) => {
   if (e.target.closest("#understood")) closeDialog();

@@ -1,7 +1,9 @@
-import { obstacles } from "../art.js";
+import { reachableTerrain } from "../terrain.js";
 import { migrateConfig } from "./migrate.js";
+import { triggerEvents, triggerScopes, triggerTargets, triggerEffects } from "./trigger-rules.js";
 export const CONFIG_VERSION = 2;
 export const builtInIcons = [
+  "catgirl",
   "blue",
   "green",
   "purple",
@@ -23,6 +25,7 @@ export const builtInIcons = [
   "arcane",
 ];
 export const skins = [
+  "catgirl",
   "blue",
   "green",
   "purple",
@@ -159,6 +162,7 @@ export function validateConfig(c) {
           "rate",
           "speed",
           "useIcon",
+          "levelGrowth",
         ].includes(key)
       )
         fail(p, `未知单位字段 ${key}`);
@@ -169,10 +173,17 @@ export function validateConfig(c) {
     num(u.range, p + "距离", 0, 24, true);
     num(u.rate, p + "攻速", 0.05, 20);
     num(u.speed, p + "移速", 0.05, 20);
+    if (u.levelGrowth !== undefined) {
+      if (!isObject(u.levelGrowth)) fail(p + "等级成长", "缺少生命和攻击每级增量");
+      else for (const key of ["maxHp", "atk"])
+        num(u.levelGrowth[key], p + "每级成长 " + key, 0, 100000);
+    }
   };
   if (!isObject(c)) return ["配置文件必须是对象"];
   if (c.version !== CONFIG_VERSION)
     fail("版本", `仅支持版本 ${CONFIG_VERSION}`);
+  if (c.heroContentVersion !== undefined && c.heroContentVersion !== 1)
+    fail("英雄内容版本", "不支持的版本");
   str(c.name, "配置名称", 80);
   if (
     !isObject(c.cards) ||
@@ -215,6 +226,41 @@ export function validateConfig(c) {
       "lightning",
       "frost",
     ]);
+    if (card.triggerRules !== undefined) {
+      if (card.category !== "hero") fail(p, "只有英雄牌可以配置触发规则");
+      if (!Array.isArray(card.triggerRules) || card.triggerRules.length > 20)
+        fail(p, "触发规则最多 20 条");
+      else for (const [i, rule] of card.triggerRules.entries()) {
+        const rp = `${p}触发规则 ${i + 1}`;
+        if (!isObject(rule) || !isObject(rule.trigger) || !isObject(rule.target)) {
+          fail(rp, "缺少触发时机或作用目标"); continue;
+        }
+        str(rule.name, rp + "名称", 32);
+        if (typeof rule.enabled !== "boolean") fail(rp, "启用状态必须是布尔值");
+        enumeration(rule.trigger.event, rp + "事件", Object.keys(triggerEvents));
+        enumeration(rule.trigger.scope, rp + "事件来源", Object.keys(triggerScopes));
+        num(rule.trigger.radius, rp + "监听半径", -1, 24, true);
+        enumeration(rule.target.kind, rp + "目标", Object.keys(triggerTargets));
+        num(rule.target.radius, rp + "目标半径", -1, 24, true);
+        num(rule.target.count, rp + "最近英雄数量", 1, 20, true);
+        if (!Array.isArray(rule.effects) || !rule.effects.length || rule.effects.length > 20) {
+          fail(rp, "需要 1～20 个后续效果"); continue;
+        }
+        for (const effect of rule.effects) {
+          if (!isObject(effect)) { fail(rp, "效果格式错误"); continue; }
+          enumeration(effect.type, rp + "效果", Object.keys(triggerEffects));
+          if (effect.type === "level") num(effect.value, rp + "等级", 1, 99, true);
+          if (effect.type === "heal") num(effect.value, rp + "治疗", 1, 100000);
+          if (effect.type === "stat") {
+            enumeration(effect.stat, rp + "属性", Object.keys(statLabels));
+            enumeration(effect.mode, rp + "计算方式", ["add", "multiply"]);
+            enumeration(effect.duration, rp + "持续时间", ["day", "permanent"]);
+            num(effect.value, rp + "数值", effect.mode === "multiply" ? 0.05 : 0,
+              effect.mode === "multiply" ? 10 : 100000, effect.stat === "range" && effect.mode === "add");
+          }
+        }
+      }
+    }
     if (!Array.isArray(card.effects) || card.effects.length > 20) {
       fail(p, "效果列表最多 20 项");
       continue;
@@ -296,41 +342,16 @@ export function validateConfig(c) {
     fail("初始手牌", "至少需要一张英雄牌");
   if (!isObject(c.initial.levelGrowth)) fail("升级成长", "缺少配置");
   else
-    for (const key of ["maxHp", "atk", "rate", "heal"])
+    for (const key of ["maxHp", "atk", "heal"])
       num(
         c.initial.levelGrowth[key],
         "升级成长 " + key,
         0,
-        key === "rate" ? 20 : 100000,
+        100000,
       );
   if (c.days.length < 1 || c.days.length > 100)
     fail("天数", "需要 1～100 天");
   const dayIds = new Set();
-  // Static reachability prevents a valid-looking spawn that can never reach the objective.
-  const reachable = new Set(["7,5"]),
-    queue = [{ x: 7, y: 5 }];
-  for (let i = 0; i < queue.length; i++)
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      const x = queue[i].x + dx,
-        y = queue[i].y + dy,
-        key = `${x},${y}`;
-      if (
-        x >= 0 &&
-        x < 15 &&
-        y >= 0 &&
-        y < 11 &&
-        !obstacles.has(key) &&
-        !reachable.has(key)
-      ) {
-        reachable.add(key);
-        queue.push({ x, y });
-      }
-    }
   for (const [i, day] of c.days.entries()) {
     const dp = `第 ${i + 1} 天`;
     if (!isObject(day)) { fail(dp, "格式错误"); continue; }
@@ -338,6 +359,19 @@ export function validateConfig(c) {
     if (dayIds.has(day.id)) fail(dp, "关卡 ID 重复");
     dayIds.add(day.id);
     str(day.name, dp + "名称", 80);
+    const terrain = new Set();
+    if (day.obstacles !== undefined && (!Array.isArray(day.obstacles) || day.obstacles.length > 164))
+      fail(dp + "地图障碍", "需要最多 164 个格子坐标");
+    else for (const cell of day.obstacles || []) {
+      if (!isObject(cell)) { fail(dp + "地图障碍", "格子坐标格式错误"); continue; }
+      num(cell.x, dp + "障碍 X", 0, 14, true);
+      num(cell.y, dp + "障碍 Y", 0, 10, true);
+      const key = `${cell.x},${cell.y}`;
+      if (key === "7,5" || terrain.has(key)) fail(dp + "地图障碍", "不能占用打卡机或重复格子");
+      terrain.add(key);
+    }
+    const reachable = reachableTerrain(terrain);
+    if (reachable.size < 2) fail(dp + "地图障碍", "需要保留通往打卡机的道路");
     if (!Array.isArray(day.waves) || !day.waves.length || day.waves.length > 100) {
       fail(dp, "每天需要 1～100 波");
       continue;
@@ -380,6 +414,7 @@ export function validateConfig(c) {
           if (!isObject(row)) { fail(p, "敌人配置格式错误"); continue; }
           if (!own(c.enemies, row.type)) fail(p, `不存在敌人 ${row.type}`);
           num(row.count, p + "敌人数量", 1, 500, true);
+          if (row.level !== undefined) num(row.level, p + "敌人等级", 1, 999, true);
           total += row.count;
         }
       }

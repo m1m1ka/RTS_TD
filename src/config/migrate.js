@@ -1,7 +1,11 @@
+import { migrateHeroRules } from "./trigger-rules.js";
+import { migrateHeroContent } from "./hero-content.js";
+import { migrateLevelGrowth } from "../level-stats.js";
+import { migrateTerrain } from "../terrain.js";
 // Version 1 stored each level as a wave. Preserve each level as a day.
 export function migrateConfig(value) {
   const c = structuredClone(value);
-  if (c?.version !== 1) return c;
+  if (c?.version !== 1) return migrateTerrain(migrateLevelGrowth(migrateHeroContent(migrateHeroRules(c))));
   if (!Array.isArray(c.waves) || !c.initial) throw new Error("旧配置缺少关卡或初始规则");
   c.version = 2;
   c.initial.firstWaveDelay = 0.5;
@@ -25,7 +29,7 @@ export function migrateConfig(value) {
     };
   });
   delete c.waves;
-  return c;
+  return migrateTerrain(migrateLevelGrowth(migrateHeroContent(migrateHeroRules(c))));
 }
 export const waveCount = (wave) => wave.spawns.reduce(
   (sum, p) => sum + p.enemies.reduce((n, e) => n + e.count, 0), 0,

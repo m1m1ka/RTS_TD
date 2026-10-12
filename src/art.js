@@ -102,7 +102,7 @@ export function unitArt(type, { portrait = false } = {}) {
         ? "#7ea96a"
         : type === "purple"
           ? "#ad83bd"
-          : "#bb9958";
+          : type === "catgirl" ? "#83b3a0" : "#bb9958";
   if (!portrait) {
     rounded(g, 10, 12, 108, 104, 18, enemy ? "#933f37" : "#284f47", ink, 5);
     rounded(g, 12, 8, 103, 103, 14, color, enemy ? "#ffe6c6" : "#d1ecd6", 5);
@@ -133,11 +133,31 @@ export function unitArt(type, { portrait = false } = {}) {
             ? "#5e864e"
             : type === "purple"
               ? "#775996"
-              : "#8e743e",
+              : type === "catgirl" ? "#4f7b69" : "#8e743e",
       null,
     );
   }
   ellipse(g, 65, 99, 31, 7, "#19312855");
+  if (type === "catgirl") {
+    // The same small, flat, outlined shapes as the other board-game heroes.
+    const tail = [[83, 94], [99, 94], [105, 85], [101, 77], [95, 79]];
+    line(g, tail, ink, 10);
+    line(g, tail, "#78988a", 5);
+    shape(g, [[40, 72], [34, 100], [87, 100], [84, 71]], "#719778");
+    shape(g, [[30, 58], [36, 43], [34, 24], [52, 35], [69, 32], [88, 23], [91, 43], [99, 58], [92, 81], [34, 79]], "#78988a");
+    shape(g, [[40, 33], [43, 46], [52, 40]], "#c5a18d", null);
+    shape(g, [[81, 40], [86, 32], [86, 46]], "#c5a18d", null);
+    rounded(g, 42, 48, 44, 35, 8, "#ead8af", ink, 4);
+    shape(g, [[34, 53], [44, 40], [66, 35], [88, 44], [92, 59], [77, 51], [68, 61], [58, 51], [42, 60]], "#5d7e70");
+    line(g, [[44, 45], [52, 41], [60, 41]], "#a3b99a", 3);
+    line(g, [[53, 64], [53, 69]], ink, 4);
+    line(g, [[74, 64], [74, 69]], ink, 4);
+    line(g, [[61, 76], [65, 78], [69, 75]], ink, 2.5);
+    shape(g, [[43, 83], [62, 92], [80, 83], [76, 97], [48, 97]], "#91ac82", null);
+    shape(g, [[64, 85], [68, 89], [64, 94], [60, 89]], "#ddc581", ink, 2.5);
+    ellipse(g, 84, 88, 6, 6, "#ead8af");
+    return c;
+  }
   if (type === "blue") {
     shape(
       g,
@@ -506,7 +526,20 @@ export function unitArt(type, { portrait = false } = {}) {
 }
 
 export const obstacles = new Set();
-export function mapArt() {
+export function treeArt() {
+  const c = canvas(), g = c.getContext("2d");
+  g.lineJoin = "round";
+  rounded(g, 5, 7, 118, 116, 9, "#315c3d", "#203c30", 5);
+  line(g, [[14, 34], [14, 16], [36, 13]], "#69845b", 3);
+  ellipse(g, 65, 105, 45, 12, "#183e2e99");
+  rounded(g, 54, 76, 21, 32, 4, "#5b6346", "#253f30", 4);
+  shape(g, [[21, 85], [27, 65], [25, 54], [39, 43], [40, 30], [58, 20], [72, 22], [84, 33], [89, 45], [103, 56], [100, 70], [107, 86], [94, 98], [37, 98]], "#365c40", "#213d2c", 5);
+  shape(g, [[30, 64], [42, 49], [43, 35], [59, 27], [72, 29], [82, 40], [83, 49], [96, 61], [89, 71], [41, 72]], "#436d49", null);
+  shape(g, [[44, 40], [58, 31], [71, 33], [81, 42], [74, 48], [51, 49]], "#527c50", null);
+  line(g, [[31, 83], [42, 88], [88, 88], [99, 82]], "#4a7048", 4);
+  return c;
+}
+export function mapArt(blocked = obstacles) {
   const s = 96,
     c = canvas(15 * s, 11 * s),
     g = c.getContext("2d");
@@ -584,6 +617,11 @@ export function mapArt() {
         }
       }
     }
+  const tree = blocked.size ? treeArt() : null;
+  for (const key of blocked) {
+    const [x, y] = key.split(",").map(Number);
+    g.drawImage(tree, x * s, y * s, s, s);
+  }
   // Ragged forest canopy, matching the reference's dark peripheral foliage.
   for (let i = 0; i < 45; i++) {
     const edge = i % 4,

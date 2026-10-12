@@ -271,6 +271,39 @@ function createTextures() {
       g.lineWidth = 5;
       g.stroke();
     }),
+    upgrade: texture((g) => {
+      const glow = g.createRadialGradient(96, 96, 12, 96, 96, 86);
+      glow.addColorStop(0, "#ffe6a63d");
+      glow.addColorStop(0.8, "#eec15b70");
+      glow.addColorStop(1, "#eec15b00");
+      circle(g, 96, 96, 88, glow, null);
+      circle(g, 96, 96, 74, null, "#6d522e", 10);
+      circle(g, 96, 96, 74, null, "#e5b94f", 6);
+      circle(g, 96, 96, 62, null, "#fff0b1", 2.5);
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        circle(g, 96 + Math.cos(a) * 74, 96 + Math.sin(a) * 74, 4, "#fff0b1", null);
+      }
+    }),
+    upgradeStar: texture((g) => {
+      path(g, [[96, 14], [117, 72], [161, 96], [117, 117], [96, 178], [75, 117], [31, 96], [75, 72]], "#ecc45f", "#6d522e", 8);
+      path(g, [[96, 34], [102, 87], [137, 96], [102, 101], [96, 151], [90, 101], [55, 96], [90, 87]], "#fff0b1", null);
+    }),
+    upgradeBeam: texture((g) => {
+      const fill = g.createLinearGradient(0, 20, 0, 179);
+      fill.addColorStop(0, "#fff0b1d9");
+      fill.addColorStop(0.45, "#eec45f80");
+      fill.addColorStop(1, "#eec45f00");
+      path(g, [[94, 14], [119, 44], [106, 180], [77, 180], [74, 48]], fill, null);
+      line(g, [[94, 27], [91, 78]], "#fff0b1", 6);
+    }),
+    upgradeGlow: texture((g) => {
+      const fill = g.createRadialGradient(96, 96, 15, 96, 96, 91);
+      fill.addColorStop(0, "#ffe6a6a6");
+      fill.addColorStop(0.48, "#efc66359");
+      fill.addColorStop(1, "#efc66300");
+      circle(g, 96, 96, 91, fill, null);
+    }),
     shield: texture((g) => {
       circle(g, 96, 96, 83, "#84dce71b", "#263e56", 7);
       circle(g, 96, 96, 79, null, "#9ee6ea", 4);
@@ -560,6 +593,7 @@ export class CombatVFX {
       coffee: 0,
       claw: 0,
       shield: 0,
+      upgrades: 0,
       impacts: 0,
       bloodHits: 0,
       bloodDeaths: 0,
@@ -595,6 +629,53 @@ export class CombatVFX {
     const effect = { kind, mesh, age: 0, duration, size, animate };
     this.effects.push(effect);
     return effect;
+  }
+  upgrade(unit) {
+    this.counts.upgrades++;
+    // Echoes can level the same hero more than once in a single start event.
+    const existing = this.effects.find((f) => f.kind === "upgrade" && f.unit === unit);
+    if (existing) {
+      existing.age = 0;
+      existing.animate(existing, 0);
+      return;
+    }
+    const glow = this.mesh("upgradeGlow", 1.6);
+    const beams = [-0.51, 0.52, -0.31, 0.33].map((x, i) => ({
+      mesh: this.mesh("upgradeBeam", 0.22, 0.7), x, delay: i * 0.045,
+    }));
+    const stars = [-1, 1, -1, 1, -1, 1].map((side, i) => ({
+      mesh: this.mesh("upgradeStar", 0.2), side, delay: i * 0.065,
+      size: [0.24, 0.19, 0.15][i % 3], x: 0.49 + (i % 3) * 0.065,
+    }));
+    const effect = this.effect("upgrade", this.positionOf(unit), 1, 0.9, (f, t) => {
+      const point = this.positionOf(unit);
+      const expand = 1 - Math.pow(1 - Math.min(1, t / 0.35), 3);
+      const fade = Math.min(1, (1 - t) / 0.55);
+      f.mesh.position.set(point.x, point.y - 0.38, 1.04);
+      f.mesh.scale.set(0.75 + expand * 0.7 + t * 0.2, 0.24 + expand * 0.22 + t * 0.06, 1);
+      f.mesh.material.opacity = fade * (0.5 + expand * 0.5);
+      glow.position.set(point.x, point.y - 0.08 + t * 0.18, 1.02);
+      glow.scale.setScalar(1.1 + expand * 0.6);
+      glow.material.opacity = Math.sin(Math.PI * Math.min(1, t / 0.8)) * 0.75;
+      for (const beam of beams) {
+        const p = Math.max(0, Math.min(1, (t - beam.delay) / 0.65));
+        beam.mesh.position.set(point.x + beam.x, point.y - 0.15 + p * 0.7, 1.05);
+        beam.mesh.scale.set(0.18, 0.35 + Math.sin(p * Math.PI) * 0.5, 1);
+        beam.mesh.material.opacity = Math.sin(p * Math.PI) * 0.8;
+      }
+      for (const star of stars) {
+        const p = Math.max(0, Math.min(1, (t - star.delay) / 0.65));
+        star.mesh.position.set(point.x + star.side * (star.x + Math.sin(p * Math.PI) * 0.12), point.y - 0.28 + p * 1.05, 3.25);
+        star.mesh.scale.setScalar(star.size * Math.sin(p * Math.PI) ** 0.6);
+        star.mesh.rotation.z = star.side * (p - 0.5) * 0.4;
+        star.mesh.material.opacity = Math.min(1, p * 10, (1 - p) * 5);
+      }
+    });
+    effect.cleanup = () => {
+      for (const mesh of [glow, ...beams.map((b) => b.mesh), ...stars.map((s) => s.mesh)]) this.dispose(mesh);
+    };
+    effect.unit = unit;
+    effect.animate(effect, 0);
   }
   shield(unit) {
     this.counts.shield++;

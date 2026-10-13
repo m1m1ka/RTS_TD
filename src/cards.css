@@ -390,100 +390,6 @@
   color: #cbd0ac;
   margin: 0 0 22px;
 }
-.reward-packs {
-  display: flex;
-  gap: 18px;
-  padding: 3px;
-}
-.reward-pack {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  border: 2px solid #49432e;
-  outline: 1px solid #d4c79a;
-  outline-offset: 1px;
-  border-radius: 7px 5px 8px 6px;
-  background: radial-gradient(ellipse at top, #f1e4b7, #d2c399);
-  padding: 14px 10px;
-  color: #41432e;
-  text-shadow: none;
-  font-family: "STKaiti", "KaiTi", "SimSun", serif;
-  box-shadow:
-    inset 0 0 0 3px #c3b384,
-    inset 0 0 0 4px #7e7854,
-    0 5px #142b21;
-  transition: transform 0.15s;
-}
-.reward-pack:nth-child(1) {
-  transform: rotate(-2deg);
-}
-.reward-pack:nth-child(3) {
-  transform: rotate(2deg);
-}
-.reward-pack:hover {
-  transform: translateY(-7px);
-  filter: brightness(1.04);
-}
-.pack-seal {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border: 1px solid #76764f;
-  outline: 1px solid #b6a576;
-  outline-offset: 3px;
-  border-radius: 50%;
-  font-size: 30px;
-  background: var(--face);
-  color: #4a543e;
-}
-.reward-pack h3 {
-  font-size: 18px;
-  margin: 10px 0 16px;
-  letter-spacing: 2px;
-}
-.pack-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.pack-card {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid #8a805b;
-  border-radius: 2px;
-  background: linear-gradient(100deg, var(--face), #e1d2a8);
-  padding: 5px;
-  text-align: left;
-  font-size: 12px;
-}
-.pack-card img {
-  width: 34px;
-  height: 34px;
-  object-fit: contain;
-  filter: saturate(0.75);
-}
-.pack-card .card-glyph {
-  width: 34px;
-  font-size: 30px;
-  text-align: center;
-}
-.pack-card b {
-  margin-left: auto;
-  color: #8b4d31;
-  font-family: Georgia, serif;
-}
-.pack-claim {
-  display: block;
-  color: #545d3c;
-  border-top: 1px solid #8f845c70;
-  padding-top: 12px;
-  margin-top: 16px;
-  font-size: 12px;
-  letter-spacing: 2px;
-}
 .map-hint {
   bottom: 239px !important;
 }
@@ -559,43 +465,10 @@
     padding: 4px 9px;
     margin-top: 5px;
   }
-  .reward-packs {
-    gap: 9px;
-  }
-  .reward-pack {
-    padding: 10px 5px;
-  }
-  .reward-pack h3 {
-    font-size: 13px;
-    letter-spacing: 1px;
-    margin: 12px 0;
-  }
-  .pack-card {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 3px;
-    padding: 5px 2px;
-    font-size: 11px;
-  }
-  .pack-card span:not(.card-glyph) {
-    width: 100%;
-    text-align: center;
-  }
-  .pack-card b {
-    margin: 0;
-  }
-  .pack-claim {
-    font-size: 10px;
-    letter-spacing: 0;
-  }
   #reward-dialog {
     padding: 17px 10px;
   }
-  .pack-seal {
-    font-size: 25px;
-    width: 37px;
-    height: 37px;
-  }
+
 }
 @media (max-height: 540px) and (min-width: 701px) {
   #card-hud {
@@ -642,8 +515,25 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hand-card,
-  .reward-pack {
+  .hand-card {
     transition: none;
   }
 }
+#reward-dialog { width: min(1040px, 96vw); max-height: 94dvh; overflow-y: auto; overflow-x: hidden; }
+.reward-draft { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px; padding: 25px 8px 35px; perspective: 1000px; }
+.reward-deal { min-width: 0; animation: reward-deal-in .65s cubic-bezier(.16,1.3,.4,1) both; animation-delay: calc(var(--deal) * 95ms); }
+.reward-draft .reward-card { --card-width: 100%; --card-height: 254px; width: 100%; height: 254px; margin: 0; transform: none; position: relative; transition: transform .22s cubic-bezier(.2,1.5,.4,1), filter .2s, box-shadow .2s; }
+.reward-card:hover { transform: translateY(-10px) rotate(-1deg) !important; }
+.reward-card.picked { transform: translateY(-18px) scale(1.035) !important; box-shadow: 0 0 0 3px #d7df9d, 0 0 28px #d9d47a66, 0 16px 20px #10261788; }
+.reward-card.dimmed { filter: saturate(.5) brightness(.75); }
+.reward-card .reward-tick { position: absolute; right: -8px; top: -14px; width: 28px; height: 28px; border-radius: 50%; background: #a9bd77; border: 2px solid #273d2b; color: #263d2c; font-size: 19px; opacity: 0; transform: scale(.1) rotate(-45deg); transition: .25s cubic-bezier(.2,1.8,.4,1); }
+.reward-card.picked .reward-tick { opacity: 1; transform: scale(1) rotate(0); }
+.reward-card.picked::after { pointer-events: none; }
+.reward-draft .card-picture { flex: 1; min-height: 80px; }
+.reward-draft .card-description { min-height: 52px; font-size: 12px; }
+[data-reward-confirm] { padding: 10px 32px; background: #a7b478; border: 3px solid #243d2a; box-shadow: inset 0 2px #e1dca7, 0 4px #142a1d; color: #233b29; border-radius: 7px; font-weight: 900; transition: transform .15s, filter .2s; }
+[data-reward-confirm]:disabled { filter: saturate(.2); opacity: .6; }
+[data-reward-confirm]:not(:disabled):hover { transform: translateY(-3px); }
+@keyframes reward-deal-in { from { opacity: 0; transform: translateY(90px) rotateY(65deg) rotate(-12deg) scale(.55); } 75% { opacity: 1; transform: translateY(-8px) rotateY(0) rotate(2deg) scale(1.03); } to { opacity: 1; transform: none; } }
+@media (max-width: 700px) { .reward-draft { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; padding: 22px 0; } .reward-draft .reward-card { height: 188px; } .reward-draft .card-title { font-size: 13px; } .reward-draft .card-description { font-size: 10px; min-height: 47px; } .reward-draft .card-picture { min-height: 45px; } #reward-dialog { padding: 12px; } }
+@media (prefers-reduced-motion: reduce) { .reward-deal { animation: none; } .reward-card, .reward-tick { transition: none !important; } }

@@ -125,7 +125,7 @@ for (const mutate of [
   (c) => (c.cards.training.effects = [{ type: "unsupported" }]),
   (c) => (c.days = []),
   (c) => (c.cards.guard.effects = [{ type: "damage", value: 10, radius: 1 }]),
-  (c) => (c.days[0].rewards[0].cards = { missing: 2 }),
+  (c) => (c.rewardPools[c.days[0].rewardPool].cards = { missing: 2 }),
   (c) => (c.version = 99),
   (c) => (c.cards.hero_blue.unit.levelGrowth.atk = NaN),
   (c) => (c.enemies.grunt.levelGrowth.maxHp = -1),
@@ -206,8 +206,9 @@ for (const mutate of [
   assert.equal(g.enemies[0].enemyId, "runner");
   g.enemies = [];
   g.tick(0.025);
+  if (g.phase === "victory") g.tick(6);
   assert.equal(g.phase, "reward");
-  g.chooseReward(0);
+  g.chooseReward([0, 1]);
   assert.equal(g.phase, "won", "any configured day count can finish");
 }
 {

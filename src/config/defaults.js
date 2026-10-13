@@ -1,6 +1,9 @@
 import { CATGIRL_CARD, HERO_CONTENT_VERSION } from "./hero-content.js";
 import { migrateLevelGrowth } from "../level-stats.js";
 import { migrateTerrain } from "../terrain.js";
+import { migrateCritical } from "../critical.js";
+import { migrateResourceContent } from "../resource-effects.js";
+import { migrateRewards } from "../rewards.js";
 export const DEFAULT_CONFIG = {
   "heroContentVersion": HERO_CONTENT_VERSION,
   "version": 2,
@@ -1539,3 +1542,6 @@ export const DEFAULT_CONFIG = {
 };
 migrateLevelGrowth(DEFAULT_CONFIG);
 migrateTerrain(DEFAULT_CONFIG);
+migrateCritical(DEFAULT_CONFIG);
+migrateResourceContent(DEFAULT_CONFIG);
+migrateRewards(DEFAULT_CONFIG);

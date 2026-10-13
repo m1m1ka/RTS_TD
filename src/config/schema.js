@@ -1,8 +1,15 @@
 import { reachableTerrain } from "../terrain.js";
+import { presetIds } from "../hero-presets.js";
+import { valueModes, statModes } from "../effect-values.js";
+import { generationDefaults, generationCategories } from "../card-generation.js";
+import { RESOURCE_CARDS, resourceEffectTypes } from "../resource-effects.js";
+import { campaignErrors } from "../campaign.js";
 import { migrateConfig } from "./migrate.js";
 import { triggerEvents, triggerScopes, triggerTargets, triggerEffects } from "./trigger-rules.js";
 export const CONFIG_VERSION = 2;
 export const builtInIcons = [
+  ...Object.keys(RESOURCE_CARDS),
+  ...presetIds,
   "catgirl",
   "blue",
   "green",
@@ -25,6 +32,7 @@ export const builtInIcons = [
   "arcane",
 ];
 export const skins = [
+  ...presetIds,
   "catgirl",
   "blue",
   "green",
@@ -47,8 +55,12 @@ export const statLabels = {
   range: "攻击距离（格）",
   rate: "攻击速度（次/秒）",
   speed: "移动速度（格/秒）",
+  critChance: "暴击率（%，暴击伤害 200%）",
 };
+export const triggerStatLabels = { ...statLabels, lifeSteal: "吸血率" };
 export const effectTypes = {
+  ...resourceEffectTypes,
+  generateCard: { label: "生成卡牌", categories: ["hero", "resource", "battle", "equipment"], defaults: generationDefaults },
   level: {
     label: "提升等级",
     categories: ["hero", "resource"],
@@ -145,6 +157,17 @@ export function validateConfig(c) {
     )
       fail(p, "请选择内置图或上传 PNG / JPEG / WebP");
   };
+  const generatedCards = (e, p) => {
+    enumeration(e.pool, p + "生成来源", ["category", "selected"]);
+    enumeration(e.category, p + "生成类型", Object.keys(generationCategories));
+    num(e.count, p + "生成数量", 1, 99, true);
+    if (!Array.isArray(e.cards) || e.cards.length > 100) { fail(p, "候选卡牌列表格式错误"); return; }
+    if (e.pool === "selected") {
+      if (!e.cards.length) fail(p, "至少选择一张候选卡牌");
+      if (new Set(e.cards).size !== e.cards.length) fail(p, "候选卡牌不能重复");
+      for (const key of e.cards) if (typeof key !== "string" || !own(c.cards, key)) fail(p, "候选卡牌不存在");
+    }
+  };
   const unit = (u, p) => {
     if (!isObject(u)) {
       fail(p, "缺少单位属性");
@@ -161,6 +184,7 @@ export function validateConfig(c) {
           "range",
           "rate",
           "speed",
+          "critChance",
           "useIcon",
           "levelGrowth",
         ].includes(key)
@@ -173,6 +197,7 @@ export function validateConfig(c) {
     num(u.range, p + "距离", 0, 24, true);
     num(u.rate, p + "攻速", 0.05, 20);
     num(u.speed, p + "移速", 0.05, 20);
+    if (u.critChance !== undefined) num(u.critChance, p + "暴击率", 0, 100);
     if (u.levelGrowth !== undefined) {
       if (!isObject(u.levelGrowth)) fail(p + "等级成长", "缺少生命和攻击每级增量");
       else for (const key of ["maxHp", "atk"])
@@ -184,6 +209,8 @@ export function validateConfig(c) {
     fail("版本", `仅支持版本 ${CONFIG_VERSION}`);
   if (c.heroContentVersion !== undefined && c.heroContentVersion !== 1)
     fail("英雄内容版本", "不支持的版本");
+  if (c.resourceContentVersion !== undefined && c.resourceContentVersion !== 1)
+    fail("资源内容版本", "不支持的版本");
   str(c.name, "配置名称", 80);
   if (
     !isObject(c.cards) ||
@@ -214,7 +241,7 @@ export function validateConfig(c) {
       p + "目标",
       {
         hero: ["ground"],
-        resource: ["hero", "ground"],
+        resource: ["hero", "ground", "any"],
         battle: ["enemy", "area"],
         equipment: ["hero"],
       }[card.category] || [],
@@ -242,21 +269,26 @@ export function validateConfig(c) {
         num(rule.trigger.radius, rp + "监听半径", -1, 24, true);
         enumeration(rule.target.kind, rp + "目标", Object.keys(triggerTargets));
         num(rule.target.radius, rp + "目标半径", -1, 24, true);
-        num(rule.target.count, rp + "最近英雄数量", 1, 20, true);
+        num(rule.target.count, rp + "目标英雄数量", 1, 20, true);
         if (!Array.isArray(rule.effects) || !rule.effects.length || rule.effects.length > 20) {
           fail(rp, "需要 1～20 个后续效果"); continue;
         }
         for (const effect of rule.effects) {
           if (!isObject(effect)) { fail(rp, "效果格式错误"); continue; }
           enumeration(effect.type, rp + "效果", Object.keys(triggerEffects));
+          if (effect.type === "generateCard") generatedCards(effect, rp);
           if (effect.type === "level") num(effect.value, rp + "等级", 1, 99, true);
-          if (effect.type === "heal") num(effect.value, rp + "治疗", 1, 100000);
+          if (effect.valueMode !== undefined) {
+            enumeration(effect.valueMode, rp + "数值类型", Object.keys(valueModes));
+            if (effect.type !== "heal") fail(rp, "只有恢复生命支持数值类型；属性加成请使用计算方式");
+          }
+          if (effect.type === "heal") num(effect.value, rp + "治疗", effect.valueMode === "percent" ? .01 : 1, effect.valueMode === "percent" ? 100 : 100000);
           if (effect.type === "stat") {
-            enumeration(effect.stat, rp + "属性", Object.keys(statLabels));
-            enumeration(effect.mode, rp + "计算方式", ["add", "multiply"]);
+            enumeration(effect.stat, rp + "属性", Object.keys(triggerStatLabels));
+            enumeration(effect.mode, rp + "计算方式", Object.keys(statModes));
             enumeration(effect.duration, rp + "持续时间", ["day", "permanent"]);
             num(effect.value, rp + "数值", effect.mode === "multiply" ? 0.05 : 0,
-              effect.mode === "multiply" ? 10 : 100000, effect.stat === "range" && effect.mode === "add");
+              effect.mode === "percent" ? 10000 : effect.mode === "multiply" ? 10 : effect.stat === "lifeSteal" ? 0.95 : 100000, effect.stat === "range" && effect.mode === "add");
           }
         }
       }
@@ -282,8 +314,22 @@ export function validateConfig(c) {
         fail(ep, "该类型不支持此效果");
         continue;
       }
+      if (card.target === "any" && !["gold", "generateCard"].includes(e.type))
+        fail(ep, "战场任意位置仅支持获得金币和生成卡牌；其他效果请选择英雄或地面目标");
       if (e.type === "level") num(e.value, ep, 1, 99, true);
-      if (["heal", "damage"].includes(e.type)) num(e.value, ep, 1, 100000);
+      if (e.type === "generateCard") generatedCards(e, ep);
+      if (e.type === "gold") num(e.value, ep + "金币", 1, 999, true);
+      if (["swapLevels", "sacrifice", "drainLevels"].includes(e.type)) num(e.radius, ep + "英雄范围", -1, 24, true);
+      if (["battleStart", "swapLevels", "sacrifice", "drainLevels"].includes(e.type) && card.target !== "hero") fail(ep, "此效果需要英雄目标");
+      if (e.type === "drainLevels") {
+        num(e.limit, ep + "吸取总上限", 1, 999, true);
+        num(e.perHero, ep + "每位英雄上限", 1, 999, true);
+      }
+      if (e.valueMode !== undefined) {
+        enumeration(e.valueMode, ep + "数值类型", Object.keys(valueModes));
+        if (!["heal", "damage"].includes(e.type)) fail(ep, "只有恢复生命和造成伤害支持数值类型；属性加成请使用计算方式");
+      }
+      if (["heal", "damage"].includes(e.type)) num(e.value, ep, e.valueMode === "percent" ? .01 : 1, e.valueMode === "percent" ? 100 : 100000);
       if (["damage", "slow", "splash"].includes(e.type))
         num(e.radius, ep + "范围", 0, 24, true);
       if (["slow", "lifesteal", "mitigation", "splash"].includes(e.type))
@@ -295,12 +341,12 @@ export function validateConfig(c) {
       }
       if (e.type === "stat") {
         enumeration(e.stat, ep + "属性", Object.keys(statLabels));
-        enumeration(e.mode, ep + "模式", ["add", "multiply"]);
+        enumeration(e.mode, ep + "模式", Object.keys(statModes));
         num(
           e.value,
           ep + "数值",
           e.mode === "multiply" ? 0.05 : 0,
-          e.mode === "multiply" ? 10 : 100000,
+          e.mode === "percent" ? 10000 : e.mode === "multiply" ? 10 : 100000,
           e.stat === "range" && e.mode === "add",
         );
       }
@@ -370,7 +416,22 @@ export function validateConfig(c) {
       if (key === "7,5" || terrain.has(key)) fail(dp + "地图障碍", "不能占用打卡机或重复格子");
       terrain.add(key);
     }
-    const reachable = reachableTerrain(terrain);
+    const mineCells = new Set();
+    if (day.mines !== undefined && (!Array.isArray(day.mines) || day.mines.length > 163)) fail(dp + "金矿", "需要最多 163 个金矿坐标");
+    else for (const mine of day.mines || []) {
+      if (!isObject(mine)) { fail(dp + "金矿", "格式错误"); continue; }
+      num(mine.x, dp + "金矿 X", 0, 14, true);
+      num(mine.y, dp + "金矿 Y", 0, 10, true);
+      if (mine.maxHp !== undefined) num(mine.maxHp, dp + "金矿生命", 1, 100000, true);
+      const key = `${mine.x},${mine.y}`;
+      if (key === "7,5" || terrain.has(key) || mineCells.has(key)) fail(dp + "金矿", "不能与打卡机、树木或其他金矿重叠");
+      mineCells.add(key);
+    }
+    const reachable = reachableTerrain(new Set([...terrain, ...mineCells]));
+    for (const key of mineCells) {
+      const [x, y] = key.split(",").map(Number);
+      if (![[x-1,y],[x+1,y],[x,y-1],[x,y+1]].some(([a,b]) => reachable.has(`${a},${b}`))) fail(dp + "金矿", "金矿需要保留可到达的相邻格子");
+    }
     if (reachable.size < 2) fail(dp + "地图障碍", "需要保留通往打卡机的道路");
     if (!Array.isArray(day.waves) || !day.waves.length || day.waves.length > 100) {
       fail(dp, "每天需要 1～100 波");
@@ -421,33 +482,20 @@ export function validateConfig(c) {
       num(total, p + "敌人总数", 1, 500, true);
     }
     }
-    const p = dp, w = day;
-    if (
-      !Array.isArray(w.rewards) ||
-      w.rewards.length < 1 ||
-      w.rewards.length > 3
-    )
-      fail(p, "需要 1～3 个奖励包");
-    else
-      for (const pack of w.rewards) {
-        if (!isObject(pack)) {
-          fail(p, "奖励格式错误");
-          continue;
-        }
-        str(pack.name, p + "奖励名称", 32);
-        enumeration(pack.theme, p + "奖励类型", [
-          "hero",
-          "resource",
-          "battle",
-          "equipment",
-        ]);
-        inventory(pack.cards, p + "奖励");
-        if (!Object.values(pack.cards || {}).some((n) => n > 0))
-          fail(p, "奖励不能全部为空");
-      }
+    if (!c.rewardPools || !own(c.rewardPools, day.rewardPool)) fail(dp, "请选择有效奖励池");
+  }
+  if (!isObject(c.rewardPools) || !Object.keys(c.rewardPools).length || Object.keys(c.rewardPools).length > 100) fail("奖励池", "需要 1～100 个奖励池");
+  else for (const [key, pool] of Object.entries(c.rewardPools)) {
+    id(key, "奖励池 ID");
+    if (!isObject(pool)) { fail(key, "奖励池格式错误"); continue; }
+    str(pool.name, "奖励池名称", 80);
+    inventory(pool.cards, "奖励池 " + pool.name);
+    if (!Object.values(pool.cards || {}).some(n => n > 0)) fail(pool.name, "奖励池至少需要一张权重大于 0 的卡牌");
   }
   if (JSON.stringify(c).length > 3500000)
     fail("配置大小", "超过 3.5 MB，请减少上传图片");
+  if (c.days.every((day) => isObject(day) && typeof day.id === "string"))
+    for (const error of campaignErrors(c)) fail("关卡路线", error);
   return errors;
 }
 export function assertConfig(c) {

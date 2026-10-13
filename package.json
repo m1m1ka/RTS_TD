@@ -7,9 +7,13 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node tests/engine.mjs && node tests/config.mjs && node tests/waves.mjs && node tests/triggers.mjs && node tests/terrain.mjs",
+    "test": "node tests/engine.mjs && node tests/config.mjs && node tests/waves.mjs && node tests/triggers.mjs && node tests/terrain.mjs && node tests/routes.mjs && node tests/gold.mjs && node tests/critical.mjs && node tests/effect-values.mjs && node tests/card-generation.mjs && node tests/rewards.mjs",
     "test:browser": "node tests/smoke.mjs",
-    "test:config": "node tests/config-browser.mjs"
+    "test:config": "node tests/config-browser.mjs",
+    "test:routes": "node tests/routes-browser.mjs",
+    "test:gold": "node tests/gold-browser.mjs",
+    "test:presets": "node tests/presets-browser.mjs",
+    "test:rewards": "node tests/rewards-browser.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"

@@ -696,3 +696,6 @@ dialog .primary-button {
     right: 8px;
   }
 }
+.victory-effects { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 35; }
+.gold-counter { display: inline-flex; align-items: center; gap: 5px; color: #f0cf79; }
+.gold-counter i { display: inline-grid; place-items: center; width: 19px; height: 21px; border: 2px solid #4c4229; border-radius: 50%; background: #d7a744; box-shadow: inset 0 0 0 2px #f3d77e; font: bold 14px Georgia, serif; color: #ffe4a0; }

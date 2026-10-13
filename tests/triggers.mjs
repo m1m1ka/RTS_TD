@@ -47,11 +47,14 @@ const clearWave = (g) => {
   near(a.speed, appliedSpeed);
   g.beginWave();
   clearWave(g);
+  if (g.phase === "victory") g.tick(6);
   assert.equal(g.phase, "reward");
   near(a.speed, baseSpeed);
   near(b.rate, baseRate);
   assert.equal(a.level, 3, "levels remain after temporary buffs expire");
-  g.chooseReward(0);
+  g.chooseReward([0, 1]);
+  g.chooseDay(g.nextDays()[0]);
+  for (const h of [...g.heroReserve]) assert.ok(g.playCard(h.cardId, h.x, h.y));
   g.startDay();
   assert.equal(a.level, 7, "next click uses the edited rules, including echo");
   near(a.speed, baseSpeed + 2, "daily movement gain starts afresh");
@@ -134,12 +137,69 @@ const clearWave = (g) => {
   assert.deepEqual(migrated.cards.hero_green.triggerRules, [], "explicitly disabled rules survive migration");
   assert.deepEqual(assertConfig(JSON.parse(JSON.stringify(migrated))), migrated);
 }
+{
+  const c = config(), events = [];
+  const rule = { ...newTriggerRule(), target: { kind: "randomAllies", radius: -1, count: 2 },
+    effects: [{ type: "level", value: 1 }, { type: "stat", stat: "atk", mode: "add", value: 7, duration: "day" }] };
+  c.cards.hero_blue.triggerRules = [rule];
+  assert.deepEqual(assertConfig(JSON.parse(JSON.stringify(c))), c, "random targets survive portable config");
+  const g = deploy(c, events), [a, b, mage] = g.heroes, order = g.heroes.map(h => h.id);
+  const random = Math.random;
+  try {
+    Math.random = () => .9999;
+    const chosen = g.heroTriggers.targets(a, a, rule.target);
+    assert.deepEqual(chosen, [mage, a], "whole-field selection includes self and distant heroes");
+    assert.equal(new Set(chosen).size, 2);
+    Math.random = () => 0;
+    assert.deepEqual(g.heroTriggers.targets(a, a, rule.target), [a, b], "each trigger can select a new group");
+    assert.deepEqual(g.heroTriggers.targets(a, a, { ...rule.target, radius: 0 }), [a]);
+    mage.hp = 0;
+    g.towers.push({ id: 100, x: a.x, y: a.y + 1, hp: 100 });
+    assert.deepEqual(g.heroTriggers.targets(a, a, { ...rule.target, count: 20 }), [a, b], "only living heroes; shortages use all eligible heroes");
+    b.hp = 0; a.hp = 0;
+    assert.deepEqual(g.heroTriggers.targets(a, a, rule.target), []);
+    for (const h of g.heroes) h.hp = h.maxHp;
+    g.towers = [];
+    const before = g.heroes.map(h => h.atk);
+    g.startDay();
+    assert.deepEqual(g.heroes.map(h => h.level), [2, 2, 1]);
+    const affected = events.filter(e => e.type === "triggerEffect");
+    assert.deepEqual(affected.filter(e => e.effect.type === "level").map(e => e.unit.id), affected.filter(e => e.effect.type === "stat").map(e => e.unit.id), "all payloads share one draw");
+    near(mage.atk, before[2]);
+    assert.deepEqual(g.heroes.map(h => h.id), order, "sampling must not reorder heroes");
+  } finally { Math.random = random; }
+}
+for (const duration of ["day", "permanent"]) {
+  const c = config();
+  c.cards.hero_blue.triggerRules = [{ ...newTriggerRule(), effects: [
+    { type: "stat", stat: "lifeSteal", mode: "add", value: .1, duration },
+  ] }];
+  assert.deepEqual(assertConfig(JSON.parse(JSON.stringify(c))), c);
+  const g = deploy(c), a = g.heroes[0];
+  g.cards.vampire = 1; assert.ok(g.playCard("vampire", a.x, a.y));
+  near(a.lifeSteal, .15);
+  g.startDay(); near(a.lifeSteal, .25);
+  g.applyConfig(structuredClone(c)); near(a.lifeSteal, .25, "saving must not stack absorption");
+  a.hp = 100;
+  g.hit({ id: 999, side: "enemy", hp: 20, maxHp: 20 }, 200, a);
+  near(a.hp, 105, "lifesteal uses actual damage rather than overkill");
+  g.wave = g.dayPlan.waves.length - 1; g.beginWave(); clearWave(g);
+  const retained = duration === "day" ? .15 : .25;
+  near(a.lifeSteal, retained);
+  g.tick(6); g.chooseReward([0, 1]); g.chooseDay(g.nextDays()[0]);
+  assert.ok(g.playCard(a.cardId, 7, 3)); near(a.lifeSteal, retained);
+  g.applyUnitEffect(a, { type: "stat", stat: "lifeSteal", mode: "multiply", value: 2 });
+  near(a.lifeSteal, retained * 2);
+  g.applyUnitEffect(a, { type: "stat", stat: "lifeSteal", mode: "add", value: .95 });
+  near(a.lifeSteal, .95, "combined lifesteal keeps the existing cap");
+}
 for (const mutate of [
   r => r.trigger.event = "unknown", r => r.trigger.scope = "enemy",
   r => r.trigger.radius = -2, r => r.target.radius = 0.5,
   r => r.target.count = 0, r => r.target.kind = "unknown",
   r => r.enabled = "yes", r => r.effects = [],
   r => r.effects = [{ type: "stat", stat: "speed", mode: "add", value: 0.5, duration: "unknown" }],
+  r => r.effects = [{ type: "stat", stat: "lifeSteal", mode: "add", value: 10, duration: "day" }],
 ]) {
   const c = config(); c.cards.hero_blue.triggerRules = [newTriggerRule()];
   mutate(c.cards.hero_blue.triggerRules[0]);

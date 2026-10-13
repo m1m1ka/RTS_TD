@@ -11,6 +11,3 @@ subscribeConfig((config) => {
   cards = config.cards;
   startingCards = config.initial.cards;
 });
-export function rewardPacks(day) {
-  return structuredClone(getConfig().days[day].rewards);
-}

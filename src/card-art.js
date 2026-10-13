@@ -1,5 +1,10 @@
 // Small, outlined illustrations share the battlefield's muted palette.
 const drawings = {
+  coin_purse: '<path fill="#b18b59" d="m32 19 10 12-21 23c-14 30 5 34 27 34s42-5 28-33L55 31l9-13-18 4z"/><path stroke="#e4c784" stroke-width="6" d="M34 34h27"/><circle fill="#e4bd64" cx="48" cy="62" r="17"/><path stroke="#ffe3a0" stroke-width="5" d="M48 52v20m-6-17h10"/>',
+  war_drum: '<path fill="#9b695b" d="M23 34v38c0 14 50 14 50 0V34"/><ellipse fill="#e4d3a2" cx="48" cy="33" rx="25" ry="11"/><path fill="none" stroke="#d0b987" d="m26 45 11 30 12-28 11 28 11-30"/><path stroke="#b29363" stroke-width="6" d="m19 13 23 16m38-16L55 29"/><circle fill="#dbc792" cx="43" cy="29" r="5"/><circle fill="#dbc792" cx="54" cy="29" r="5"/>',
+  level_swap: '<path fill="#9bad8c" d="M13 34h51V22l22 20-22 18V48H13z"/><path fill="#c5ac80" d="M83 64H32V52L10 72l22 18V77h51z"/><path stroke="#e5e0b6" d="M21 40h32m22 31H43"/>',
+  legacy: '<path fill="#738e72" d="M16 79h20V50H16zm45 0h21V38H61z"/><path fill="#c28c5f" d="M47 9c18 13 7 20 18 26 4 19-14 30-26 18-11-12 0-20 8-44Z"/><path fill="#efd291" d="M47 31c14 14 2 24-5 17-4-5 0-9 5-17Z"/><path fill="none" stroke="#d7c18c" stroke-width="6" d="m32 65 14 11 19-20"/><path fill="#dcc58c" d="m58 52 15-3-3 16z"/>',
+  siphon: '<path fill="#9682a3" d="m48 22 17 24-17 28-17-28z"/><path fill="#ddd1a8" d="m48 34 8 12-8 14-8-14z"/><path fill="none" stroke="#91b69c" stroke-width="5" d="M11 20c1 20 5 27 17 27m57-27c-1 20-5 27-17 27M21 84c0-15 8-20 15-21m39 21c0-15-8-20-15-21"/><path fill="#b6cba0" d="m19 40 11 7-11 7m58-14-11 7 11 7M29 70l8-10 4 13m26-3-8-10-4 13"/>',
   training:
     '<path fill="#c7bc8a" d="M22 20h40l8 9v49H22z"/><path fill="#8b845b" d="M62 20v13h12"/><path fill="#b5d47e" d="m29 50 19-21 20 21H56v22H40V50z"/>',
   coffee:

@@ -55,6 +55,7 @@ try {
   await editor.screenshot({ path: "logs/config-catgirl.png" });
   await editor.locator('[data-select="hero_blue"]').click();
   await editor.locator('[data-path="cards.hero_blue.name"]').fill("迁移先锋");
+  await editor.locator('[data-path="cards.hero_blue.unit.critChance"]').fill("12.5");
   await editor.locator('[data-path="cards.hero_blue.unit.maxHp"]').fill("777");
   await editor.locator('[data-path="cards.hero_blue.unit.speed"]').fill("2");
   // Upload embedded art through the actual file input.
@@ -124,8 +125,36 @@ try {
   await editor.locator('[data-path="cards.hero_blue.triggerRules.1.trigger.scope"]').selectOption("self");
   await editor.locator('[data-path="cards.hero_blue.triggerRules.1.trigger.radius"]').fill("3");
   await editor.locator('[data-trigger-template="echo"]').click();
+  await editor.locator('[data-path="cards.hero_blue.triggerRules.2.target.kind"]').selectOption("randomAllies");
   await editor.locator('[data-path="cards.hero_blue.triggerRules.2.target.radius"]').fill("4");
   await editor.locator('[data-path="cards.hero_blue.triggerRules.2.target.count"]').fill("2");
+  assert.ok((await editor.locator('[data-path="cards.hero_blue.triggerRules.2.target.count"]').locator("..").textContent()).includes("随机选取英雄数量"));
+  await editor.locator("#save-config").click();
+  const randomTarget = await editor.evaluate(() => JSON.parse(localStorage.getItem("friday-defense-config-v1")).cards.hero_blue.triggerRules[2].target);
+  assert.deepEqual(randomTarget, { kind: "randomAllies", radius: 4, count: 2 });
+  await editor.locator('[data-trigger-effect-type="cards.hero_blue.triggerRules.2.effects.0"]').selectOption("stat");
+  await editor.locator('[data-path="cards.hero_blue.triggerRules.2.effects.0.stat"]').selectOption("lifeSteal");
+  await editor.locator('[data-path="cards.hero_blue.triggerRules.2.effects.0.value"]').fill("0.1");
+  await editor.locator('[data-path="cards.hero_blue.triggerRules.2.effects.0.duration"]').selectOption("permanent");
+  assert.ok((await editor.locator('[data-path="cards.hero_blue.triggerRules.2.effects.0.value"]').locator("..").textContent()).includes("0.1 = 10%"));
+  await editor.locator("#save-config").click();
+  assert.deepEqual(await editor.evaluate(() => JSON.parse(localStorage.getItem("friday-defense-config-v1")).cards.hero_blue.triggerRules[2].effects[0]), { type: "stat", stat: "lifeSteal", mode: "add", value: .1, duration: "permanent" });
+  await editor.locator('[data-trigger-effect-type="cards.hero_blue.triggerRules.2.effects.0"]').selectOption("heal");
+  await editor.locator('[data-path="cards.hero_blue.triggerRules.2.effects.0.valueMode"]').selectOption("percent");
+  await editor.locator('[data-path="cards.hero_blue.triggerRules.2.effects.0.value"]').fill("25");
+  assert.ok((await editor.locator('[data-path="cards.hero_blue.triggerRules.2.effects.0.value"]').locator("..").textContent()).includes("百分比"));
+  await editor.locator("#save-config").click();
+  assert.deepEqual(await editor.evaluate(() => JSON.parse(localStorage.getItem("friday-defense-config-v1")).cards.hero_blue.triggerRules[2].effects[0]), { type: "heal", valueMode: "percent", value: 25 });
+  await editor.locator('[data-trigger-effect-type="cards.hero_blue.triggerRules.2.effects.0"]').selectOption("generateCard");
+  assert.equal(await editor.locator('[data-path="cards.hero_blue.triggerRules.2.effects.0.category"]').inputValue(), "resource");
+  assert.equal(await editor.locator('[data-path="cards.hero_blue.triggerRules.2.effects.0.count"]').inputValue(), "1");
+  await editor.locator('[data-path="cards.hero_blue.triggerRules.2.effects.0.pool"]').selectOption("selected");
+  await editor.locator('[data-generation-path="cards.hero_blue.triggerRules.2.effects.0"][data-generation-card="training"]').check();
+  await editor.locator('[data-generation-path="cards.hero_blue.triggerRules.2.effects.0"][data-generation-card="coffee"]').check();
+  await editor.locator('[data-path="cards.hero_blue.triggerRules.2.effects.0.count"]').fill("3");
+  await editor.locator("#save-config").click();
+  assert.deepEqual(await editor.evaluate(() => JSON.parse(localStorage.getItem("friday-defense-config-v1")).cards.hero_blue.triggerRules[2].effects[0]), { type: "generateCard", pool: "selected", category: "resource", cards: ["training", "coffee"], count: 3 });
+  await editor.locator('.editor-panel').filter({ has: editor.getByRole("heading", { name: "触发机制", exact: true }) }).screenshot({ path: "logs/config-random-target.png" });
   await editor.locator('[data-action="remove-trigger"][data-index="2"]').click();
   await editor.locator("#save-config").click();
   assert.equal((await game.evaluate(() => window.__game.snapshot())).heroes[0].level, 1, "saving a trigger does not fire it");
@@ -180,6 +209,14 @@ try {
   await dragTerrain("2,2", "2,2");
   await editor.locator('[data-select="0"]').click();
   assert.equal(await editor.locator(".terrain-grid .tree").count(), 2);
+  await editor.locator("[data-terrain-brush]").selectOption("mine");
+  await editor.locator("[data-mine-hp]").fill("260");
+  await editor.locator("[data-mine-hp]").press("Tab");
+  await dragTerrain("3,2", "5,2");
+  assert.equal(await editor.locator(".terrain-grid .mine").count(), 3);
+  await dragTerrain("4,2", "5,2", "right");
+  assert.equal(await editor.locator(".terrain-grid .mine").count(), 1);
+  assert.equal(await editor.locator('[data-spawn="3,2"]').isDisabled(), true);
   await editor.locator("[data-terrain-toggle]").click();
   await editor.locator("#save-config").click();
   await game.waitForFunction(() => window.__game.snapshot().obstacles.length === 2);
@@ -239,7 +276,9 @@ try {
   assert.equal(exported.version, 2);
   assert.deepEqual(exported.days[0].obstacles, [{ x: 1, y: 1 }, { x: 4, y: 1 }]);
   assert.deepEqual(exported.days[1].obstacles, [{ x: 2, y: 2 }]);
+  assert.deepEqual(exported.days[0].mines, [{ x: 3, y: 2, maxHp: 260 }]);
   assert.equal(exported.cards.hero_blue.unit.levelGrowth.atk, 7.5);
+  assert.equal(exported.cards.hero_blue.unit.critChance, 12.5);
   assert.equal(exported.enemies.grunt.levelGrowth.maxHp, 20);
   assert.equal(exported.days[0].waves[0].spawns[0].enemies[0].level, 4);
   assert.equal(exported.cards.hero_blue.triggerRules[0].effects[1].value, 0.4);
@@ -258,6 +297,7 @@ try {
   );
   await migrated.locator("#save-config").click();
   assert.equal(await migrated.locator('[data-path="cards.hero_blue.unit.levelGrowth.atk"]').inputValue(), "7.5", "growth formulas migrate across devices");
+  assert.equal(await migrated.locator('[data-path="cards.hero_blue.unit.critChance"]').inputValue(), "12.5");
   const migratedGame = await second.newPage();
   await migratedGame.goto("http://127.0.0.1:5176");
   await migratedGame.waitForFunction(
@@ -265,6 +305,7 @@ try {
   );
   assert.equal((await migratedGame.evaluate(() => window.__game.snapshot())).cards.hero_catgirl, 1);
   assert.deepEqual((await migratedGame.evaluate(() => window.__game.snapshot())).obstacles, exported.days[0].obstacles, "maps migrate across devices");
+  assert.equal((await migratedGame.evaluate(() => window.__game.snapshot())).mines[0].maxHp, 260);
   assert.ok(await migratedGame.locator('[data-card="hero_catgirl"] img').evaluate(img => img.complete && img.naturalWidth > 0));
   assert.equal(
     (await migratedGame.evaluate(() => window.__game.snapshot())).baseMaxHp,

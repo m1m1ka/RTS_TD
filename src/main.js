@@ -2,7 +2,9 @@ import * as THREE from "three";
 import "./style.css";
 import "./cards.css";
 import { unitArt, mapArt, forestArt } from "./art.js";
-import { Game, W, H, BASE, days, dist, inside } from "./game.js";
+import { GoldVisuals } from "./gold-visuals.js";
+import { presetIds } from "./hero-presets.js";
+import { Game, W, H, BASE, dist, inside } from "./game.js";
 import { CombatVFX } from "./combat-vfx.js";
 import { HealthBar } from "./health-bar.js";
 import { WeaponRig } from "./weapon-rig.js";
@@ -13,6 +15,7 @@ import { cardRadius } from "./config/schema.js";
 import { iconURL } from "./config/icons.js";
 import { getWeaponSpec } from "./weapons.js";
 import { WaveProgress } from "./wave-progress.js";
+import { RouteMap } from "./route-map.js";
 
 const $ = (id) => document.getElementById(id),
   arena = $("arena");
@@ -38,6 +41,7 @@ const textures = {},
   arts = {},
   whiteTextures = {};
 for (const type of [
+  ...presetIds,
   "catgirl",
   "blue",
   "green",
@@ -174,6 +178,7 @@ function motionState(sprite, white, size) {
   };
 }
 const baseMotion = motionState(baseSprite, baseWhite, 1.36);
+const goldVisuals = new GoldVisuals(scene, camera, pos);
 const combatVFX = new CombatVFX(scene, (unit) =>
   unit === BASE
     ? baseSprite.position.clone()
@@ -426,7 +431,39 @@ function applyMotion(v, dt, id = 0) {
     v.hitTimer > 0.22 ? 0.92 : Math.max(0, v.hitTimer / 0.22) * 0.25;
 }
 function onEvent(e) {
+  if (e.type === "goldGranted") toast(`金币 +${e.amount}`);
+  if (e.type === "heroDestroyed") {
+    inspectedUnitId = null;
+    burst(e.unit, "#e1c38b");
+    const v = unitMeshes.get(e.unit.id);
+    if (v) { v.weapon?.dispose(); v.healthBar.dispose(); scene.remove(v.group); v.group.children.forEach(m => m.material.dispose()); unitMeshes.delete(e.unit.id); }
+  }
+  if (e.type === "cardsGenerated") {
+    const names = Object.entries(e.cards).slice(0, 3).map(([key, count]) => `${cards[key]?.name || key} ×${count}`).join(" · ");
+    toast(`获得 ${names}${Object.keys(e.cards).length > 3 ? ` 等 ${e.count} 张牌` : ""}`);
+  }
+  if ((e.type === "hit" || e.type === "death") && e.unit.type === "mine") {
+    goldVisuals.hit(e.unit);
+    if (e.type === "hit") floating(e.unit, `${e.critical ? "暴击 " : ""}−${e.damage}`, e.critical ? "#ffe08c" : "#e6c18c");
+    else burst(e.unit, "#ae9766");
+    return;
+  }
+  if (e.type === "victory") { cardUI.cancel(); tone(880, .3); }
+  if (e.type === "gold") tone(700 + e.index * 90, .09, "triangle", .025);
   if (e.type === "reset") inspectedUnitId = null;
+  if (e.type === "daySelected") {
+    inspectedUnitId = null;
+    combatVFX.reset();
+    for (const id of e.recalledIds || []) {
+      const v = unitMeshes.get(id);
+      if (!v) continue;
+      v.weapon?.dispose();
+      v.healthBar.dispose();
+      scene.remove(v.group);
+      v.group.children.forEach((m) => m.material.dispose());
+      unitMeshes.delete(id);
+    }
+  }
   if (e.type === "deploy" || e.type === "move") inspectedUnitId = null;
   if (e.type === "select") inspectedUnitId = game.heroes[game.selected]?.id ?? null;
   if (e.type === "toast") toast(e.text);
@@ -444,8 +481,8 @@ function onEvent(e) {
   if (e.type === "hit") {
     floating(
       e.unit,
-      `−${e.damage}`,
-      e.unit.side === "enemy" ? "#fff0ba" : "#ffa393",
+      `${e.critical ? "暴击 " : ""}−${e.damage}`,
+      e.critical ? "#ffda72" : e.unit.side === "enemy" ? "#fff0ba" : "#ffa393",
     );
     const v =
       e.unit === BASE
@@ -512,7 +549,6 @@ function onEvent(e) {
     tone(220, 0.25, "triangle");
   }
   if (e.type === "clear") {
-    banner(`第 ${e.day} 天 · 守住了！`);
     tone(880, 0.3);
   }
   if (e.type === "build") burst(e.unit, "#eddaa1");
@@ -526,7 +562,7 @@ game = new Game(onEvent);
 $("base-avatar").src = artUrls.base;
 const cardUI = new CardUI({
   game,
-  canInteract: () => !paused && !["reward", "won", "lost"].includes(game.phase),
+  canInteract: () => !paused && !$("route-dialog").open && !["victory", "reward", "won", "lost", "route"].includes(game.phase),
   onSelect: () => {
     rangeKey = "";
     uiTimer = 1;
@@ -580,8 +616,14 @@ function updateInspector() {
   $("unit-hp").textContent = `${Math.ceil(unit.hp)} / ${Math.round(unit.maxHp)}`;
   $("unit-rate").textContent = unit.rate.toFixed(1);
   $("unit-range").textContent = Math.round(unit.range);
+  $("unit-crit").textContent = `${Number((unit.critChance || 0).toFixed(1))}%`;
   $("unit-move-hint").hidden = !movable || !!cardUI.activeKey;
 }
+const routeMap = new RouteMap(game, () => {
+  cardUI.cancel();
+  rangeKey = moveKey = pathKey = "";
+  updateUI();
+});
 let terrainKey = "";
 function updateTerrain() {
   const key = [...game.obstacles].sort().join(";");
@@ -592,6 +634,7 @@ function updateTerrain() {
   rangeKey = moveKey = pathKey = "";
 }
 function updateUI() {
+  routeMap.update();
   updateTerrain();
   updateInspector();
   updateGates();
@@ -777,7 +820,7 @@ function cellFromEvent(e) {
   return { x: Math.round(v.x + 7), y: Math.round(5 - v.y) };
 }
 function clickCell(x, y) {
-  if (["won", "lost", "reward"].includes(game.phase)) return;
+  if (["victory", "won", "lost", "reward", "route"].includes(game.phase) || $("route-dialog").open) return;
   if (!inside(x, y)) return;
   if (cardUI.activeKey) {
     if (paused) return;
@@ -813,7 +856,7 @@ renderer.domElement.addEventListener(
   "wheel",
   (e) => {
     e.preventDefault();
-    if ($("dialog").open || $("reward-dialog").open) return;
+    if ($("dialog").open || $("reward-dialog").open || $("route-dialog").open) return;
     const delta =
       e.deltaY *
       (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? arena.clientHeight : 1);
@@ -951,7 +994,7 @@ $("sound").onclick = () => {
   tone(600, 0.1);
 };
 document.addEventListener("keydown", (e) => {
-  if ($("dialog").open) return;
+  if ($("dialog").open || $("route-dialog").open) return;
   if (
     ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(
       e.code,
@@ -979,7 +1022,7 @@ document.addEventListener("keydown", (e) => {
     KeyD: [1, 0],
     ArrowRight: [1, 0],
   };
-  if (dirs[e.code] && !paused && !["won", "lost"].includes(game.phase)) {
+  if (dirs[e.code] && !paused && !["victory", "won", "lost", "route"].includes(game.phase) && !$("route-dialog").open) {
     const h = game.heroes[game.selected],
       d = dirs[e.code];
     if (h && h.id === inspectedUnitId) game.move(h.x + d[0], h.y + d[1]);
@@ -1025,10 +1068,12 @@ function showResult(won) {
     localStorage.setItem("friday-defense-best", String(best));
   } catch {}
   openDialog(
-    `<div class="result-icon">${won ? "✳" : "☂"}</div><h2>${won ? "准时下班！" : "被迫加班…"}</h2><div class="result-stats"><div><b>${game.day + 1}/${days.length}</b><span>天数</span></div><div><b>${game.kills}</b><span>击退</span></div><div><b>${best}</b><span>最佳</span></div></div><button id="play-again" class="primary-button">再来</button>`,
+    `<div class="result-icon">${won ? "✳" : "☂"}</div><h2>${won ? "准时下班！" : "被迫加班…"}</h2><div class="result-stats"><div><b>${game.completedDays.length}</b><span>完成关卡</span></div><div><b>${game.kills}</b><span>击退</span></div><div><b>${best}</b><span>最佳</span></div></div><button id="play-again" class="primary-button">再来</button>`,
   );
 }
 function reset() {
+  goldVisuals.reset();
+  $("route-dialog").close();
   clearTimeout(resultTimer);
   for (const v of unitMeshes.values()) {
     v.weapon?.dispose();
@@ -1071,7 +1116,7 @@ function animate(now) {
   const realDt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
   wallTime += realDt;
-  const dt = paused || game.phase === "reward" ? 0 : realDt * speed;
+  const dt = paused || ["reward", "route"].includes(game.phase) || $("route-dialog").open ? 0 : realDt * speed;
   if (dt) {
     let left = dt;
     while (left > 0) {
@@ -1081,6 +1126,8 @@ function animate(now) {
       left -= step;
     }
   }
+  goldVisuals.update(game, dt);
+  $("gold-total").textContent = game.gold;
   const alive = [...game.heroes, ...game.enemies, ...game.towers].filter(
       (u) => u.hp > 0,
     ),

@@ -21,9 +21,14 @@ import {
 import { iconURL } from "./icons.js";
 import { obstacleKeys } from "../terrain.js";
 import { TerrainEditor } from "./terrain-editor.js";
+import { nextDayIds, materializeRoutes, campaignLayout } from "../campaign.js";
+import { routeGraph } from "../route-map.js";
 import { triggerRulesEditor } from "./trigger-editor.js";
 import { newTriggerRule, defaultHeroRules, triggerEffects } from "./trigger-rules.js";
 import { levelStats } from "../level-stats.js";
+import { heroPresets, lookLabel, createPresetCard, presetById } from "../hero-presets.js";
+import { valueModes, statModes } from "../effect-values.js";
+import { cardGenerationEditor } from "./card-generation-editor.js";
 
 const $ = (id) => document.getElementById(id),
   types = {
@@ -86,14 +91,14 @@ function field(
   return `<label class="field ${wide ? "wide" : ""}"><span>${esc(label)}</span>${input}</label>`;
 }
 function unitFields(path) {
-  return `<div class="fields">${field("动作模板", path + ".type", { options: Object.fromEntries(skins.map((s) => [s, s])) })}${field("独立武器", path + ".weapon", { options: weaponOptions })}${Object.entries(
+  return `<div class="fields">${field("动作模板", path + ".type", { options: Object.fromEntries(skins.map((s) => [s, lookLabel(s)])) })}${field("独立武器", path + ".weapon", { options: weaponOptions })}${Object.entries(
     statLabels,
   )
     .map(([k, t]) =>
       field(["maxHp", "atk"].includes(k) ? t + "（1 级基础值）" : t, path + "." + k, {
         type: "number",
         min: ["rate", "speed"].includes(k) ? 0.05 : k === "maxHp" ? 1 : 0,
-        max: ["rate", "speed"].includes(k) ? 20 : k === "range" ? 24 : 1000000,
+        max: k === "critChance" ? 100 : ["rate", "speed"].includes(k) ? 20 : k === "range" ? 24 : 1000000,
         step: k === "range" ? 1 : "any",
       }),
     )
@@ -109,17 +114,21 @@ function growthPreview(path) {
 }
 function iconEditor(label, path, hint) {
   const value = get(path);
-  return `<div class="icon-editor"><img src="${iconURL(value, true)}" alt="${esc(label)}"><div><b>${esc(label)}</b><small>${esc(hint)}</small><select data-icon-select="${path}"><option value="" ${!builtInIcons.includes(value) ? "selected" : ""} disabled>上传的图片</option>${builtInIcons.map((k) => `<option value="${k}" ${k === value ? "selected" : ""}>${k === "catgirl" ? "猫女 · 米娅" : k}</option>`).join("")}</select><label class="upload">上传图片<input type="file" accept="image/png,image/jpeg,image/webp" data-upload="${path}" hidden></label></div></div>`;
+  return `<div class="icon-editor"><img src="${iconURL(value, true)}" alt="${esc(label)}"><div><b>${esc(label)}</b><small>${esc(hint)}</small><select data-icon-select="${path}"><option value="" ${!builtInIcons.includes(value) ? "selected" : ""} disabled>上传的图片</option>${builtInIcons.map((k) => `<option value="${k}" ${k === value ? "selected" : ""}>${lookLabel(k)}</option>`).join("")}</select><label class="upload">上传图片<input type="file" accept="image/png,image/jpeg,image/webp" data-upload="${path}" hidden></label></div></div>`;
 }
 function panel(title, body, aside = "") {
   return `<section class="editor-panel"><div class="panel-title"><h3>${title}</h3>${aside}</div>${body}</section>`;
 }
+function presetLibrary() {
+  return `<details class="hero-preset-library"><summary>英雄形象图鉴 <small>10 个预设 · 点击创建英雄牌</small></summary><div class="hero-preset-grid">${heroPresets.map(p => `<button type="button" data-hero-preset="${p.id}" title="以${p.name}为模板创建可编辑的英雄牌"><img src="${iconURL(p.id, true)}" alt="${p.name}" draggable="false"><strong>${p.name}</strong><small>${p.role}</small></button>`).join("")}</div></details>`;
+}
 function inventory(path) {
   const value = get(path);
+  const label = path.startsWith("rewardPools.") ? "权重" : "数量";
   return `<div class="inventory">${Object.entries(value)
     .map(
       ([key, n]) =>
-        `<div class="inventory-row"><img src="${iconURL(draft.cards[key]?.icon, true)}" alt=""><span>${esc(draft.cards[key]?.name || key)}</span><input type="number" min="0" max="999" step="1" value="${n}" aria-label="${esc(draft.cards[key]?.name)}数量" data-path="${path}.${key}"><button class="icon-button" data-action="remove-inventory" data-path-value="${path}" data-key="${key}" title="移除">×</button></div>`,
+        `<div class="inventory-row"><img src="${iconURL(draft.cards[key]?.icon, true)}" alt=""><span>${esc(draft.cards[key]?.name || key)}</span><input type="number" min="0" max="999" step="1" value="${n}" aria-label="${esc(draft.cards[key]?.name)}${label}" data-path="${path}.${key}"><button class="icon-button" data-action="remove-inventory" data-path-value="${path}" data-key="${key}" title="移除">×</button></div>`,
     )
     .join(
       "",
@@ -141,11 +150,17 @@ function effectsEditor(card, path) {
       .map((effect, i) => {
         const ep = path + ".effects." + i;
         let controls = "";
+        if (effect.type === "battleStart") controls += '<p class="hint">立即触发目标英雄的一次开战，并通知相关监听规则；不会开始新一天或重置波次。</p>';
+        if (effect.type === "sacrifice") controls += '<p class="hint">永久销毁目标及其装备，将全部等级随机转赠范围内另一位存活英雄。</p>';
+        if (effect.type === "drainLevels") controls += field("总吸取上限（级）", ep + ".limit", { type: "number", min: 1, max: 999, step: 1 }) + field("每位英雄最多贡献（级）", ep + ".perHero", { type: "number", min: 1, max: 999, step: 1 }) + '<p class="hint">按距离从近到远吸取，捐出者至少保留 1 级。</p>';
+        if (effect.type === "generateCard") controls += cardGenerationEditor(effect, ep, draft.cards, field);
+        const percent = effect.valueMode === "percent" || (effect.type === "stat" && effect.mode === "percent");
+        if (["heal", "damage"].includes(effect.type)) controls += field("数值类型", ep + ".valueMode", { options: valueModes });
         if (effect.type === "stat")
           controls +=
             field("属性", ep + ".stat", { options: statLabels }) +
             field("计算方式", ep + ".mode", {
-              options: { add: "增加数值", multiply: "乘以倍率" },
+              options: statModes,
             });
         if (effect.type === "weapon")
           controls +=
@@ -157,7 +172,7 @@ function effectsEditor(card, path) {
             });
         if ("value" in effect)
           controls += field(
-            ["slow", "lifesteal", "mitigation", "splash"].includes(effect.type)
+            percent ? "百分比（填 10 表示 10%）" : ["slow", "lifesteal", "mitigation", "splash"].includes(effect.type)
               ? "比例（0.25 = 25%）"
               : effect.type === "stat" && effect.mode === "multiply"
                 ? "倍率（1.25 = +25%）"
@@ -165,13 +180,15 @@ function effectsEditor(card, path) {
             ep + ".value",
             {
               type: "number",
-              min: 0,
+              min: percent && ["heal", "damage"].includes(effect.type) ? .01 : 0,
+              max: percent ? ["heal", "damage"].includes(effect.type) ? 100 : 10000 : 100000,
               step: effect.type === "level" ? 1 : "any",
             },
           );
         if ("radius" in effect)
-          controls += field("作用半径（格）", ep + ".radius", {
+          controls += field(["swapLevels", "sacrifice", "drainLevels"].includes(effect.type) ? "作用半径（格，-1 为全场）" : "作用半径（格）", ep + ".radius", {
             type: "number",
+            min: ["swapLevels", "sacrifice", "drainLevels"].includes(effect.type) ? -1 : 0,
             max: 24,
             step: 1,
           });
@@ -207,7 +224,8 @@ function preview(card) {
   return `<div class="preview-sticky"><div class="nav-caption">卡面预览</div><div class="hand-card ${card.category} config-preview"><b class="card-count"><span>×</span>1</b><strong class="card-title">${esc(card.name)}</strong><div class="card-picture"><img src="${iconURL(card.icon, true)}" alt=""></div><span class="card-kind">${types[card.category]}</span><small class="card-description">${esc(card.text).replace(/ · /g, "<br>")}</small><span class="card-flourish">◆</span></div><small>属性效果按列表顺序叠加，等级成长先计入基础属性。描述为独立展示文本。</small><div class="actual-preview"><img src="${iconURL(card.useIcon)}" alt="使用图标"><span>实际使用图标</span></div></div>`;
 }
 function entityList(items, kind) {
-  return `<aside class="entity-list"><div class="entity-toolbar"><span>${items.length} 项</span><button data-action="add-${kind}">＋ 新增</button></div>${items.map(([key, item], i) => `<button class="entity ${String(selected) === String(key) ? "active" : ""}" data-select="${key}">${kind !== "day" ? `<img src="${iconURL(item.icon || item.useIcon, true)}" alt="">` : `<b class="wave-number">${Number(key) + 1}</b>`}<span>${esc(item.name)}<small>${kind === "day" ? `${item.waves.length} 波 · ${item.waves.reduce((n, w) => n + waveCount(w), 0)} 名敌人` : esc(key)}</small></span></button>`).join("")}</aside>`;
+  const depths = kind === "day" ? new Map(campaignLayout(draft).nodes.map((node) => [node.day.id, node.depth + 1])) : null;
+  return `<aside class="entity-list"><div class="entity-toolbar"><span>${items.length} 项</span><button data-action="add-${kind}">＋ 新增</button></div>${items.map(([key, item], i) => `<button class="entity ${String(selected) === String(key) ? "active" : ""}" data-select="${key}">${kind !== "day" ? `<img src="${iconURL(item.icon || item.useIcon, true)}" alt="">` : `<b class="wave-number">${depths.get(item.id)}</b>`}<span>${esc(item.name)}<small>${kind === "day" ? `${item.waves.length} 波 · ${item.waves.reduce((n, w) => n + waveCount(w), 0)} 名敌人` : esc(key)}</small></span></button>`).join("")}</aside>`;
 }
 function renderCards() {
   const items = Object.entries(draft.cards).filter(
@@ -215,14 +233,14 @@ function renderCards() {
   );
   if (!items.some(([k]) => k === selected)) selected = items[0]?.[0];
   const card = draft.cards[selected];
-  return `<div class="category-tabs">${Object.entries(types)
+  return `${category === "hero" ? presetLibrary() : ""}<div class="category-tabs">${Object.entries(types)
     .map(
       ([k, t]) =>
         `<button data-category="${k}" class="${category === k ? "active" : ""}">${t}</button>`,
     )
     .join(
       "",
-    )}</div><div class="editor-columns">${entityList(items, "card")}${card ? `<div class="entity-form"><div class="entity-title"><h2>${esc(card.name)}</h2><div><button data-action="duplicate-card">复制</button><button data-action="delete-card" class="danger">删除</button></div></div>${panel("基本信息", `<div class="fields">${field("名字", "cards." + selected + ".name")}${field("使用目标", "cards." + selected + ".target", { options: { hero: { ground: "空地" }, resource: { hero: "我方英雄", ground: "空地（放置炮台）" }, battle: { area: "范围位置", enemy: "敌方单位" }, equipment: { hero: "我方英雄" } }[category] })}${field("描述", "cards." + selected + ".text", { type: "textarea", wide: true })}</div><div class="icon-pair">${iconEditor("卡牌 icon", "cards." + selected + ".icon", "显示在手牌与奖励牌上")}${iconEditor("实际使用 icon", "cards." + selected + ".useIcon", "单位外观 / 装备标记 / 施放图标")}</div>`)}${category === "hero" ? panel("英雄属性", unitFields("cards." + selected + ".unit")) : ""}${category === "battle" ? panel("战斗表现", field("施法特效", "cards." + selected + ".visual", { options: { fireball: "火球爆环", lightning: "落雷", frost: "寒霜" } })) : ""}${panel("组合效果", effectsEditor(card, "cards." + selected))}${card.effects.some((e) => e.type === "summon") ? panel("炮台属性", unitFields("cards." + selected + ".unit")) : ""}</div><aside id="card-preview">${preview(card)}</aside>` : '<div class="empty-editor">该分类暂无卡牌，点击新增开始配置。</div>'}</div>`;
+    )}</div><div class="editor-columns">${entityList(items, "card")}${card ? `<div class="entity-form"><div class="entity-title"><h2>${esc(card.name)}</h2><div><button data-action="duplicate-card">复制</button><button data-action="delete-card" class="danger">删除</button></div></div>${panel("基本信息", `<div class="fields">${field("名字", "cards." + selected + ".name")}${field("使用目标", "cards." + selected + ".target", { options: { hero: { ground: "空地" }, resource: { any: "\u6218\u573a\u4efb\u610f\u4f4d\u7f6e", hero: "我方英雄", ground: "空地（放置炮台）" }, battle: { area: "范围位置", enemy: "敌方单位" }, equipment: { hero: "我方英雄" } }[category] })}${field("描述", "cards." + selected + ".text", { type: "textarea", wide: true })}</div><div class="icon-pair">${iconEditor("卡牌 icon", "cards." + selected + ".icon", "显示在手牌与奖励牌上")}${iconEditor("实际使用 icon", "cards." + selected + ".useIcon", "单位外观 / 装备标记 / 施放图标")}</div>`)}${category === "hero" ? panel("英雄属性", unitFields("cards." + selected + ".unit")) : ""}${category === "battle" ? panel("战斗表现", field("施法特效", "cards." + selected + ".visual", { options: { fireball: "火球爆环", lightning: "落雷", frost: "寒霜" } })) : ""}${panel("组合效果", effectsEditor(card, "cards." + selected))}${card.effects.some((e) => e.type === "summon") ? panel("炮台属性", unitFields("cards." + selected + ".unit")) : ""}</div><aside id="card-preview">${preview(card)}</aside>` : '<div class="empty-editor">该分类暂无卡牌，点击新增开始配置。</div>'}</div>`;
 }
 function renderInitial() {
   return `<div class="entity-title"><h2>初始默认配置</h2><span class="hint">每次开局的规则</span></div><div class="initial-layout"><div>${panel("核心与波后恢复", `<div class="fields">${field("每天第一波开始等待（秒）", "initial.firstWaveDelay", { type: "number", max: 3600 })}${field("核心初始生命", "initial.baseHp", { type: "number", min: 1 })}${field("波后治疗比例", "initial.waveHeal", { type: "number", max: 1 })}${field("阵亡英雄复活血量比例", "initial.reviveHp", { type: "number", min: 0.01, max: 1 })}</div>`)}${panel(
@@ -242,6 +260,7 @@ function renderEnemies() {
 }
 function spawnGrid(w) {
   const obstacles = obstacleKeys(draft.days[selected]);
+  for (const mine of draft.days[selected].mines || []) obstacles.add(`${mine.x},${mine.y}`);
   return `<div class="grid-legend"><span>点击切换出生点</span><span>✦ 核心　■ 障碍　● 出生点</span></div><div class="spawn-grid">${Array.from(
     { length: 165 },
     (_, i) => {
@@ -269,22 +288,34 @@ function renderWaves() {
     const enemies = point.enemies.map((row, j) => '<div class="spawn-enemy-row">' + field('敌人类型', pp + '.enemies.' + j + '.type', { options: enemyOptions }) + field('等级', pp + '.enemies.' + j + '.level', { type: 'number', min: 1, max: 999, step: 1 }) + field('数量', pp + '.enemies.' + j + '.count', { type: 'number', min: 1, max: 500, step: 1 }) + '<button data-action="remove-spawn-enemy" data-point="' + i + '" data-index="' + j + '" aria-label="移除敌人">×</button></div>').join('');
     return '<div class="spawn-editor"><div class="entity-title"><h3>出生点 ' + (i + 1) + ' · (' + point.x + ', ' + point.y + ')</h3><button data-action="remove-spawn" data-point="' + i + '" class="danger">移除</button></div><div class="fields">' + field('本波开始后延迟（秒）', pp + '.delay', { type: 'number', max: 3600 }) + field('逐个出兵间隔（秒）', pp + '.interval', { type: 'number', min: 0.1, max: 1200 }) + '</div>' + enemies + '<button data-action="add-spawn-enemy" data-point="' + i + '">＋ 添加敌人类型</button></div>';
   }).join('');
-  const rewards = day.rewards.map((pack, i) => '<div class="reward-editor"><div class="fields">' + field('奖励包名称', path + '.rewards.' + i + '.name') + field('类型', path + '.rewards.' + i + '.theme', { options: types }) + '</div>' + inventory(path + '.rewards.' + i + '.cards') + '<button data-action="remove-pack" data-index="' + i + '" class="danger">移除此奖励包</button></div>').join('');
-  return '<div class="editor-columns two">' + entityList(draft.days.map((d, i) => [i, d]), 'day') + '<div class="entity-form"><div class="entity-title"><h2>第 ' + (Number(selected) + 1) + ' 天</h2><div>' + dayButtons + '</div></div>'
+  const successors = nextDayIds(draft, day.id);
+  const connections = '<div class="route-links">' + draft.days.filter((d) => d.id !== day.id).map((d) => `<label class="route-link-option"><input type="checkbox" data-next-day="${esc(d.id)}" ${successors.includes(d.id) ? "checked" : ""}>${esc(d.name)}</label>`).join('') + '</div><p class="hint">勾选多个节点形成分支；不同分支可连接同一节点汇合。没有后续连接的节点为终点。</p>';
+  const depth = campaignLayout(draft).nodes.find((node) => node.day.id === day.id).depth + 1;
+  return '<div class="campaign-editor">' + panel('关卡路线 · 点击节点编辑', field('路线起点', 'startDayId', { options: Object.fromEntries(draft.days.map((d) => [d.id, d.name])) }) + routeGraph(draft, { selected: day.id, available: successors, editor: true }) + '<p class="hint">从左向右推进，每一列为一天。所有节点需从起点可达，路线不能形成循环。</p>') + '</div><div class="editor-columns two">' + entityList(draft.days.map((d, i) => [i, d]), 'day') + '<div class="entity-form"><div class="entity-title"><h2>第 ' + depth + ' 天 · ' + esc(day.name) + '</h2><div>' + dayButtons + '</div></div>'
     + panel('关卡', field('名称', path + '.name'))
-    + panel('当天地图 · 树木障碍', terrainEditor.render(day))
+    + panel('后续路线', connections)
+    + panel('当天地图 · 树木与金矿', terrainEditor.render(day))
     + panel('当天波次', '<div class="wave-tabs">' + waveTabs + '<button data-action="add-wave">＋ 新增波次</button></div><p class="hint">每波所有敌人出齐并被消灭后，才开始计算下一波的等待时间。最后一波结束后领取当天奖励。</p>')
     + panel('第 ' + (waveSelected + 1) + ' 波 · ' + waveCount(w) + ' 名敌人', '<div class="wave-actions"><button data-action="wave-up">↑ 前移</button><button data-action="wave-down">↓ 后移</button><button data-action="duplicate-wave">复制波次</button><button data-action="delete-wave" class="danger">删除波次</button></div><div class="fields">' + field('波次名称', wp + '.name') + (waveSelected === 0 ? '<p class="hint">第一波等待：' + draft.initial.firstWaveDelay + ' 秒（在「初始默认」修改，从开始当天起算）</p>' : field('上一波结束后等待（秒）', wp + '.startDelay', { type: 'number', max: 3600 })) + field('生命倍率', wp + '.hpScale', { type: 'number', min: 0.05, max: 100 }) + field('攻击倍率', wp + '.atkScale', { type: 'number', min: 0.05, max: 100 }) + '</div>')
     + panel('出生点与出兵配置', spawnGrid(w) + '<p class="hint">不同出生点独立计时，按各自列表顺序逐个出兵。出生格被占用时等待，不会转移出生点。</p>' + points)
     + '<p class="hint">保存后，尚未开始的波次使用新配置。已开始波次的出兵计划保持不变，避免重复刷怪；要立即替换本波请保存并重开。</p>'
-    + panel('当天胜利奖励', rewards + (day.rewards.length < 3 ? '<button data-action="add-pack">＋ 添加奖励包</button>' : '')) + '</div></div>';
+    + rewardSettings(path) + '</div></div>';
+}
+function rewardSettings(path) {
+  return panel("当天胜利奖励 · 五选二", field("奖励池", path + ".rewardPool", { options: Object.fromEntries(Object.entries(draft.rewardPools).map(([key, pool]) => [key, pool.name])) }) + '<p class="hint">在「奖励池」页面编辑卡牌与权重；本关胜利后展示五张，选择两张收入手牌。</p>');
+}
+function renderPools() {
+  if (!draft.rewardPools[selected]) selected = Object.keys(draft.rewardPools)[0];
+  const pool = draft.rewardPools[selected];
+  return `<div class="editor-columns two">${entityList(Object.entries(draft.rewardPools).map(([key,p]) => [key,{...p,icon:"training"}]),"pool")}<div class="entity-form"><div class="entity-title"><h2>${esc(pool.name)}</h2><div><button data-action="duplicate-pool">复制</button><button data-action="delete-pool" class="danger">删除</button></div></div>${panel("卡牌奖励池", field("名称", `rewardPools.${selected}.name`) + '<p class="hint">下方数字是抽取权重，越大越容易出现；0 表示停用。每次五选二，同次优先不重复，池中不足五种时才允许重复补足。</p>' + inventory(`rewardPools.${selected}.cards`))}</div></div>`;
 }
 function render() {
   $("sections").innerHTML = Object.entries({
     cards: ["01", "卡牌配置"],
     initial: ["02", "初始默认"],
     enemies: ["03", "敌方单位"],
-    waves: ["04", "天数与波次"],
+    waves: ["04", "关卡路线"],
+    pools: ["05", "奖励池"],
   })
     .map(
       ([k, [n, t]]) =>
@@ -297,10 +328,11 @@ function render() {
     initial: renderInitial,
     enemies: renderEnemies,
     waves: renderWaves,
+    pools: renderPools,
   }[section]();
   if (section === "cards" && draft.cards[selected]?.category === "hero") {
     document.querySelector(".entity-form").insertAdjacentHTML("beforeend",
-      panel("触发机制", triggerRulesEditor(draft.cards[selected], "cards." + selected, field)));
+      panel("触发机制", triggerRulesEditor(draft.cards[selected], "cards." + selected, field, draft.cards)));
   }
 }
 function freshId(prefix, object) {
@@ -341,6 +373,20 @@ $("config-name").oninput = (e) => {
   markDirty();
 };
 $("editor").addEventListener("change", async (e) => {
+  if (e.target.dataset.generationCard) {
+    const effect = get(e.target.dataset.generationPath), key = e.target.dataset.generationCard;
+    effect.cards = e.target.checked ? [...new Set([...effect.cards, key])] : effect.cards.filter(id => id !== key);
+    markDirty(); return;
+  }
+  if (e.target.dataset.nextDay) {
+    materializeRoutes(draft);
+    const day = draft.days[selected], id = e.target.dataset.nextDay;
+    day.next = e.target.checked ? [...new Set([...day.next, id])] : day.next.filter((next) => next !== id);
+    markDirty();
+    render();
+    return;
+  }
+  if (e.target.dataset.path === "startDayId") { render(); return; }
   if (e.target.dataset.triggerEffectType) {
     const type = e.target.value;
     set(e.target.dataset.triggerEffectType, { type, ...clone(triggerEffects[type].defaults) });
@@ -363,7 +409,7 @@ $("editor").addEventListener("change", async (e) => {
     ensureSummon(draft.cards[selected]);
     render();
   }
-  if (e.target.dataset.path?.endsWith(".mode")) render();
+  if ([".mode", ".valueMode", ".pool"].some(suffix => e.target.dataset.path?.endsWith(suffix))) render();
   const upload = e.target.dataset.upload;
   if (upload) {
     try {
@@ -392,6 +438,13 @@ $("editor").addEventListener("change", async (e) => {
 document.addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
+  if (b.dataset.heroPreset && presetById[b.dataset.heroPreset]) {
+    if (Object.keys(draft.cards).length >= 100) { message("最多配置 100 张卡牌", true); return; }
+    const id = freshId("hero_" + b.dataset.heroPreset, draft.cards);
+    draft.cards[id] = createPresetCard(b.dataset.heroPreset);
+    selected = id;
+    markDirty(); render(); return;
+  }
   if (b.dataset.triggerTemplate) {
     const templates = {
       growth: defaultHeroRules("hero_blue")[0], momentum: defaultHeroRules("hero_blue")[1],
@@ -415,6 +468,12 @@ document.addEventListener("click", (e) => {
   }
   if (b.dataset.select !== undefined) {
     selected = b.dataset.select;
+    waveSelected = 0;
+    render();
+    return;
+  }
+  if (b.dataset.routeNode) {
+    selected = draft.days.findIndex((day) => day.id === b.dataset.routeNode);
     waveSelected = 0;
     render();
     return;
@@ -470,14 +529,24 @@ document.addEventListener("click", (e) => {
     if (!confirm("删除此卡牌，并从初始手牌和所有奖励中移除？")) return;
     delete draft.cards[selected];
     delete draft.initial.cards[selected];
-    for (const wave of draft.days)
-      for (const pack of wave.rewards) delete pack.cards[selected];
+    for (const pool of Object.values(draft.rewardPools)) delete pool.cards[selected];
     selected = "";
   }
   if (action === "add-effect") {
     const type = $("new-effect").value;
     card.effects.push({ type, ...clone(effectTypes[type].defaults) });
     ensureSummon(card);
+  }
+  if (action === "add-pool" || action === "duplicate-pool") {
+    const id = freshId("pool", draft.rewardPools);
+    draft.rewardPools[id] = action === "duplicate-pool" ? clone(draft.rewardPools[selected]) : { name: "新奖励池", cards: Object.fromEntries(Object.keys(draft.cards).slice(0,5).map(key => [key,1])) };
+    if (action === "duplicate-pool") draft.rewardPools[id].name += " 副本";
+    selected = id;
+  }
+  if (action === "delete-pool") {
+    if (draft.days.some(day => day.rewardPool === selected)) { message("此奖励池被关卡引用，请先为关卡更换奖励池。", true); return; }
+    if (Object.keys(draft.rewardPools).length === 1) { message("至少保留一个奖励池。", true); return; }
+    delete draft.rewardPools[selected]; selected = Object.keys(draft.rewardPools)[0];
   }
   if (action === "remove-effect") {
     card.effects.splice(i, 1);
@@ -522,9 +591,12 @@ document.addEventListener("click", (e) => {
     selected = "";
   }
   if (action === "add-day" || action === "duplicate-day") {
+    materializeRoutes(draft);
     const item = clone(action === "duplicate-day" ? day : draft.days[0]);
     item.id = freshId("day", Object.fromEntries(draft.days.map((d) => [d.id, true])));
     item.name = action === "duplicate-day" ? day.name + " 副本" : "新的一天";
+    item.next = action === "duplicate-day" ? [...day.next] : [];
+    if (day) day.next.push(item.id);
     draft.days.push(item);
     selected = draft.days.length - 1;
     waveSelected = 0;
@@ -532,6 +604,10 @@ document.addEventListener("click", (e) => {
   if (action === "delete-day") {
     if (draft.days.length === 1) { message("至少保留一天。", true); return; }
     if (!confirm("删除这一天及其全部波次？")) return;
+    materializeRoutes(draft);
+    for (const node of draft.days) if (node.next.includes(day.id))
+      node.next = [...new Set(node.next.flatMap((id) => id === day.id ? day.next : [id]))];
+    if (draft.startDayId === day.id) draft.startDayId = day.next[0] || draft.days.find((d) => d !== day)?.id;
     draft.days.splice(Number(selected), 1);
     selected = Math.min(Number(selected), draft.days.length - 1);
     waveSelected = 0;
@@ -567,8 +643,6 @@ document.addEventListener("click", (e) => {
   if (action === "add-spawn-enemy") w.spawns[Number(b.dataset.point)].enemies.push({ type: Object.keys(draft.enemies)[0], count: 1, level: 1 });
   if (action === "remove-spawn-enemy") w.spawns[Number(b.dataset.point)].enemies.splice(i, 1);
   if (action === "remove-spawn") w.spawns.splice(Number(b.dataset.point), 1);
-  if (action === "add-pack") day.rewards.push({ name: "新奖励包", theme: "resource", cards: { [Object.keys(draft.cards)[0]]: 1 } });
-  if (action === "remove-pack") day.rewards.splice(i, 1);
   markDirty();
   render();
 });

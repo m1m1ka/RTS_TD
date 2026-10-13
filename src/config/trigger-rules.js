@@ -1,3 +1,4 @@
+import { generationDefaults } from "../card-generation.js";
 // Event, source filter, target selection and payload are independent registries.
 export const triggerEvents = {
   battleStart: "开战（点击迎战）",
@@ -7,8 +8,10 @@ export const triggerScopes = { any: "任意英雄（含自身）", self: "仅自
 export const triggerTargets = {
   self: "自身", nearest: "最近的其他英雄", selfAndNearest: "自身 + 最近的其他英雄",
   allAllies: "范围内所有英雄（含自身）", eventHero: "触发事件的英雄",
+  randomAllies: "范围内随机英雄（含自身）",
 };
 export const triggerEffects = {
+  generateCard: { label: "生成卡牌", defaults: generationDefaults },
   level: { label: "提升等级", defaults: { value: 1 } },
   heal: { label: "恢复生命", defaults: { value: 50 } },
   stat: { label: "属性加成", defaults: { stat: "rate", mode: "add", value: 0.2, duration: "day" } },

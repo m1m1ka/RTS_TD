@@ -4,8 +4,7 @@ import { cards, startingCards } from "../src/cards.js";
 import { obstacles } from "../src/art.js";
 import { DEFAULT_CONFIG } from "../src/config/defaults.js";
 class Game extends EngineGame {
-  constructor(onEvent) {
-    const config = structuredClone(DEFAULT_CONFIG);
+  constructor(onEvent, config = structuredClone(DEFAULT_CONFIG)) {
     config.initial.firstWaveDelay = 0;
     super(onEvent, config);
   }
@@ -29,7 +28,7 @@ const step = (g, seconds) => {
   for (let t = 0; t < seconds; t += 0.025) g.tick(0.025);
 };
 const finish = (g) => {
-  for (let t = 0; t < 24000 && ["battle", "waiting"].includes(g.phase); t++) g.tick(0.025);
+  for (let t = 0; t < 24000 && ["battle", "waiting", "victory"].includes(g.phase); t++) g.tick(0.025);
   assert.notEqual(g.phase, "battle", "wave must resolve");
 };
 const enemy = (id, x, y, hp = 300) => ({
@@ -174,37 +173,44 @@ const enemy = (id, x, y, hp = 300) => ({
   completeDay(g);
   g.heroes[0].hp = 0;
   g.tick(0.025);
+  if (g.phase === "victory") g.tick(6);
   assert.equal(g.phase, "reward");
   assert.ok(g.heroes[0].hp > 0, "dead hero returns after victory");
-  assert.equal(g.rewardOptions.length, 3);
+  assert.equal(g.rewardOptions.length, 5);
   const before = structuredClone(g.cards),
     time = g.time;
   step(g, 100);
   assert.equal(g.time, time);
   g.startDay();
+  if (g.phase === "victory") g.tick(6);
   assert.equal(g.phase, "reward");
   assert.equal(g.playCard("training", 5, 5), false);
   assert.equal(g.chooseReward(99), false);
-  assert.ok(g.chooseReward(2));
-  assert.equal(g.cards.hero_green, 1);
-  assert.equal(g.cards.haste, 1);
-  assert.equal(g.cards.training, before.training + 1);
+  const chosen = g.rewardOptions.slice(0, 2);
+  assert.ok(g.chooseReward([0, 1]));
+  for (const key of new Set(chosen)) assert.equal(g.cards[key], (before[key] || 0) + chosen.filter(k => k === key).length);
+  assert.equal(g.phase, "route");
+  assert.ok(g.chooseDay(g.nextDays()[0]));
   assert.equal(g.day, 1);
   assert.equal(g.phase, "between");
   const inventory = structuredClone(g.cards);
-  assert.equal(g.chooseReward(0), false);
+  assert.equal(g.chooseReward([0, 1]), false);
   assert.deepEqual(g.cards, inventory);
+  for (const h of [...g.heroReserve]) assert.ok(g.playCard(h.cardId, h.x, h.y));
   g.day = 5;
   g.startDay();
   completeDay(g);
   g.tick(0.025);
+  if (g.phase === "victory") g.tick(6);
   assert.equal(g.phase, "reward");
-  assert.ok(g.chooseReward(1));
-  assert.equal(g.phase, "won", "final wave also awards a pack before result");
+  assert.ok(g.chooseReward([0, 1]));
+  assert.equal(g.phase, "won", "final day also awards two cards before result");
 }
 {
   // Full campaign uses only legitimately owned cards and each claimed reward.
-  const g = deploy(new Game());
+  const c = structuredClone(DEFAULT_CONFIG);
+  for (const pool of Object.values(c.rewardPools)) pool.cards = { training: 1, tower: 1 };
+  const g = deploy(new Game(() => {}, c));
   g.playCard("quiver", 5, 5);
   g.playCard("guard", 7, 3);
   g.playCard("training", 5, 5);
@@ -225,8 +231,10 @@ const enemy = (id, x, y, hp = 300) => ({
       "reward",
       `campaign wave ${wave + 1}, base ${g.baseHp}`,
     );
-    g.chooseReward(0);
+    g.chooseReward([0, 1]);
+    if (g.phase === "route") assert.ok(g.chooseDay(g.nextDays()[0]));
     if (wave < 5) {
+      for (const h of [...g.heroReserve]) assert.ok(g.playCard(h.cardId, h.x, h.y));
       while (g.cards.training) {
         const h = [...g.heroes].sort((a, b) => a.level - b.level)[0];
         g.playCard("training", h.x, h.y);

@@ -60,10 +60,11 @@ const kill = (g) => { for (const e of g.enemies) g.hit(e, 1000000, g.heroes[0]);
   assert.equal(g.enemies[0].maxHp, c.enemies.tank.maxHp * 2);
   kill(g);
   step(g, 0.025);
+  if (g.phase === "victory") g.tick(6);
   assert.equal(g.phase, "reward");
   assert.equal(events.filter((e) => e.type === "wave").length, 2);
   assert.equal(events.filter((e) => e.type === "waveClear").length, 2);
-  g.chooseReward(0);
+  g.chooseReward([0, 1]);
   assert.equal(g.phase, "won");
 }
 {

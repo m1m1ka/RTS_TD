@@ -21,7 +21,7 @@ export class WaveProgress {
       this.fill = this.element.querySelector(".wave-progress-fill");
       this.focus = "";
     }
-    const complete = ["reward", "won"].includes(game.phase);
+    const complete = ["victory", "reward", "route", "won"].includes(game.phase);
     const fighting = game.phase === "battle" || game.phase === "lost";
     const total = waveCount(game.currentWave());
     const remaining = game.enemies.filter((e) => e.hp > 0).length + game.spawnQueues.reduce((n, q) => n + q.types.length - q.spawned, 0);

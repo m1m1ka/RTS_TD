@@ -1,3 +1,4 @@
+import { RewardUI } from "./reward-ui.js";
 import { cards, cardTypes } from "./cards.js";
 import { CardAim } from "./card-aim.js";
 import { iconURL } from "./config/icons.js";
@@ -91,15 +92,7 @@ export class CardUI {
         this.select(b.dataset.card);
       }
     });
-    this.reward.addEventListener("cancel", (e) => e.preventDefault());
-    this.reward.addEventListener("click", (e) => {
-      const b = e.target.closest("[data-reward]");
-      if (b && this.game.chooseReward(Number(b.dataset.reward))) {
-        this.reward.close();
-        this.cancel();
-        this.render();
-      }
-    });
+    this.rewardChoice = new RewardUI(game, () => { this.cancel(); this.render(); });
     this.render();
   }
   art(key) {
@@ -145,7 +138,7 @@ export class CardUI {
         return;
       }
     }
-    const sig = getConfigRevision() + JSON.stringify(this.game.cards);
+    const sig = getConfigRevision() + JSON.stringify([this.game.cards, this.game.heroReserve.map((h) => [h.cardId, h.level])]);
     if (sig !== this.signature) {
       this.signature = sig;
       this.hand.innerHTML =
@@ -159,7 +152,7 @@ export class CardUI {
               cardTypes[c.category] +
               "牌 · " +
               {
-                hero: "部署",
+                hero: `Lv.${this.game.heroReserve.find((h) => h.cardId === k)?.level ?? 1} · 部署`,
                 resource: "消耗",
                 battle: "消耗",
                 equipment: "装备",
@@ -180,29 +173,12 @@ export class CardUI {
       document.getElementById(id).style.visibility = overflow
         ? "visible"
         : "hidden";
-    if (this.game.phase === "reward" && !this.reward.open) {
-      this.cancel();
-      this.reward.innerHTML = `<div class="reward-crest">✦</div><h2>守住了！</h2><p>选择一组补给</p><div class="reward-packs">${this.game.rewardOptions
-        .map(
-          (p, i) =>
-            `<button class="reward-pack ${p.theme}" data-reward="${i}"><span class="pack-seal">${["⇧", "ϟ", "✦"][i]}</span><h3>${escapeHTML(p.name)}</h3><div class="pack-cards">${Object.entries(
-              p.cards,
-            )
-              .map(
-                ([k, n]) =>
-                  `<div class="pack-card ${cards[k].category}">${this.art(k)}<span>${escapeHTML(cards[k].name)}</span><b>×${n}</b></div>`,
-              )
-              .join(
-                "",
-              )}</div><span class="pack-claim">收下这组</span></button>`,
-        )
-        .join("")}</div>`;
-      this.reward.showModal();
-    }
+    if (this.game.phase === "reward") { if (!this.reward.open) this.cancel(); this.rewardChoice.update(); }
   }
+
   reset() {
     this.cancel();
-    this.reward.close();
+    this.rewardChoice.reset();
     this.signature = "";
     this.render();
   }

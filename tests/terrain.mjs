@@ -28,11 +28,15 @@ const config = () => structuredClone(DEFAULT_CONFIG);
   second.days[1].obstacles = [{ x: hero.x, y: hero.y }];
   g.applyConfig(assertConfig(second));
   g.phase = "reward";
-  g.rewardOptions = c.days[0].rewards;
-  g.chooseReward(0);
+  g.rewardOptions = ["training", "coffee", "tower", "guard", "fireball"];
+  g.chooseReward([0, 1]);
+  g.chooseDay(g.nextDays()[0]);
   assert.equal(g.day, 1);
   assert.equal(g.obstacles.size, 1);
-  assert.ok(!g.obstacles.has(`${hero.x},${hero.y}`));
+  assert.equal(g.heroes.length, 0);
+  assert.equal(g.heroReserve[0], hero);
+  assert.equal(g.playCard(hero.cardId, hero.x, hero.y), false);
+  assert.equal(g.heroReserve[0], hero, "invalid deployment retains the hero");
   assert.ok(!g.obstacles.has("6,3"), "each day uses its own terrain");
   g.reset();
   assert.ok(g.obstacles.has("6,3"));
@@ -46,6 +50,19 @@ const config = () => structuredClone(DEFAULT_CONFIG);
   assert.deepEqual(migrated.days[0].obstacles, []);
   migrated.days[0].obstacles = [{ x: 2, y: 2 }];
   assert.deepEqual(assertConfig(JSON.parse(JSON.stringify(migrated))), migrated);
+}
+{
+  const c = config(), g = new Game(() => {}, c);
+  g.playCard("tower", 6, 4);
+  const tower = g.towers[0];
+  const next = config();
+  next.days[1].waves[0].spawns[0].x = 6;
+  next.days[1].waves[0].spawns[0].y = 4;
+  g.applyConfig(assertConfig(next));
+  g.phase = "reward"; g.rewardOptions = ["training", "coffee", "tower", "guard", "fireball"];
+  g.chooseReward([0, 1]); g.chooseDay(g.nextDays()[0]);
+  assert.ok(tower.x !== 6 || tower.y !== 4, "carried towers move off a new branch's spawn point");
+  assert.ok(g.path({ x: 6, y: 4 }, { x: 7, y: 5 }, { adjacent: true }));
 }
 for (const cells of [
   [{ x: 7, y: 5 }], [{ x: 7, y: 0 }], [{ x: -1, y: 2 }], [{ x: 1.5, y: 2 }],

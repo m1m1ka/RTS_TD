@@ -1,3 +1,4 @@
+import { effectAmount } from "./effect-values.js";
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const inRange = (a, b, radius) => radius < 0 || distance(a, b) <= radius;
 
@@ -14,16 +15,25 @@ export class HeroTriggers {
     if (target.kind === "self") return [owner];
     if (target.kind === "eventHero") return allies.includes(eventHero) ? [eventHero] : [];
     if (target.kind === "allAllies") return allies;
+    if (target.kind === "randomAllies") {
+      // Sample without replacement; one rule's payloads share this selection.
+      const count = Math.min(target.count, allies.length);
+      for (let i = 0; i < count; i++) {
+        const j = i + Math.floor(Math.random() * (allies.length - i));
+        [allies[i], allies[j]] = [allies[j], allies[i]];
+      }
+      return allies.slice(0, count);
+    }
     const nearest = nearby.slice(0, target.count);
     return target.kind === "selfAndNearest" ? [owner, ...nearest] : nearest;
   }
-  start() {
+  start(heroes = this.game.heroes) {
     const game = this.game;
     const before = new Map(game.heroes.map((h) => [h.id, { rate: h.rate, speed: h.speed }]));
     this.activations = 0;
     // Each normal activation gets its own cascade. Each hero may activate once
     // per cascade, allowing extra activations without circular/branching loops.
-    for (const hero of [...game.heroes].filter((h) => h.hp > 0)) {
+    for (const hero of [...heroes].filter((h) => h.hp > 0)) {
       const cascade = { visited: new Set(), queue: [hero] };
       for (let i = 0; i < cascade.queue.length; i++) {
         const current = cascade.queue[i];
@@ -53,7 +63,12 @@ export class HeroTriggers {
   }
   run(owner, eventHero, rule, cascade) {
     const game = this.game, targets = this.targets(owner, eventHero, rule.target);
-    for (const effect of rule.effects)
+    for (const effect of rule.effects) {
+      if (effect.type === "generateCard") {
+        game.generateCards(effect);
+        game.emit("triggerEffect", { unit: owner, source: owner, rule: rule.name, effect });
+        continue;
+      }
       for (const target of targets) {
         if (effect.type === "triggerBattleStart") {
           if (!cascade.visited.has(target.id) && !cascade.queue.includes(target))
@@ -66,7 +81,7 @@ export class HeroTriggers {
           target.hp = Math.min(target.maxHp, target.hp + game.config.initial.levelGrowth.heal * effect.value);
           game.emit("upgrade", { unit: target });
         } else if (effect.type === "heal") {
-          const amount = Math.min(target.maxHp - target.hp, effect.value);
+          const amount = Math.min(target.maxHp - target.hp, effectAmount(effect, target));
           target.hp += amount;
           if (amount > 0) game.emit("heal", { unit: target, amount });
         } else if (effect.type === "stat") {
@@ -76,5 +91,6 @@ export class HeroTriggers {
         }
         game.emit("triggerEffect", { unit: target, source: owner, rule: rule.name, effect });
       }
+    }
   }
 }

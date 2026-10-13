@@ -874,8 +874,23 @@ h3 {
 .terrain-grid button { aspect-ratio: 1; min-width: 0; padding: 0; border: 1px solid #31523955; border-radius: 0; background: #507b50; box-shadow: none; color: #eedbb0; font-size: clamp(9px, 1.3vw, 19px); }
 .terrain-grid button:nth-child(even) { background-color: #557e50; }
 .terrain-grid button.tree { background-image: var(--tree-art); background-size: 100% 100%; }
+.terrain-grid button.mine { background-image: var(--mine-art); background-size: 100% 100%; }
+.terrain-toolbar { flex-wrap: wrap; }
+.terrain-toolbar select, .terrain-toolbar input { width: 100px; }
 .terrain-grid button.core { background: #9b925b; }
 .terrain-grid button.gate { background: #6b7650; color: #f2cc89; }
 .terrain-grid.painting button { cursor: crosshair; }
 .terrain-grid.painting button:hover { outline: 2px solid #f1dfa3; outline-offset: -2px; }
 .terrain-grid button[aria-disabled="true"] { cursor: not-allowed; }
+.hero-preset-library { margin-bottom: 20px; border: 1px solid #b7bd98; border-radius: 8px; background: #e9ecd9; }
+.hero-preset-library summary { cursor: pointer; padding: 14px 18px; font-weight: 700; color: #345541; }
+.hero-preset-library summary small { display: inline-block; margin-left: 12px; font-weight: 400; color: #738267; }
+.hero-preset-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); gap: 10px; padding: 0 14px 14px; }
+.hero-preset-grid button { display: grid; justify-items: center; gap: 4px; border: 1px solid #bbc4a0; border-radius: 7px; background: #f5f2df; padding: 9px 5px; color: #344e3b; }
+.hero-preset-grid button:hover { background: #e0e6cd; border-color: #748960; box-shadow: inset 0 0 0 1px #748960; }
+.hero-preset-grid img { width: 78px; height: 78px; object-fit: contain; }
+.hero-preset-grid small { color: #758064; font-size: 11px; }
+.generation-candidates { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 8px; max-height: 210px; overflow-y: auto; padding: 10px; background: #e9ecdc; border: 1px solid #bbc5a3; border-radius: 6px; }
+.generation-candidates label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.generation-candidates input { width: auto; }
+.generation-candidates small { color: #788465; font-size: 10px; }

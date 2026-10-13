@@ -1,0 +1,112 @@
+import { chromium } from "@playwright/test";
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { mkdirSync } from "node:fs";
+import { DEFAULT_CONFIG } from "../src/config/defaults.js";
+const c = structuredClone(DEFAULT_CONFIG);
+c.days = c.days.slice(0, 4);
+const [a, b, branch, end] = c.days;
+c.startDayId = a.id;
+for (let i = 0; i < c.days.length; i++) {
+  const d = c.days[i];
+  d.next = c.days[i + 1] ? [c.days[i + 1].id] : [];
+  d.waves = [d.waves[0]];
+  d.waves[0].spawns = [{ x: 7, y: 0, delay: 0, interval: 1, enemies: [{ type: "grunt", count: 1, level: 1 }] }];
+}
+b.obstacles = [{ x: 1, y: 1 }]; branch.obstacles = [{ x: 2, y: 2 }];
+c.initial.firstWaveDelay = 0;
+c.enemies.grunt.maxHp = 1;
+c.cards.hero_blue.unit.atk = 999;
+c.cards.hero_blue.unit.range = 24;
+c.cards.hero_blue.triggerRules = [];
+const server = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5177", "--strictPort"], { stdio: "ignore", windowsHide: true });
+let browser;
+try {
+  for (let i = 0; i < 60; i++) {
+    try { if ((await fetch("http://127.0.0.1:5177")).ok) break; } catch {}
+    await new Promise(r => setTimeout(r, 200));
+  }
+  browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true, args: ["--enable-unsafe-swiftshader"] });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  await context.addInitScript((config) => {
+    if (!localStorage.getItem("friday-defense-config-v1")) localStorage.setItem("friday-defense-config-v1", JSON.stringify(config));
+  }, c);
+  const editor = await context.newPage(), game = await context.newPage(), errors = [];
+  for (const page of [editor, game]) page.on("pageerror", e => errors.push(e.message));
+  await editor.goto("http://127.0.0.1:5177/config.html");
+  await editor.locator('[data-section="waves"]').click();
+  await editor.locator(`[data-next-day="${branch.id}"]`).check();
+  await editor.locator(`[data-route-node="${b.id}"]`).click();
+  await editor.locator(`[data-next-day="${branch.id}"]`).uncheck();
+  await editor.locator(`[data-next-day="${end.id}"]`).check();
+  await editor.locator("#save-config").click();
+  assert.ok(!(await editor.locator("#config-message").getAttribute("class")).includes("error"));
+  mkdirSync("logs", { recursive: true });
+  await editor.locator(".campaign-editor").screenshot({ path: "logs/routes-editor.png" });
+  await editor.locator(`[data-route-node="${end.id}"]`).click();
+  await editor.locator(`[data-next-day="${a.id}"]`).check();
+  await editor.locator("#save-config").click();
+  assert.ok((await editor.locator("#config-message").textContent()).includes("循环"));
+  await editor.locator(`[data-next-day="${a.id}"]`).uncheck();
+  await editor.locator("#save-config").click();
+  await game.goto("http://127.0.0.1:5177");
+  await game.waitForFunction(() => window.__game?.snapshot().frames > 5);
+  const state = () => game.evaluate(() => window.__game.snapshot());
+  await game.locator("#route-toggle").click();
+  assert.equal(await game.locator("#route-dialog .route-node.available").count(), 0);
+  await game.locator("[data-route-close]").click();
+  await game.locator('[data-card="hero_blue"]').click();
+  await game.evaluate(() => window.__game.clickCell(7, 3));
+  await game.locator('[data-card="training"]').click();
+  await game.evaluate(() => window.__game.clickCell(7, 3));
+  const finishDay = async () => {
+    if (!(await state()).heroes.length) {
+      await game.locator('[data-card="hero_blue"]').click();
+      await game.evaluate(() => window.__game.clickCell(7, 3));
+      assert.equal((await state()).heroes[0].level, 2);
+    }
+    await game.locator("#start").click();
+    await game.evaluate(() => window.__game.advance(9));
+    await game.locator('[data-reward="0"]').click();
+  await game.locator('[data-reward="1"]').click();
+  await game.locator("[data-reward-confirm]").click();
+  await game.waitForFunction(() => window.__game.snapshot().phase !== "reward");
+  };
+  await finishDay();
+  await game.waitForFunction(() => window.__game.snapshot().phase === "route");
+  await game.locator("#route-dialog .route-node.available").first().waitFor({ state: "visible" });
+  assert.equal(await game.locator("#route-dialog .route-node.available").count(), 2);
+  assert.equal(await game.locator(`#route-dialog [data-route-node="${end.id}"]`).isDisabled(), true);
+  const pausedAt = (await state()).time;
+  await game.waitForTimeout(150);
+  assert.equal((await state()).time, pausedAt);
+  await game.keyboard.press("Escape");
+  assert.equal(await game.locator("#route-dialog").isVisible(), true);
+  await game.screenshot({ path: "logs/routes-game.png" });
+  await game.setViewportSize({ width: 390, height: 844 });
+  await game.screenshot({ path: "logs/routes-mobile.png" });
+  assert.ok(await game.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await game.locator(`#route-dialog [data-route-node="${branch.id}"]`).click();
+  assert.equal((await state()).day, 2);
+  assert.equal((await state()).dayId, branch.id);
+  assert.equal((await state()).heroes.length, 0);
+  assert.ok((await game.locator('[data-card="hero_blue"] .card-kind').textContent()).includes("Lv.2"));
+  assert.deepEqual((await state()).obstacles, branch.obstacles);
+  await game.setViewportSize({ width: 1440, height: 1000 });
+  await finishDay();
+  await game.locator(`#route-dialog [data-route-node="${end.id}"]`).click();
+  await finishDay();
+  assert.equal((await state()).phase, "won");
+  assert.deepEqual((await state()).routeHistory, [a.id, branch.id, end.id]);
+  const saved = await editor.evaluate(() => JSON.parse(localStorage.getItem("friday-defense-config-v1")));
+  const second = await browser.newContext();
+  await second.addInitScript(config => localStorage.setItem("friday-defense-config-v1", JSON.stringify(config)), saved);
+  const imported = await second.newPage();
+  await imported.goto("http://127.0.0.1:5177/config.html");
+  await imported.locator('[data-section="waves"]').click();
+  assert.equal(await imported.locator(`[data-next-day="${branch.id}"]`).isChecked(), true);
+  assert.deepEqual(errors, []);
+  console.log("PASS route browser: visual graph editing, branches, cycle rejection, overview, gated choices, pause, mobile, per-node terrain, merging, terminal rewards and portable config");
+} finally {
+  await browser?.close(); server.kill();
+}

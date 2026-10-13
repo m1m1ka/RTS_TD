@@ -1,4 +1,24 @@
+import { presetById } from "./hero-presets.js";
+import { drawHeroPreset } from "./hero-preset-art.js";
 const ink = "#203c30";
+export function mineArt(ruined = false) {
+  const c = canvas(), g = c.getContext("2d");
+  ellipse(g, 64, 106, 53, 14, "#203c3055");
+  shape(g, [[12, 98], [24, 55], [45, 34], [73, 29], [101, 52], [116, 98], [87, 111], [34, 111]], ruined ? "#626d58" : "#788476");
+  shape(g, [[24, 90], [39, 60], [61, 53], [53, 102]], "#566556");
+  if (!ruined) {
+    shape(g, [[34, 51], [39, 27], [55, 23], [62, 46], [50, 63]], "#e6b84f");
+    shape(g, [[66, 43], [77, 18], [92, 24], [96, 44], [83, 58]], "#f2cf70");
+    shape(g, [[83, 87], [92, 65], [105, 73], [108, 95], [93, 100]], "#d7a448");
+    rounded(g, 45, 65, 34, 39, 14, "#293d31", ink, 4);
+    shape(g, [[40, 67], [47, 58], [77, 58], [86, 69]], "#b18c59");
+    g.strokeStyle = "#fff0a4"; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(43, 31); g.lineTo(49, 29); g.moveTo(79, 26); g.lineTo(85, 30); g.stroke();
+  } else {
+    shape(g, [[35, 89], [51, 72], [70, 88], [85, 79], [101, 101], [36, 108]], "#424f42");
+  }
+  return c;
+}
 function canvas(w = 128, h = w) {
   const c = document.createElement("canvas");
   c.width = w;
@@ -102,7 +122,7 @@ export function unitArt(type, { portrait = false } = {}) {
         ? "#7ea96a"
         : type === "purple"
           ? "#ad83bd"
-          : type === "catgirl" ? "#83b3a0" : "#bb9958";
+          : type === "catgirl" ? "#83b3a0" : presetById[type]?.color || "#bb9958";
   if (!portrait) {
     rounded(g, 10, 12, 108, 104, 18, enemy ? "#933f37" : "#284f47", ink, 5);
     rounded(g, 12, 8, 103, 103, 14, color, enemy ? "#ffe6c6" : "#d1ecd6", 5);
@@ -133,11 +153,15 @@ export function unitArt(type, { portrait = false } = {}) {
             ? "#5e864e"
             : type === "purple"
               ? "#775996"
-              : type === "catgirl" ? "#4f7b69" : "#8e743e",
+              : type === "catgirl" ? "#4f7b69" : presetById[type]?.shade || "#8e743e",
       null,
     );
   }
   ellipse(g, 65, 99, 31, 7, "#19312855");
+  if (presetById[type]) {
+    drawHeroPreset(g, type, { shape, rounded, ellipse, line, ink });
+    return c;
+  }
   if (type === "catgirl") {
     // The same small, flat, outlined shapes as the other board-game heroes.
     const tail = [[83, 94], [99, 94], [105, 85], [101, 77], [95, 79]];

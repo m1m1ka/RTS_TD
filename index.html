@@ -32,12 +32,14 @@
         </div>
         <div class="resources-hud">
           <div class="loot">
+            <span class="gold-counter" title="金币"><i aria-hidden="true">Ⅰ</i> <b id="gold-total">0</b></span>
             <span title="持有卡牌">▱</span><b id="cards-total">14</b
             ><span class="kill-counter" title="击退"
               >☠ <b id="kills">0</b></span
             >
           </div>
           <div class="system-controls">
+            <button id="route-toggle" class="rune" title="远征路线" aria-label="打开远征路线">⚑</button>
             <a
               href="/config.html"
               target="_blank"
@@ -65,6 +67,7 @@
             <div><dt>攻击力</dt><dd id="unit-atk"></dd></div>
             <div><dt>攻击速度</dt><dd><b id="unit-rate"></b><small>次/秒</small></dd></div>
             <div><dt>攻击距离</dt><dd><b id="unit-range"></b><small>格</small></dd></div>
+            <div><dt>暴击率</dt><dd id="unit-crit"></dd></div>
           </dl>
           <div id="unit-move-hint" class="unit-move-hint">◇ 可移动格子</div>
         </aside>
@@ -84,7 +87,8 @@
         </section>
       </div>
     </main>
-    <dialog id="reward-dialog" aria-label="选择卡组奖励"></dialog>
+    <dialog id="reward-dialog" aria-label="卡牌奖励五选二"></dialog>
+    <dialog id="route-dialog" aria-label="选择关卡路线"></dialog>
     <dialog id="dialog">
       <button id="close-dialog" class="close-dialog" aria-label="关闭">
         ×

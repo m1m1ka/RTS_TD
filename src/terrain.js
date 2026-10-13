@@ -15,6 +15,9 @@ export function reachableTerrain(blocked) {
 export function migrateTerrain(c) {
   if (c?.version === 2 && Array.isArray(c.days))
     for (const day of c.days)
-      if (day && typeof day === "object" && day.obstacles === undefined) day.obstacles = [];
+      if (day && typeof day === "object") {
+        if (day.obstacles === undefined) day.obstacles = [];
+        if (day.mines === undefined) day.mines = [];
+      }
   return c;
 }

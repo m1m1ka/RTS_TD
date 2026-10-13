@@ -1,0 +1,33 @@
+#route-dialog { width: min(1120px, calc(100vw - 28px)); max-width: none; max-height: 85vh; padding: 20px; background: #e4ddbd; color: #354d37; border: 5px solid #344a35; border-radius: 24px; box-shadow: inset 0 0 0 3px #b3a674, 0 18px 60px #081c20aa; }
+#route-dialog::backdrop { background: #0c291ddb; backdrop-filter: blur(4px); }
+.route-heading { display: flex; align-items: center; gap: 12px; padding: 4px 12px 12px; border-bottom: 2px solid #a3a77c; }
+.route-heading h2 { font-size: 24px; margin: 0; letter-spacing: 3px; }
+.route-heading button { margin-left: auto; border: 0; background: transparent; font-size: 28px; color: #486041; cursor: pointer; }
+.route-emblem { font-size: 32px; color: #927b40; }
+.route-scroll { overflow: auto; max-width: 100%; max-height: 62vh; overscroll-behavior: contain; scrollbar-color: #7d9163 #d6d6b5; }
+.route-canvas { position: relative; margin-inline: auto; background: radial-gradient(ellipse at center, #faf2d455, transparent 65%); }
+.route-scroll:focus { outline: none; }
+.route-scroll:focus-visible { outline: 2px solid #a48b49; outline-offset: -2px; }
+.route-lines { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.route-lines path { fill: none; stroke: #819070; stroke-width: 3; stroke-dasharray: 7 8; opacity: 0.6; }
+.route-lines path.walked { stroke: #4d7544; stroke-dasharray: none; opacity: 1; stroke-width: 4; }
+.route-lines path.available { stroke: #577e43; stroke-width: 4; opacity: 1; }
+.route-node { position: absolute; transform: translate(-50%, -40%); width: 154px; min-height: 126px; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; display: flex; align-items: center; flex-direction: column; color: #728268; font: inherit; }
+.route-node:disabled { opacity: 0.62; }
+.route-node strong { margin-top: 8px; font-size: 13px; max-width: 150px; overflow-wrap: anywhere; }
+.route-node small, .route-day { font-size: 11px; line-height: 1.8; }
+.route-medal { width: 55px; height: 55px; border: 3px solid currentColor; border-radius: 45% 53% 44% 49%; display: grid; place-items: center; background: #d4d4b1; box-shadow: 0 4px 0 #50614433, inset 0 0 0 3px #eee4c5; font-size: 30px; }
+.route-medal svg { width: 30px; height: 30px; }
+.route-node.available { color: #375f37; cursor: pointer; }
+.route-node.available .route-medal { background: #adc987; outline: 3px dashed #6e905a; outline-offset: 5px; }
+.route-node.available:hover .route-medal, .route-node.editable:hover .route-medal { transform: scale(1.12) rotate(-5deg); }
+.route-node.done { color: #41643d; opacity: 1; }
+.route-node.done .route-medal { background: #bdcd93; }
+.route-node.current .route-medal { border-color: #977839; box-shadow: 0 0 0 4px #d6be74, inset 0 0 0 3px #fff0bf; }
+.route-node.editable { cursor: pointer; opacity: 1; }
+.campaign-editor { min-width: 0; margin-bottom: 22px; }
+.campaign-editor .route-scroll { background: #e8e4ca; border-radius: 10px; }
+.route-links { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.route-link-option { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid #b6bea0; border-radius: 6px; font-size: 12px; }
+.route-link-option input { accent-color: #52794e; }
+@media (max-width: 600px) { #route-dialog { padding: 12px 5px; border-width: 3px; } .route-heading h2 { font-size: 19px; } }

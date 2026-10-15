@@ -60,7 +60,7 @@ const enemy = (id, x, y, hp = 300) => ({
   const cells = g.reachableCells(h);
   assert.ok(cells.length > 0);
   for (const p of cells) {
-    assert.equal(g.blocked(p.x, p.y, h, true), false);
+    assert.equal(g.blocked(p.x, p.y, h, true, true), false);
     assert.ok(g.path(h, p, { units: true })?.length);
   }
   const blockers = [[7, 2], [8, 3], [7, 4], [6, 3]]
@@ -196,7 +196,6 @@ const enemy = (id, x, y, hp = 300) => ({
   const inventory = structuredClone(g.cards);
   assert.equal(g.chooseReward([0, 1]), false);
   assert.deepEqual(g.cards, inventory);
-  for (const h of [...g.heroReserve]) assert.ok(g.playCard(h.cardId, h.x, h.y));
   g.day = 5;
   g.startDay();
   completeDay(g);
@@ -234,7 +233,6 @@ const enemy = (id, x, y, hp = 300) => ({
     g.chooseReward([0, 1]);
     if (g.phase === "route") assert.ok(g.chooseDay(g.nextDays()[0]));
     if (wave < 5) {
-      for (const h of [...g.heroReserve]) assert.ok(g.playCard(h.cardId, h.x, h.y));
       while (g.cards.training) {
         const h = [...g.heroes].sort((a, b) => a.level - b.level)[0];
         g.playCard("training", h.x, h.y);

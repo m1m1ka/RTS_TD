@@ -1,8 +1,10 @@
 import { reachableTerrain } from "../terrain.js";
 import { presetIds } from "../hero-presets.js";
+import { attackModuleOptions } from "../attack-modules.js";
 import { valueModes, statModes } from "../effect-values.js";
 import { generationDefaults, generationCategories } from "../card-generation.js";
 import { RESOURCE_CARDS, resourceEffectTypes } from "../resource-effects.js";
+import { SHOP_DEFAULTS } from "../shop.js";
 import { campaignErrors } from "../campaign.js";
 import { migrateConfig } from "./migrate.js";
 import { triggerEvents, triggerScopes, triggerTargets, triggerEffects } from "./trigger-rules.js";
@@ -48,6 +50,8 @@ export const weaponOptions = {
   bow: "弓",
   staff: "法杖",
   coffeeCannon: "咖啡炮",
+  musket: "火枪",
+  crossbow: "弩",
 };
 export const statLabels = {
   maxHp: "最大生命",
@@ -179,6 +183,7 @@ export function validateConfig(c) {
           "name",
           "type",
           "weapon",
+          "attackModule",
           "maxHp",
           "atk",
           "range",
@@ -192,6 +197,7 @@ export function validateConfig(c) {
         fail(p, `未知单位字段 ${key}`);
     enumeration(u.type, p + "外观", skins);
     enumeration(u.weapon, p + "武器", Object.keys(weaponOptions));
+    if (u.attackModule !== undefined) enumeration(u.attackModule, p + "攻击模组", Object.keys(attackModuleOptions));
     num(u.maxHp, p + "生命", 1, 1000000);
     num(u.atk, p + "攻击", 0, 100000);
     num(u.range, p + "距离", 0, 24, true);
@@ -276,7 +282,20 @@ export function validateConfig(c) {
         for (const effect of rule.effects) {
           if (!isObject(effect)) { fail(rp, "效果格式错误"); continue; }
           enumeration(effect.type, rp + "效果", Object.keys(triggerEffects));
+          if (effect.type === "revive") {
+            num(effect.maxRevives, rp + "每天复活次数", 1, 99, true);
+            num(effect.hpPercent, rp + "复活生命比例", 1, 100);
+          }
+          if (effect.whileSourceAlive !== undefined) {
+            if (typeof effect.whileSourceAlive !== "boolean") fail(rp, "英雄在场时生效必须是布尔值");
+            if (effect.whileSourceAlive && effect.type !== "stat") fail(rp, "英雄在场时生效仅适用于持续性属性加成，即时效果不能回滚");
+          }
           if (effect.type === "generateCard") generatedCards(effect, rp);
+          if (effect.type === "summonFollower") {
+            num(effect.hpPercent, rp + "随从生命比例", 1, 500);
+            num(effect.atkPercent, rp + "随从攻击比例", 1, 500);
+            num(effect.count, rp + "随从数量", 1, 8, true);
+          }
           if (effect.type === "level") num(effect.value, rp + "等级", 1, 99, true);
           if (effect.valueMode !== undefined) {
             enumeration(effect.valueMode, rp + "数值类型", Object.keys(valueModes));
@@ -405,6 +424,13 @@ export function validateConfig(c) {
     if (dayIds.has(day.id)) fail(dp, "关卡 ID 重复");
     dayIds.add(day.id);
     str(day.name, dp + "名称", 80);
+    if (day.kind !== undefined) enumeration(day.kind, dp + "节点类型", ["battle", "shop"]);
+    if (day.kind === "shop") {
+      if (!isObject(day.shop)) fail(dp, "缺少商店价格配置");
+      else for (const key of Object.keys(SHOP_DEFAULTS)) num(day.shop[key], dp + "商店 " + key, 0, 999, true);
+      if (!Array.isArray(day.waves)) fail(dp, "商店的 waves 应为空数组或保留的战斗配置");
+      continue;
+    }
     const terrain = new Set();
     if (day.obstacles !== undefined && (!Array.isArray(day.obstacles) || day.obstacles.length > 164))
       fail(dp + "地图障碍", "需要最多 164 个格子坐标");

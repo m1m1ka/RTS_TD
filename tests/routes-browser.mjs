@@ -59,12 +59,9 @@ try {
   await game.evaluate(() => window.__game.clickCell(7, 3));
   await game.locator('[data-card="training"]').click();
   await game.evaluate(() => window.__game.clickCell(7, 3));
+  await game.bringToFront();
   const finishDay = async () => {
-    if (!(await state()).heroes.length) {
-      await game.locator('[data-card="hero_blue"]').click();
-      await game.evaluate(() => window.__game.clickCell(7, 3));
-      assert.equal((await state()).heroes[0].level, 2);
-    }
+    assert.equal((await state()).heroes.length, 1, "formation persists across days");
     await game.locator("#start").click();
     await game.evaluate(() => window.__game.advance(9));
     await game.locator('[data-reward="0"]').click();
@@ -89,8 +86,10 @@ try {
   await game.locator(`#route-dialog [data-route-node="${branch.id}"]`).click();
   assert.equal((await state()).day, 2);
   assert.equal((await state()).dayId, branch.id);
-  assert.equal((await state()).heroes.length, 0);
-  assert.ok((await game.locator('[data-card="hero_blue"] .card-kind').textContent()).includes("Lv.2"));
+  assert.equal((await state()).heroes.length, 1);
+  assert.equal((await state()).heroes[0].level, 2);
+  assert.deepEqual([(await state()).heroes[0].x, (await state()).heroes[0].y], [7,3]);
+  assert.equal((await state()).heroes[0].hp, (await state()).heroes[0].maxHp);
   assert.deepEqual((await state()).obstacles, branch.obstacles);
   await game.setViewportSize({ width: 1440, height: 1000 });
   await finishDay();

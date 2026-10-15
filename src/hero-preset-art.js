@@ -1,5 +1,9 @@
-// Use the original heroes' canvas primitives, ink and proportions, without baked-in weapons.
+import { drawMedievalHero } from "./medieval-hero-art.js";
+import { drawBloodHero } from "./blood-hero-art.js";
+// Use the original heroes' canvas primitives, ink and proportions.
 export function drawHeroPreset(g, type, { shape, rounded, ellipse, line, ink }) {
+  if (drawBloodHero(g, type, { shape, rounded, ellipse, line, ink })) return;
+  if (drawMedievalHero(g, type, { shape, rounded, ellipse, line, ink })) return;
   const poly = (points, fill, width = 5) => shape(g, points, fill, ink, width);
   const mark = (points, color = ink, width = 4) => line(g, points, color, width);
   const face = (x = 43, y = 48, w = 42, h = 33) => {

@@ -21,7 +21,7 @@ const near = (a,b) => assert.ok(Math.abs(a-b) < 1e-8, `${a} != ${b}`);
   g.playCard("hero_blue", 7,3); g.playCard("hero_green", 5,5);
   const before = g.heroes.map(h => ({ hp: h.maxHp, atk: h.atk }));
   for (const h of g.heroes) h.hp = 10;
-  g.startDay();
+  g.heroTriggers.start();
   for (let i=0; i<2; i++) {
     near(g.heroes[i].maxHp, before[i].hp * 1.2);
     near(g.heroes[i].hp, 10 + before[i].hp * 1.2 * .1);

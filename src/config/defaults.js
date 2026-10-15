@@ -4,6 +4,8 @@ import { migrateTerrain } from "../terrain.js";
 import { migrateCritical } from "../critical.js";
 import { migrateResourceContent } from "../resource-effects.js";
 import { migrateRewards } from "../rewards.js";
+import { migrateShops } from "../shop.js";
+import { migrateAttackModules } from "../attack-modules.js";
 export const DEFAULT_CONFIG = {
   "heroContentVersion": HERO_CONTENT_VERSION,
   "version": 2,
@@ -1545,3 +1547,5 @@ migrateTerrain(DEFAULT_CONFIG);
 migrateCritical(DEFAULT_CONFIG);
 migrateResourceContent(DEFAULT_CONFIG);
 migrateRewards(DEFAULT_CONFIG);
+migrateShops(DEFAULT_CONFIG);
+migrateAttackModules(DEFAULT_CONFIG);

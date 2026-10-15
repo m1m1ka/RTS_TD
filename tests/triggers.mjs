@@ -54,7 +54,6 @@ const clearWave = (g) => {
   assert.equal(a.level, 3, "levels remain after temporary buffs expire");
   g.chooseReward([0, 1]);
   g.chooseDay(g.nextDays()[0]);
-  for (const h of [...g.heroReserve]) assert.ok(g.playCard(h.cardId, h.x, h.y));
   g.startDay();
   assert.equal(a.level, 7, "next click uses the edited rules, including echo");
   near(a.speed, baseSpeed + 2, "daily movement gain starts afresh");
@@ -107,7 +106,7 @@ const clearWave = (g) => {
   g.heroes[0].hp = 0;
   g.heroes[1].hp = 0;
   g.startDay();
-  assert.equal(g.heroes[0].level, 1, "dead heroes do not trigger or receive echoes");
+  assert.equal(g.heroes[0].level, 3, "heroes revive before receiving start effects and echoes");
   g.cards.hero_blue = 1;
   assert.ok(g.playCard("hero_blue", 6, 4));
   assert.equal(g.heroes.at(-1).level, 1, "late deployment waits for the next start click");
@@ -122,7 +121,7 @@ const clearWave = (g) => {
   a.hp -= 150;
   g.startDay();
   assert.equal(a.level, 2);
-  near(a.hp, 330);
+  near(a.hp, a.maxHp);
   near(a.atk, 36 + 12 + 7);
   g.wave = g.dayPlan.waves.length - 1;
   g.beginWave(); clearWave(g);
@@ -187,7 +186,7 @@ for (const duration of ["day", "permanent"]) {
   const retained = duration === "day" ? .15 : .25;
   near(a.lifeSteal, retained);
   g.tick(6); g.chooseReward([0, 1]); g.chooseDay(g.nextDays()[0]);
-  assert.ok(g.playCard(a.cardId, 7, 3)); near(a.lifeSteal, retained);
+  assert.equal(g.heroes[0], a); near(a.lifeSteal, retained);
   g.applyUnitEffect(a, { type: "stat", stat: "lifeSteal", mode: "multiply", value: 2 });
   near(a.lifeSteal, retained * 2);
   g.applyUnitEffect(a, { type: "stat", stat: "lifeSteal", mode: "add", value: .95 });

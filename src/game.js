@@ -1,17 +1,20 @@
 import { obstacleKeys, reachableTerrain } from "./terrain.js";
 import { MINE_HP, victoryPayout } from "./gold.js";
 import { criticalChance } from "./critical.js";
-import { presetById } from "./hero-presets.js";
+import { attackModules, attackModuleId, attackProfile } from "./attack-modules.js";
 import { effectAmount } from "./effect-values.js";
 import { generationPool } from "./card-generation.js";
 import { drawRewards } from "./rewards.js";
+import { enterShop, refreshShop, buyShopHero, buyShopPack, choosePackCard, reconcileShop, shopPrices } from "./shop.js";
 import { resourceTargets, applyResourceEffect } from "./resource-effects.js";
 import { getWeaponSpec } from "./weapons.js";
 import { getConfig, subscribeConfig } from "./config/store.js";
 import { cardRadius } from "./config/schema.js";
 import { waveCount } from "./config/migrate.js";
 import { HeroTriggers } from "./hero-triggers.js";
+import { summonFollowers, removeFollowers, moveFollowers, followerMoveArea, setFollowerDestination } from "./followers.js";
 import { levelStats } from "./level-stats.js";
+import { gridDistance } from "./grid-distance.js";
 import { startDayId, nextDayIds, campaignLayout } from "./campaign.js";
 export const W = 15,
   H = 11,
@@ -27,9 +30,11 @@ subscribeConfig((config) => {
     .map((c) => ({ ...c.unit, name: c.name }));
 });
 export const dist = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+const steps4 = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+const steps8 = [...steps4, [1, -1], [1, 1], [-1, 1], [-1, -1]];
 export const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
 export const attackKind = (unit) =>
-  getWeaponSpec(unit)?.kind || presetById[unit.type]?.melee || (unit.type === "blue" ? "slash" : "claw");
+  getWeaponSpec(unit)?.kind || attackModules[attackModuleId(unit)].kind;
 export function attackDuration(source, target) {
   const kind = attackKind(source);
   return kind === "slash"
@@ -61,6 +66,7 @@ export class Game {
     this.time = 0;
     this.cards = { ...this.config.initial.cards };
     this.rewardOptions = [];
+    this.shop = null;
     this.kills = 0;
     this.wave = 0;
     this.day = Math.max(0, this.config.days.findIndex((d) => d.id === startDayId(this.config)));
@@ -75,17 +81,20 @@ export class Game {
     this.baseMaxHp = this.config.initial.baseHp;
     this.baseHp = this.baseMaxHp;
     this.selected = 0;
+    this.selectedFollowerId = null;
     this.enemies = [];
     this.towers = [];
     this.spawned = 0;
     this.attacks = [];
     this.attackId = 0;
     this.heroes = [];
+    this.followers = [];
     this.heroReserve = [];
     this.heroTriggers = new HeroTriggers(this);
     this.obstacles = new Set();
     this.syncMines();
     this.syncTerrain();
+    if (this.config.days[this.day].kind === "shop") enterShop(this);
     this.emit("reset");
   }
   syncMines(preserve = false) {
@@ -104,8 +113,8 @@ export class Game {
     const previousRoutes = reachableTerrain(new Set([...blocked, ...towerCells]));
     if (!force && next.size === this.obstacles.size && [...next].every((key) => this.obstacles.has(key)) && [...gates].every((key) => previousRoutes.has(key))) return;
     const reachable = reachableTerrain(blocked);
-    const units = [...this.heroes, ...this.towers, ...this.enemies].filter((u) => u.hp > 0);
-    const affected = units.filter((u) => next.has(`${u.x},${u.y}`) || !reachable.has(`${u.x},${u.y}`));
+    const units = [...this.heroes, ...this.followers, ...this.towers, ...this.enemies].filter((u) => u.hp > 0);
+    const affected = units.filter((u) => next.has(`${u.x},${u.y}`) || !reachable.has(`${u.x},${u.y}`) || (force && u.side === "hero" && gates.has(`${u.x},${u.y}`)));
     const occupied = new Set(units.filter((u) => !affected.includes(u)).map((u) => `${u.x},${u.y}`));
     if ([...gates].some((key) => !reachable.has(key) || next.has(key))) {
       this.emit("toast", { text: "地图会封住当前出兵路线，请保存并重开应用" });
@@ -160,56 +169,101 @@ export class Game {
       if (hero.path.length) hero.path = this.path(hero, hero.path.at(-1), { units: true }) || [];
     }
   }
-  blocked(x, y, ignore, units = false) {
+  blocked(x, y, ignore, units = false, ignoreAllies = false) {
     return (
       !inside(x, y) ||
       this.obstacles.has(`${x},${y}`) ||
       this.mines.some((m) => m.hp > 0 && m !== ignore && m.x === x && m.y === y) ||
       (x === 7 && y === 5) ||
       this.towers.some(
-        (t) => t.hp > 0 && t !== ignore && t.x === x && t.y === y,
+        (t) => t.hp > 0 && t !== ignore && t.x === x && t.y === y && !(ignoreAllies && t.side === ignore?.side),
       ) ||
       (units &&
-        [...this.heroes, ...this.enemies].some(
-          (u) => u !== ignore && u.hp > 0 && u.x === x && u.y === y,
+        [...this.heroes, ...this.followers, ...this.enemies].some(
+          (u) => u !== ignore && u.hp > 0 && u.x === x && u.y === y && !(ignoreAllies && u.side === ignore?.side),
         ))
     );
   }
+  canStep(unit, from, to, units = true, ignoreAllies = this.canControl(unit)) {
+    if (this.blocked(to.x, to.y, unit, units, ignoreAllies)) return false;
+    // Diagonal movement cannot cut through solid corners or enemy units.
+    if (from.x !== to.x && from.y !== to.y &&
+        (this.blocked(to.x, from.y, unit, units, ignoreAllies) || this.blocked(from.x, to.y, unit, units, ignoreAllies))) return false;
+    return true;
+  }
+  yieldPlan(mover, target) {
+    const allies = [...this.heroes, ...this.followers, ...this.towers].filter(u => u.hp > 0 && u !== mover);
+    const occupants = allies.filter(u => u.x === target.x && u.y === target.y);
+    if (!occupants.length) return [];
+    const gates = new Set(this.currentDay().waves.flatMap(w => w.spawns).map(p => `${p.x},${p.y}`));
+    const reserved = new Set([`${target.x},${target.y}`]), plan = [];
+    for (const unit of occupants) {
+      let owner = unit.isFollower ? this.heroes.find(h => h.id === unit.ownerId) : null;
+      if (owner === mover) owner = target;
+      const allowed = owner ? new Set(steps8.map(([dx,dy]) => `${owner.x+dx},${owner.y+dy}`).concat(`${owner.x},${owner.y}`)) : null;
+      const next = steps8.map(([dx,dy]) => ({x:unit.x+dx,y:unit.y+dy})).find(p => {
+        const key = `${p.x},${p.y}`;
+        if (reserved.has(key) || gates.has(key) || (allowed && !allowed.has(key)) || this.blocked(p.x,p.y,mover,true)) return false;
+        if (!this.canStep(unit, unit, p, true, true)) return false;
+        if (this.towers.includes(unit)) {
+          const blocked = new Set([...this.obstacles, ...this.mines.filter(m=>m.hp>0).map(m=>`${m.x},${m.y}`),
+            ...this.towers.filter(t=>t.hp>0&&t!==unit).map(t=>`${t.x},${t.y}`),key]);
+          const open = reachableTerrain(blocked);
+          if ([...gates].some(gate => !open.has(gate))) return false;
+        }
+        return true;
+      });
+      if (!next) return null;
+      reserved.add(`${next.x},${next.y}`);plan.push({unit,next});
+    }
+    return plan;
+  }
+  moveStep(unit, next, { final = false, yieldAllies = true } = {}) {
+    if (!this.canStep(unit, unit, next)) return false;
+    const plan = final ? this.yieldPlan(unit, next) : [];
+    if (!plan || (!yieldAllies && plan.length)) return false;
+    Object.assign(unit, next);
+    unit.moveCooldown = 1 / unit.speed;
+    for (const displaced of plan) {
+      const ally = displaced.unit;
+      Object.assign(ally, displaced.next);
+      ally.path = [];
+      ally.moveCooldown = 1 / (ally.speed || 4);
+      if (ally.isFollower) { setFollowerDestination(this, ally, ally); ally.manualTarget = null; }
+      this.emit("step", { unit: ally, yielding: true });
+    }
+    this.emit("step", { unit });
+    return true;
+  }
   reachableCells(unit) {
-    if (!this.heroes.includes(unit) || unit.hp <= 0) return [];
+    if (!this.canControl(unit)) return [];
+    const allowed = unit.isFollower ? followerMoveArea(this, unit) : null;
+    if (allowed && !allowed.has(`${unit.x},${unit.y}`)) return [];
     const queue = [{ x: unit.x, y: unit.y }];
     const seen = new Set([`${unit.x},${unit.y}`]);
     for (let i = 0; i < queue.length; i++) {
       const c = queue[i];
-      for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+      for (const [dx, dy] of steps8) {
         const x = c.x + dx, y = c.y + dy, key = `${x},${y}`;
-        if (seen.has(key) || this.blocked(x, y, unit, true)) continue;
+        if (seen.has(key) || (allowed && !allowed.has(key)) || !this.canStep(unit, c, {x,y})) continue;
         seen.add(key);
         queue.push({ x, y });
       }
     }
-    return queue.slice(1);
+    return queue.slice(1).filter(p => this.yieldPlan(unit, p) !== null);
   }
-  path(start, end, { adjacent = false, units = false } = {}) {
+  path(start, end, { adjacent = false, units = false, avoid = null, allowed = null, diagonal = this.canControl(start), ignoreAllies = this.canControl(start) } = {}) {
     const queue = [{ x: start.x, y: start.y, path: [] }],
       seen = new Set([`${start.x},${start.y}`]);
     for (let i = 0; i < queue.length; i++) {
       const c = queue[i];
       if (adjacent ? dist(c, end) <= 1 : dist(c, end) === 0) return c.path;
-      const next = [
-        [c.x, c.y - 1],
-        [c.x + 1, c.y],
-        [c.x, c.y + 1],
-        [c.x - 1, c.y],
-      ].sort(
-        (a, b) =>
-          Math.abs(a[0] - end.x) +
-          Math.abs(a[1] - end.y) -
-          (Math.abs(b[0] - end.x) + Math.abs(b[1] - end.y)),
-      );
+      const distance = diagonal ? gridDistance : dist;
+      const next = (diagonal ? steps8 : steps4).map(([dx,dy]) => [c.x+dx,c.y+dy])
+        .sort((a,b) => distance({x:a[0],y:a[1]},end) - distance({x:b[0],y:b[1]},end));
       for (const [x, y] of next) {
         const key = `${x},${y}`;
-        if (seen.has(key) || this.blocked(x, y, start, units)) continue;
+        if (seen.has(key) || avoid?.has(key) || (allowed && !allowed.has(key)) || !this.canStep(start,c,{x,y},units,ignoreAllies)) continue;
         seen.add(key);
         queue.push({ x, y, path: [...c.path, { x, y }] });
       }
@@ -217,22 +271,37 @@ export class Game {
     return null;
   }
   move(x, y) {
-    const h = this.heroes[this.selected];
+    const h = this.selectedUnit();
     if (!h) return this.emit("toast", { text: "先拖入一张英雄牌" });
     if (h.hp <= 0)
       return this.emit("toast", { text: "英雄休整中，下一波将自动归队" });
-    if (this.blocked(x, y, h, true))
+    const allowed = h.isFollower ? followerMoveArea(this, h) : null;
+    if (allowed && (!allowed.has(`${x},${y}`) || !allowed.has(`${h.x},${h.y}`)))
+      return this.emit("toast", { text: "随从只能在主人周围九宫格内移动" });
+    if (this.blocked(x, y, h, true, true))
       return this.emit("toast", { text: "这里无法落脚，换一块空地吧" });
-    const p = this.path(h, { x, y }, { units: true });
+    if (!this.yieldPlan(h, {x,y})) return this.emit("toast", { text: "友军周围没有可让出的空格" });
+    const p = this.path(h, { x, y }, { units: true, allowed });
     if (!p) return this.emit("toast", { text: "道路被挡住了，试试另一条路" });
     h.path = p;
+    if (h.isFollower) setFollowerDestination(this, h, { x, y });
     this.emit("move", { unit: h });
   }
   select(i) {
     if (!this.heroes[i]) return;
+    this.selectedFollowerId = null;
     this.selected = i;
     this.emit("select");
   }
+  canControl(unit) { return !!unit && unit.hp > 0 && (this.heroes.includes(unit) || this.followers.includes(unit)); }
+  selectedUnit() { return this.selectedFollowerId !== null ? this.followers.find(u => u.id === this.selectedFollowerId && u.hp > 0) : this.heroes[this.selected]; }
+  selectFollower(id) {
+    if (!this.followers.some(u => u.id === id && u.hp > 0)) return;
+    this.selected = -1;
+    this.selectedFollowerId = id;
+    this.emit("select");
+  }
+  clearSelection() { this.selected = -1; this.selectedFollowerId = null; }
   cardTarget(key, x, y) {
     const card = this.config.cards[key];
     if (!card || !(this.cards[key] > 0))
@@ -314,6 +383,8 @@ export class Game {
       else if (unit.hp <= 0) unit.hp = Math.max(1, unit.maxHp * this.config.initial.reviveHp);
       if (card.category === "hero") {
         this.heroes.push(unit);
+        this.heroTriggers.syncSourceEffects();
+        this.selectedFollowerId = null;
         this.selected = this.heroes.length - 1;
         this.emit("deploy", { unit });
       } else {
@@ -388,8 +459,11 @@ export class Game {
     this.cards[key]--;
     if (this.cards[key] === 0) delete this.cards[key];
     this.emit("cardPlayed", { card: key, x, y });
+    if (card.category === "hero") this.heroTriggers.prepare([hero]);
     return true;
   }
+  summonFollowers(owner, effect) { return summonFollowers(this, owner, effect); }
+  removeFollowers(ownerId) { removeFollowers(this, ownerId); }
   generateCards(effect) {
     const pool = generationPool(effect, this.config.cards), generated = {};
     if (!pool.length) return generated;
@@ -440,6 +514,7 @@ export class Game {
       critChance: card.unit.critChance ?? 0,
     });
     const growth = this.config.initial.levelGrowth;
+    Object.assign(unit, attackProfile(card.unit));
     Object.assign(unit, levelStats(card.unit, unit.level, growth));
     const passive = (e) => !["level", "heal", "summon", "generateCard"].includes(e.type);
     for (const e of [
@@ -451,7 +526,7 @@ export class Game {
       for (const e of this.config.cards[key]?.effects || [])
         this.applyUnitEffect(unit, e);
     for (const e of [...(unit.triggerPermanentEffects || []), ...(unit.dayEffects || [])])
-      this.applyUnitEffect(unit, e);
+      if (this.heroTriggers.effectActive(e)) this.applyUnitEffect(unit, e);
     unit.maxHp = Math.max(1, unit.maxHp);
     unit.rate = Math.min(50, Math.max(0.05, unit.rate));
     unit.speed = Math.min(50, Math.max(0.05, unit.speed));
@@ -487,8 +562,10 @@ export class Game {
     }
     this.day = mappedDay >= 0 ? mappedDay : Math.min(this.day, config.days.length - 1);
     const nextDay = config.days[this.day];
-    this.syncMines(true);
-    this.syncTerrain(true);
+    if (this.phase !== "shop" && nextDay.kind !== "shop") {
+      this.syncMines(true);
+      this.syncTerrain(true);
+    }
     if (this.dayPlan) {
       const nextIndex = nextDay.waves.findIndex((w) => w.id === this.dayPlan.waves[this.wave]?.id);
       // Preserve this wave's issued orders; edits to later waves apply immediately.
@@ -510,6 +587,7 @@ export class Game {
         w = this.activeWave || this.currentWave();
       const stats = levelStats(spec, e.level || 1);
       Object.assign(e, spec, {
+        ...attackProfile(spec),
         maxHp: Math.max(1, Math.round(stats.maxHp * w.hpScale)),
         atk: Math.round(stats.atk * w.atkScale),
       });
@@ -521,6 +599,8 @@ export class Game {
       this.phase = "won";
       this.emit("end", { won: true });
     }
+    if (["ready", "between"].includes(this.phase) && nextDay.kind === "shop") enterShop(this);
+    reconcileShop(this);
     this.emit("config");
   }
   chooseReward(indices) {
@@ -534,6 +614,10 @@ export class Game {
     for (const key of chosen) this.cards[key] = (this.cards[key] || 0) + 1;
     this.rewardOptions = [];
     this.emit("rewardChosen", { cards: chosen });
+    this.completeNode();
+    return true;
+  }
+  completeNode() {
     const currentId = this.config.days[this.day].id;
     if (!this.completedDays.includes(currentId)) this.completedDays.push(currentId);
     if (!this.nextDays().length) {
@@ -543,6 +627,15 @@ export class Game {
       this.phase = "route";
       this.emit("route");
     }
+  }
+  refreshShop() { return refreshShop(this); }
+  buyShopHero(index) { return buyShopHero(this, index); }
+  buyShopPack(index) { return buyShopPack(this, index); }
+  choosePackCard(index) { return choosePackCard(this, index); }
+  leaveShop() {
+    if (this.phase !== "shop" || this.shop.opening) return false;
+    this.shop = null;
+    this.completeNode();
     return true;
   }
   nextDays() {
@@ -551,18 +644,15 @@ export class Game {
   }
   chooseDay(id) {
     if (this.phase !== "route" || !this.nextDays().includes(id)) return false;
-    const recalledIds = this.heroes.map((h) => h.id);
+    this.removeFollowers();
     for (const hero of this.heroes) {
       hero.dayEffects = [];
       hero.path = [];
       this.rebuildHero(hero, false);
-      if (this.config.cards[hero.cardId]?.category !== "hero") continue;
-      this.heroReserve.push(hero);
-      this.cards[hero.cardId] = (this.cards[hero.cardId] || 0) + 1;
+      hero.cooldown = hero.moveCooldown = 0;
     }
-    this.heroReserve.sort((a, b) => b.level - a.level || a.id - b.id);
-    this.heroes = [];
     this.selected = -1;
+    this.selectedFollowerId = null;
     this.attacks = [];
     this.day = this.config.days.findIndex((d) => d.id === id);
     this.routeHistory.push(id);
@@ -571,10 +661,18 @@ export class Game {
     this.spawned = 0;
     this.spawnQueues = [];
     this.phase = "between";
+    this.shop = null;
     this.settlement = null;
-    this.syncMines();
-    this.syncTerrain(true);
-    this.emit("daySelected", { id, recalledIds });
+    if (this.config.days[this.day].kind === "shop") enterShop(this);
+    else {
+      for (const hero of this.heroes) hero.hp = hero.maxHp;
+      this.heroTriggers.syncSourceEffects();
+      for (const hero of this.heroes) hero.hp = hero.maxHp;
+      this.syncMines();
+      this.syncTerrain(true);
+    }
+    this.emit("daySelected", { id });
+    this.heroTriggers.prepare();
     return true;
   }
   dayNumber() {
@@ -584,11 +682,11 @@ export class Game {
   currentWave() { return this.activeWave || this.currentDay().waves[this.wave]; }
   remainingEnemies() {
     if (this.phase === "battle") return this.enemies.filter((e) => e.hp > 0).length + this.spawnQueues.reduce((n, q) => n + q.types.length - q.spawned, 0);
-    return ["victory", "reward", "route", "won", "lost"].includes(this.phase) ? 0 : waveCount(this.currentWave());
+    return ["shop", "victory", "reward", "route", "won", "lost"].includes(this.phase) ? 0 : waveCount(this.currentWave());
   }
   startDay() {
     if (!["ready", "between"].includes(this.phase)) return;
-    if (!this.heroes.some((h) => h.hp > 0)) {
+    if (!this.heroes.length) {
       this.emit("toast", { text: "先放置一位英雄" });
       return false;
     }
@@ -597,7 +695,11 @@ export class Game {
     this.wave = 0;
     // Lock the start action before resolving effects; clicking again cannot replay it.
     this.phase = "waiting";
+    for (const hero of this.heroes) hero.hp = hero.maxHp;
+    this.heroTriggers.syncSourceEffects();
     this.heroTriggers.start();
+    // Start effects can increase maximum health; begin combat at the final maximum.
+    for (const hero of this.heroes) hero.hp = hero.maxHp;
     this.emit("day", { day: this.dayNumber() });
     this.waitForWave(this.config.initial.firstWaveDelay);
   }
@@ -635,6 +737,7 @@ export class Game {
     const stats = levelStats(definition, level);
     const e = {
       ...definition,
+      ...attackProfile(definition),
       x: queue.x, y: queue.y,
       maxHp: Math.max(1, Math.round(stats.maxHp * scale)),
       atk: Math.round(stats.atk * data.atkScale),
@@ -653,6 +756,30 @@ export class Game {
     this.emit("spawn", { unit: e });
     return true;
   }
+  reviveHero(hero, effect, source) {
+    if (!this.heroes.includes(hero) || hero.destroyed || hero.hp > 0) return false;
+    const dayId = this.config.days[this.day].id;
+    const used = hero.reviveUsage?.dayId === dayId ? hero.reviveUsage.used : 0;
+    if (used >= effect.maxRevives) return false;
+    let cell = { x: hero.x, y: hero.y };
+    if (this.blocked(cell.x, cell.y, hero, true)) {
+      const options = [];
+      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++)
+        if (!this.blocked(x, y, hero, true)) options.push({ x, y });
+      options.sort((a, b) => gridDistance(a, hero) - gridDistance(b, hero));
+      if (!options.length) return false;
+      cell = options[0];
+    }
+    hero.reviveUsage = { dayId, used: used + 1 };
+    Object.assign(hero, cell, { hp: 1, path: [], moveCooldown: 0 });
+    // Restore source-bound max-health bonuses before calculating revival health.
+    this.rebuildHero(hero, false);
+    this.heroTriggers.syncSourceEffects();
+    hero.hp = Math.max(1, Math.min(hero.maxHp, Math.ceil(hero.maxHp * effect.hpPercent / 100)));
+    hero.cooldown = 1 / hero.rate;
+    this.emit("revive", { unit: hero, source, fromEffect: true, used: used + 1, limit: effect.maxRevives });
+    return true;
+  }
   hit(target, damage, source, critical = false) {
     if (damage <= 0) return;
     if (target === BASE) {
@@ -667,6 +794,7 @@ export class Game {
     );
     const actual = Math.min(target.hp, damage);
     target.hp = Math.max(0, target.hp - damage);
+    if (target.hp <= 0 && this.heroes.includes(target)) this.heroTriggers.syncSourceEffects();
     if (source?.lifeSteal && source.hp > 0) {
       const amount = Math.min(
         source.maxHp - source.hp,
@@ -683,6 +811,7 @@ export class Game {
         this.kills++;
       }
       this.emit("death", { unit: target, source });
+      if (this.heroes.includes(target)) this.heroTriggers.resolve(target, "sacrifice");
     }
   }
   attack(source, target) {
@@ -719,7 +848,7 @@ export class Game {
       this.hit(target, damage, source, attack.critical);
       if (splash)
         for (const other of source.side === "enemy"
-          ? [...this.heroes, ...this.towers]
+          ? [...this.heroes, ...this.followers, ...this.towers]
           : this.enemies) {
           if (
             other !== target &&
@@ -732,6 +861,7 @@ export class Game {
     this.attacks = waiting;
   }
   tick(dt) {
+    this.heroTriggers.syncSourceEffects();
     if (this.phase === "victory") {
       const s = this.settlement;
       s.elapsed += dt;
@@ -747,19 +877,21 @@ export class Game {
       }
       return;
     }
-    if (["won", "lost", "reward", "route"].includes(this.phase)) return;
+    if (["shop", "won", "lost", "reward", "route"].includes(this.phase)) return;
     this.time += dt;
     for (const h of this.heroes) {
       h.moveCooldown -= dt;
       if (h.hp > 0 && h.path.length && h.moveCooldown <= 0) {
         const next = h.path[0];
-        if (!this.blocked(next.x, next.y, h, true)) {
-          Object.assign(h, h.path.shift());
-          h.moveCooldown = 1 / h.speed;
-          this.emit("step", { unit: h });
-        } else h.path = [];
+        if (this.moveStep(h, next, { final: h.path.length === 1 })) h.path.shift();
+        else {
+          const route = this.path(h, h.path.at(-1), { units: true });
+          if (route?.length) h.path = route;
+          h.moveCooldown = .15;
+        }
       }
     }
+    moveFollowers(this, dt);
     if (this.phase === "waiting") {
       this.waveWait = Math.max(0, this.waveWait - dt);
       if (this.waveWait > 1e-9) return;
@@ -772,12 +904,12 @@ export class Game {
     this.waveElapsed += dt;
     for (const queue of this.spawnQueues)
       if (queue.spawned < queue.types.length && this.waveElapsed + 1e-9 >= queue.nextAt) this.spawn(queue);
-    for (const h of [...this.heroes, ...this.towers]) {
+    for (const h of [...this.heroes, ...this.followers, ...this.towers]) {
       if (h.hp <= 0) continue;
       h.cooldown -= dt;
       const targets = this.enemies
-        .filter((e) => e.hp > 0 && dist(h, e) <= h.range)
-        .sort((a, b) => dist(h, a) - dist(h, b));
+        .filter((e) => e.hp > 0 && gridDistance(h, e) <= h.range)
+        .sort((a, b) => gridDistance(h, a) - gridDistance(h, b));
       if (h.cooldown <= 0 && targets.length) {
         const target = targets[0];
         h.cooldown = 1 / h.rate;
@@ -789,10 +921,10 @@ export class Game {
       e.cooldown -= dt;
       e.moveCooldown -=
         dt * (e.slowUntil > this.time ? 1 - (e.slowAmount ?? 0.55) : 1);
-      const nearby = [...this.heroes, ...this.towers, ...this.mines]
-        .filter((h) => h.hp > 0 && dist(e, h) <= e.range)
-        .sort((a, b) => dist(e, a) - dist(e, b));
-      const target = nearby[0] || (dist(e, BASE) <= e.range ? BASE : null);
+      const nearby = [...this.heroes, ...this.followers, ...this.towers, ...this.mines]
+        .filter((h) => h.hp > 0 && gridDistance(e, h) <= e.range)
+        .sort((a, b) => gridDistance(e, a) - gridDistance(e, b));
+      const target = nearby[0] || (gridDistance(e, BASE) <= e.range ? BASE : null);
       if (target) {
         if (e.cooldown <= 0) {
           e.cooldown = 1 / e.rate;
@@ -819,6 +951,7 @@ export class Game {
     }
     this.enemies = this.enemies.filter((e) => e.hp > 0);
     this.towers = this.towers.filter((t) => t.hp > 0);
+    this.followers = this.followers.filter((u) => u.hp > 0);
     if (this.baseHp <= 0) {
       this.phase = "lost";
       this.attacks = [];
@@ -831,11 +964,21 @@ export class Game {
     ) {
       // The final kill ends the wave, even if missed projectiles are still flying.
       this.attacks = [];
+      if (this.wave + 1 === this.dayPlan.waves.length) {
+        // Lock victory before running rules, and resolve them before reviving fallen heroes.
+        this.phase = "victory";
+        this.settlement = victoryPayout(this.mines);
+        this.heroTriggers.victory();
+      }
+      const revived = new Set(this.heroes.filter(h => h.hp <= 0));
+      // Restore all living-source bonuses before calculating revival and healing health.
+      for (const h of revived) h.hp = 1;
+      this.heroTriggers.syncSourceEffects();
       for (const h of this.heroes) {
-        const dead = h.hp <= 0;
+        const dead = revived.has(h);
         h.hp = Math.min(
           h.maxHp,
-          h.hp +
+          (dead ? 0 : h.hp) +
             h.maxHp *
               (dead
                 ? this.config.initial.reviveHp
@@ -853,6 +996,7 @@ export class Game {
           this.emit("revive", { unit: h });
         }
       }
+      this.heroTriggers.syncSourceEffects();
       this.emit("waveClear", { day: this.dayNumber(), wave: this.wave + 1 });
       if (this.wave + 1 < this.dayPlan.waves.length) {
         this.wave++;
@@ -862,8 +1006,6 @@ export class Game {
           hero.dayEffects = [];
           this.rebuildHero(hero, false);
         }
-        this.phase = "victory";
-        this.settlement = victoryPayout(this.mines);
         this.emit("victory", { total: this.settlement.total });
       }
     }
@@ -895,16 +1037,19 @@ export class Game {
       cards: { ...this.cards },
       heroReserve: this.heroReserve.map((h) => ({ id: h.id, cardId: h.cardId, level: h.level, equipment: [...h.equipment] })),
       rewardOptions: [...this.rewardOptions],
+      shop: this.shop ? { ...structuredClone(this.shop), prices: shopPrices(this) } : null,
       kills: this.kills,
       spawned: this.spawned,
       pendingAttacks: this.attacks.length,
       selected: this.selected,
+      selectedFollowerId: this.selectedFollowerId,
       heroes: this.heroes.map((h) => ({
         ...h,
         equipment: [...h.equipment],
         path: h.path.map((p) => ({ ...p })),
       })),
       enemies: this.enemies.map((e) => ({ ...e })),
+      followers: this.followers.map((u) => ({ ...u, equipment: [], path: u.path.map(p => ({ ...p })), followTrail: u.followTrail.map(p => ({ ...p })) })),
       towers: this.towers.map((t) => ({ ...t })),
     };
   }

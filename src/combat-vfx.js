@@ -50,6 +50,11 @@ function line(g, points, color, width) {
 }
 function createTextures() {
   return {
+    bullet: texture(g => {
+      line(g, [[35,96],[113,96]], "#d6c58d", 13);
+      circle(g,126,96,24,"#b0b6a8","#334b3b",7);
+      circle(g,120,88,7,"#e8dfb8");
+    }),
     arrow: texture(
       (g) => {
         line(
@@ -591,6 +596,7 @@ export class CombatVFX {
       slash: 0,
       orb: 0,
       coffee: 0,
+      bullet: 0,
       claw: 0,
       shield: 0,
       upgrades: 0,
@@ -812,6 +818,11 @@ export class CombatVFX {
           f.mesh.material.opacity = (1 - t) * 0.8;
         });
       }
+      if (kind === "bullet") this.effect("spark", from, .45, .14, (f, t) => {
+        f.mesh.rotation.z = angle;
+        f.mesh.scale.setScalar(.25 + t * .32);
+        f.mesh.material.opacity = 1 - t;
+      });
     }
   }
   land(attack) {
@@ -972,18 +983,18 @@ export class CombatVFX {
         to = this.positionOf(f.target).clone();
       to.z = 3.2;
       f.mesh.position.lerpVectors(f.from, to, t);
-      if (f.kind !== "arrow") f.mesh.position.y += Math.sin(t * Math.PI) * 0.16;
+      if (!["arrow", "bullet"].includes(f.kind)) f.mesh.position.y += Math.sin(t * Math.PI) * 0.16;
       f.mesh.rotation.z =
-        f.kind === "arrow"
+        ["arrow", "bullet"].includes(f.kind)
           ? Math.atan2(to.y - f.from.y, to.x - f.from.x)
           : f.age * 7;
       if (f.trail > 0.035) {
         f.trail = 0;
         const point = f.mesh.position.clone();
         this.effect(
-          f.kind === "arrow" ? "spark" : f.kind,
+          ["arrow", "bullet"].includes(f.kind) ? "spark" : f.kind,
           point,
-          f.kind === "arrow" ? 0.08 : 0.25,
+          ["arrow", "bullet"].includes(f.kind) ? 0.08 : 0.25,
           0.2,
           (e, p) => {
             e.mesh.material.opacity = (1 - p) * 0.3;

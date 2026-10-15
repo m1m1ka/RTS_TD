@@ -40,7 +40,10 @@ export function applyResourceEffect(game, hero, effect) {
     const receiver = others[Math.floor(Math.random() * others.length)];
     changeLevel(game, receiver, receiver.level + hero.level);
     hero.destroyed = true; hero.hp = 0; hero.path = [];
+    game.heroTriggers.resolve(hero, "sacrifice");
     game.heroes = game.heroes.filter(h => h !== hero); game.selected = -1;
+    game.heroTriggers.syncSourceEffects();
+    game.removeFollowers(hero.id);
     game.attacks = game.attacks.filter(a => a.source !== hero && a.target !== hero);
     game.emit("heroDestroyed", { unit: hero });
   } else {

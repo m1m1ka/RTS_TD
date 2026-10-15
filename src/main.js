@@ -5,9 +5,11 @@ import { unitArt, mapArt, forestArt } from "./art.js";
 import { GoldVisuals } from "./gold-visuals.js";
 import { presetIds } from "./hero-presets.js";
 import { Game, W, H, BASE, dist, inside } from "./game.js";
+import { gridDistance } from "./grid-distance.js";
 import { CombatVFX } from "./combat-vfx.js";
 import { HealthBar } from "./health-bar.js";
 import { WeaponRig } from "./weapon-rig.js";
+import { FOLLOWER_SCALE } from "./followers.js";
 import { CardUI } from "./card-ui.js";
 import { cards } from "./cards.js";
 import { subscribeConfig, configLoadError } from "./config/store.js";
@@ -16,6 +18,18 @@ import { iconURL } from "./config/icons.js";
 import { getWeaponSpec } from "./weapons.js";
 import { WaveProgress } from "./wave-progress.js";
 import { RouteMap } from "./route-map.js";
+import { ShopUI } from "./shop-ui.js";
+import { SoundPlayer } from "./audio/player.js";
+import { getAudioConfig, subscribeAudioConfig } from "./audio/store.js";
+
+const audioStats = { counts: {}, last: null };
+const gameAudio = new SoundPlayer(getAudioConfig(), {
+  onError: message => toast(message),
+  onPlayed: event => { audioStats.counts[event.key] = (audioStats.counts[event.key] || 0) + 1; audioStats.last = event; },
+});
+subscribeAudioConfig(config => gameAudio.setConfig(config));
+document.addEventListener("pointerdown", () => gameAudio.unlock(), { capture: true });
+document.addEventListener("keydown", () => gameAudio.unlock(), { capture: true });
 
 const $ = (id) => document.getElementById(id),
   arena = $("arena");
@@ -143,7 +157,6 @@ let game,
   paused = false,
   speed = 1,
   sound = false,
-  audioCtx,
   toastTimer,
   bannerTimer,
   resultTimer,
@@ -342,21 +355,7 @@ function banner(text) {
   );
 }
 function tone(freq = 440, duration = 0.06, type = "sine", volume = 0.025) {
-  if (!sound) return;
-  try {
-    audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume();
-    const o = audioCtx.createOscillator(),
-      g = audioCtx.createGain();
-    o.type = type;
-    o.frequency.value = freq;
-    g.gain.setValueAtTime(volume, audioCtx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-    o.connect(g);
-    g.connect(audioCtx.destination);
-    o.start();
-    o.stop(audioCtx.currentTime + duration);
-  } catch {}
+  gameAudio.tone(freq, duration, type, volume);
 }
 function floating(unit, text, color = "#fbefc3") {
   const tex = textTexture(text, color, 29),
@@ -431,10 +430,13 @@ function applyMotion(v, dt, id = 0) {
     v.hitTimer > 0.22 ? 0.92 : Math.max(0, v.hitTimer / 0.22) * 0.25;
 }
 function onEvent(e) {
+  const audioHandled = gameAudio.handleEvent(e);
+  if (e.type === "shopPurchase" || e.type === "shopRefresh") tone(760, .12, "triangle", .03);
+  if (e.type === "packOpened") tone(420, .28, "triangle", .025);
   if (e.type === "goldGranted") toast(`金币 +${e.amount}`);
-  if (e.type === "heroDestroyed") {
+  if (e.type === "heroDestroyed" || e.type === "followerRemoved") {
     inspectedUnitId = null;
-    burst(e.unit, "#e1c38b");
+    if (e.type === "heroDestroyed") burst(e.unit, "#e1c38b");
     const v = unitMeshes.get(e.unit.id);
     if (v) { v.weapon?.dispose(); v.healthBar.dispose(); scene.remove(v.group); v.group.children.forEach(m => m.material.dispose()); unitMeshes.delete(e.unit.id); }
   }
@@ -448,36 +450,39 @@ function onEvent(e) {
     else burst(e.unit, "#ae9766");
     return;
   }
-  if (e.type === "victory") { cardUI.cancel(); tone(880, .3); }
+  if (e.type === "victory") { cardUI.cancel(); if (!audioHandled) tone(880, .3); }
   if (e.type === "gold") tone(700 + e.index * 90, .09, "triangle", .025);
-  if (e.type === "reset") inspectedUnitId = null;
+  if (e.type === "reset") { inspectedUnitId = null; gameAudio.stop(); }
   if (e.type === "daySelected") {
     inspectedUnitId = null;
     combatVFX.reset();
-    for (const id of e.recalledIds || []) {
-      const v = unitMeshes.get(id);
-      if (!v) continue;
-      v.weapon?.dispose();
-      v.healthBar.dispose();
-      scene.remove(v.group);
-      v.group.children.forEach((m) => m.material.dispose());
-      unitMeshes.delete(id);
-    }
   }
   if (e.type === "deploy" || e.type === "move") inspectedUnitId = null;
-  if (e.type === "select") inspectedUnitId = game.heroes[game.selected]?.id ?? null;
+  if (e.type === "select") inspectedUnitId = game.selectedUnit()?.id ?? null;
   if (e.type === "toast") toast(e.text);
   if (e.type === "heroBattleStart") {
     burst(e.unit, e.extra ? "#c6b5df" : "#b6d893");
     if (e.extra) floating(e.unit, "回响", "#d6c5ed");
   }
+  if (e.type === "heroPreparation" && e.extra) {
+    burst(e.unit, "#b6d893");
+    floating(e.unit, "整备", "#cce3aa");
+  }
   if (e.type === "attack") {
     shoot(e);
-    if (e.source.side === "hero")
+    if (e.source.side === "hero" && !audioHandled)
       tone(e.kind === "orb" ? 660 : 330, 0.04, "triangle", 0.012);
   }
   if (e.type === "impact") combatVFX.land(e);
-  if (e.type === "spawn" || e.type === "deploy") addVisual(e.unit);
+  if (["spawn", "deploy", "followerSpawn"].includes(e.type)) addVisual(e.unit);
+  if (e.type === "followerSpawn") burst(e.unit, "#b6d893");
+  if (e.type === "revive" && e.fromEffect) {
+    const v = unitMeshes.get(e.unit.id);
+    if (v) { v.dying = 0; v.hitTimer = 0; v.attack = 0; v.sprite.material.opacity = 1; }
+    floating(e.unit, "复活", "#eddda0");
+    burst(e.unit, "#d8d9a4");
+    toast(`${e.unit.name}已复活`);
+  }
   if (e.type === "hit") {
     floating(
       e.unit,
@@ -506,10 +511,10 @@ function onEvent(e) {
     }
     combatVFX.death(e.unit, e.source);
     if (e.unit.side !== "enemy") burst(e.unit, "#a5d8de");
-    if (e.unit.side === "enemy") tone(170, 0.045, "triangle", 0.009);
+    if (e.unit.side === "enemy") { if (!audioHandled) tone(170, 0.045, "triangle", 0.009); }
     else
       toast(
-        `${e.unit.name || "咖啡炮台"}已倒下${e.unit.name ? "，下一波归队" : ""}`,
+        `${e.unit.name || "咖啡炮台"}已倒下${game.heroes.includes(e.unit) ? "，下一波归队" : ""}`,
       );
   }
   if (e.type === "heal" || e.type === "upgrade") {
@@ -518,7 +523,7 @@ function onEvent(e) {
     else floating(e.unit, "等级提升", "#ffda72");
     if (e.type === "upgrade") combatVFX.upgrade(e.unit);
     else burst(e.unit, "#d6f4a0");
-    tone(650, 0.2);
+    if (!audioHandled) tone(650, 0.2);
     if (e.useIcon) {
       const map = new THREE.TextureLoader().load(iconURL(e.useIcon));
       map.colorSpace = THREE.SRGBColorSpace;
@@ -546,10 +551,10 @@ function onEvent(e) {
   }
   if (e.type === "wave") {
     banner(`第 ${e.day} 天 · 第 ${e.wave} 波`);
-    tone(220, 0.25, "triangle");
+    if (e.wave !== 1 || !gameAudio.configured("battleStart")) tone(220, 0.25, "triangle");
   }
   if (e.type === "clear") {
-    tone(880, 0.3);
+    if (!gameAudio.configured("victory")) tone(880, 0.3);
   }
   if (e.type === "build") burst(e.unit, "#eddaa1");
   if (e.type === "end") {
@@ -562,7 +567,7 @@ game = new Game(onEvent);
 $("base-avatar").src = artUrls.base;
 const cardUI = new CardUI({
   game,
-  canInteract: () => !paused && !$("route-dialog").open && !["victory", "reward", "won", "lost", "route"].includes(game.phase),
+  canInteract: () => !paused && !$("route-dialog").open && !["shop", "victory", "reward", "won", "lost", "route"].includes(game.phase),
   onSelect: () => {
     rangeKey = "";
     uiTimer = 1;
@@ -598,7 +603,7 @@ function previewCard(e) {
   return valid;
 }
 function inspectedUnit() {
-  return [...game.heroes, ...game.towers, ...game.enemies].find(
+  return [...game.heroes, ...game.followers, ...game.towers, ...game.enemies].find(
     (u) => u.id === inspectedUnitId && u.hp > 0,
   );
 }
@@ -606,9 +611,9 @@ function updateInspector() {
   const unit = inspectedUnit();
   $("unit-inspector").hidden = !unit;
   if (!unit) return;
-  const movable = game.heroes.includes(unit);
+  const movable = game.canControl(unit);
   $("unit-inspector").dataset.side = unit.side;
-  $("unit-side").textContent = unit.side === "enemy" ? "敌方" : movable ? "我方英雄" : "我方建筑";
+  $("unit-side").textContent = unit.side === "enemy" ? "敌方" : unit.isFollower ? "我方随从" : movable ? "我方英雄" : "我方建筑";
   $("unit-name").textContent = unit.name || "咖啡炮台";
   const src = iconURL(unit.useIcon || unit.type, true);
   if ($("unit-icon").getAttribute("src") !== src) $("unit-icon").src = src;
@@ -618,6 +623,7 @@ function updateInspector() {
   $("unit-range").textContent = Math.round(unit.range);
   $("unit-crit").textContent = `${Number((unit.critChance || 0).toFixed(1))}%`;
   $("unit-move-hint").hidden = !movable || !!cardUI.activeKey;
+  $("unit-move-hint").textContent = unit.isFollower ? "◇ 主人周围 3×3 格" : "◇ 可移动格子";
 }
 const routeMap = new RouteMap(game, () => {
   cardUI.cancel();
@@ -625,6 +631,7 @@ const routeMap = new RouteMap(game, () => {
   updateUI();
 });
 let terrainKey = "";
+const shopUI = new ShopUI(game, () => { cardUI.cancel(); updateUI(); });
 function updateTerrain() {
   const key = [...game.obstacles].sort().join(";");
   if (key === terrainKey) return;
@@ -635,6 +642,7 @@ function updateTerrain() {
 }
 function updateUI() {
   routeMap.update();
+  shopUI.update();
   updateTerrain();
   updateInspector();
   updateGates();
@@ -657,11 +665,13 @@ function updateUI() {
           " · " +
           (c.target === "hero"
             ? "选择我方英雄"
-            : c.target === "ground"
+            : c.target === "any"
+              ? "拖到战场"
+              : c.target === "ground"
               ? "放置到空地"
               : "选择敌人") +
           " · Esc 取消"
-        : !game.heroes.length
+        : game.phase === "shop" ? "" : !game.heroes.length
           ? "拖入英雄 · 守护下班打卡机"
           : "";
   $("map-hint").classList.toggle("paused", paused && !$("dialog").open);
@@ -708,28 +718,29 @@ function syncAppearance(v, u) {
 }
 function addVisual(u) {
   if (unitMeshes.has(u.id)) return unitMeshes.get(u.id);
+  const size = (u.type === "boss" ? 1.1 : 0.91) * (u.isFollower ? FOLLOWER_SCALE : 1);
   const group = new THREE.Group(),
     sprite = imagePlane(
       unitTexturePair(u).normal,
-      u.type === "boss" ? 1.1 : 0.91,
+      size,
     );
   sprite.position.z = 0.03;
   group.add(sprite);
   const white = imagePlane(
     unitTexturePair(u).white,
-    u.type === "boss" ? 1.1 : 0.91,
+    size,
   );
   white.position.z = 0.042;
   white.material.opacity = 0;
   group.add(white);
-  const healthBar = new HealthBar(group, u, u.type === "boss" ? 1.1 : 0.91);
+  const healthBar = new HealthBar(group, u, size);
   group.position.copy(pos(u.x, u.y, 1.1));
   scene.add(group);
   const v = {
     group,
     healthBar,
     dying: 0,
-    ...motionState(sprite, white, u.type === "boss" ? 1.1 : 0.91),
+    ...motionState(sprite, white, size),
   };
   syncWeapon(v, u);
   unitMeshes.set(u.id, v);
@@ -741,6 +752,7 @@ function syncWeapon(visual, unit) {
   visual.weapon = getWeaponSpec(unit)
     ? new WeaponRig(unit.weapon, visual.group)
     : null;
+  if (visual.weapon && unit.isFollower) visual.weapon.root.scale.setScalar(FOLLOWER_SCALE);
 }
 function clearGroup(group) {
   while (group.children.length) {
@@ -760,8 +772,8 @@ function updateRanges() {
     rangeKey = pathKey = moveKey = "";
     return;
   }
-  const movable = game.heroes.includes(h);
-  const occupancy = [...game.heroes, ...game.enemies, ...game.towers]
+  const movable = game.canControl(h);
+  const occupancy = [...game.heroes, ...game.followers, ...game.enemies, ...game.towers]
     .filter((u) => u.hp > 0).map((u) => `${u.x},${u.y}`).join("|");
   const nextMoveKey = `${h.id}:${h.x},${h.y}:${occupancy}`;
   if (nextMoveKey !== moveKey) {
@@ -782,7 +794,7 @@ function updateRanges() {
     if (h.hp > 0)
       for (let y = 0; y < H; y++)
         for (let x = 0; x < W; x++)
-          if (dist(h, { x, y }) <= h.range && !game.obstacles.has(`${x},${y}`)) {
+          if (gridDistance(h, { x, y }) <= h.range && !game.obstacles.has(`${x},${y}`)) {
             const m = plane(0.95, 0.95, h.side === "enemy" ? "#b46c61" : "#c0dba1", 0.07);
             m.position.copy(pos(x, y, 0.1));
             rangeGroup.add(m);
@@ -820,27 +832,22 @@ function cellFromEvent(e) {
   return { x: Math.round(v.x + 7), y: Math.round(5 - v.y) };
 }
 function clickCell(x, y) {
-  if (["victory", "won", "lost", "reward", "route"].includes(game.phase) || $("route-dialog").open) return;
+  if (["shop", "victory", "won", "lost", "reward", "route"].includes(game.phase) || $("route-dialog").open) return;
   if (!inside(x, y)) return;
   if (cardUI.activeKey) {
     if (paused) return;
     if (game.playCard(cardUI.activeKey, x, y)) cardUI.cancel();
   } else {
-    const idx = game.heroes.findIndex(
-      (h) => h.hp > 0 && h.x === x && h.y === y,
+    const unit = [...game.heroes, ...game.followers, ...game.towers, ...game.enemies].find(
+      (u) => u.hp > 0 && u.x === x && u.y === y,
     );
-    if (idx >= 0) {
-      if (inspectedUnitId === game.heroes[idx].id) inspectedUnitId = null;
-      else game.select(idx);
-    }
-    else {
-      const unit = [...game.towers, ...game.enemies].find(
-        (u) => u.hp > 0 && u.x === x && u.y === y,
-      );
-      if (unit) inspectedUnitId = inspectedUnitId === unit.id ? null : unit.id;
-      else if (!paused && inspectedUnitId === game.heroes[game.selected]?.id)
-        game.move(x, y);
-    }
+    if (unit) {
+      if (inspectedUnitId === unit.id) { inspectedUnitId = null; game.clearSelection(); }
+      else if (!paused && unit.side === "hero" && inspectedUnitId === game.selectedUnit()?.id) game.move(x, y);
+      else if (game.heroes.includes(unit)) game.select(game.heroes.indexOf(unit));
+      else if (unit.isFollower) game.selectFollower(unit.id);
+      else { game.clearSelection(); inspectedUnitId = unit.id; }
+    } else if (!paused && inspectedUnitId === game.selectedUnit()?.id) game.move(x, y);
   }
   updateUI();
 }
@@ -988,13 +995,14 @@ $("speed").onclick = () => {
 };
 $("sound").onclick = () => {
   sound = !sound;
+  gameAudio.setEnabled(sound);
   $("sound").innerHTML = sound ? "♫" : '♫<span class="sound-slash">/</span>';
   $("sound").setAttribute("aria-label", sound ? "关闭声音" : "开启声音");
   $("sound").title = sound ? "关闭声音" : "开启声音";
   tone(600, 0.1);
 };
 document.addEventListener("keydown", (e) => {
-  if ($("dialog").open || $("route-dialog").open) return;
+  if ($("dialog").open || $("route-dialog").open || $("shop-dialog").open || $("reward-dialog").open) return;
   if (
     ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(
       e.code,
@@ -1022,8 +1030,8 @@ document.addEventListener("keydown", (e) => {
     KeyD: [1, 0],
     ArrowRight: [1, 0],
   };
-  if (dirs[e.code] && !paused && !["victory", "won", "lost", "route"].includes(game.phase) && !$("route-dialog").open) {
-    const h = game.heroes[game.selected],
+  if (dirs[e.code] && !paused && !["shop", "victory", "won", "lost", "route"].includes(game.phase) && !$("route-dialog").open) {
+    const h = game.selectedUnit(),
       d = dirs[e.code];
     if (h && h.id === inspectedUnitId) game.move(h.x + d[0], h.y + d[1]);
   }
@@ -1104,6 +1112,7 @@ function reset() {
   speed = 1;
   rangeKey = pathKey = "";
   game.reset();
+  shopUI.reset();
   cardUI.reset();
   clearTimeout(bannerTimer);
   $("wave-banner").classList.remove("visible");
@@ -1116,7 +1125,7 @@ function animate(now) {
   const realDt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
   wallTime += realDt;
-  const dt = paused || ["reward", "route"].includes(game.phase) || $("route-dialog").open ? 0 : realDt * speed;
+  const dt = paused || ["shop", "reward", "route"].includes(game.phase) || $("route-dialog").open ? 0 : realDt * speed;
   if (dt) {
     let left = dt;
     while (left > 0) {
@@ -1128,7 +1137,7 @@ function animate(now) {
   }
   goldVisuals.update(game, dt);
   $("gold-total").textContent = game.gold;
-  const alive = [...game.heroes, ...game.enemies, ...game.towers].filter(
+  const alive = [...game.heroes, ...game.followers, ...game.enemies, ...game.towers].filter(
       (u) => u.hp > 0,
     ),
     ids = new Set(alive.map((u) => u.id));
@@ -1170,13 +1179,13 @@ function animate(now) {
     if (v.weapon) {
       const candidates =
         u.side === "enemy"
-          ? [...game.heroes, ...game.towers]
+          ? [...game.heroes, ...game.followers, ...game.towers]
               .filter((h) => h.hp > 0)
               .concat(BASE)
           : game.enemies.filter((e) => e.hp > 0);
       const targetUnit = candidates
-        .filter((t) => dist(u, t) <= u.range)
-        .sort((a, b) => dist(u, a) - dist(u, b))[0];
+        .filter((t) => gridDistance(u, t) <= u.range)
+        .sort((a, b) => gridDistance(u, a) - gridDistance(u, b))[0];
       const targetPoint = targetUnit
         ? unitMeshes.get(targetUnit.id)?.group.position ||
           pos(targetUnit.x, targetUnit.y, 1.1)
@@ -1245,6 +1254,7 @@ if (import.meta.env.DEV)
   window.__game = {
     snapshot: () => ({
       ...game.snapshot(),
+      audio: { enabled: sound, counts: { ...audioStats.counts }, last: audioStats.last, voices: gameAudio.voices.size },
       paused,
       speed,
       selectedCard: cardUI.activeKey,
@@ -1256,6 +1266,7 @@ if (import.meta.env.DEV)
       weapons: [...unitMeshes.entries()]
         .filter(([, v]) => v.weapon)
         .map(([id, v]) => ({ id, ...v.weapon.snapshot() })),
+      unitVisuals: [...unitMeshes.entries()].map(([id, v]) => ({ id, size: v.size })),
       healthBars: [...unitMeshes.entries()].map(([id, v]) => ({
         id,
         ...v.healthBar.snapshot(),

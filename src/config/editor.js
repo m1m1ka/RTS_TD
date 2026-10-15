@@ -15,10 +15,10 @@ import {
   effectTypes,
   statLabels,
   weaponOptions,
-  skins,
   builtInIcons,
 } from "./schema.js";
 import { iconURL } from "./icons.js";
+import { attackModules, attackModuleOptions } from "../attack-modules.js";
 import { obstacleKeys } from "../terrain.js";
 import { TerrainEditor } from "./terrain-editor.js";
 import { nextDayIds, materializeRoutes, campaignLayout } from "../campaign.js";
@@ -29,6 +29,8 @@ import { levelStats } from "../level-stats.js";
 import { heroPresets, lookLabel, createPresetCard, presetById } from "../hero-presets.js";
 import { valueModes, statModes } from "../effect-values.js";
 import { cardGenerationEditor } from "./card-generation-editor.js";
+import { SHOP_DEFAULTS } from "../shop.js";
+import { RESOURCE_CARDS } from "../resource-effects.js";
 
 const $ = (id) => document.getElementById(id),
   types = {
@@ -91,7 +93,7 @@ function field(
   return `<label class="field ${wide ? "wide" : ""}"><span>${esc(label)}</span>${input}</label>`;
 }
 function unitFields(path) {
-  return `<div class="fields">${field("动作模板", path + ".type", { options: Object.fromEntries(skins.map((s) => [s, lookLabel(s)])) })}${field("独立武器", path + ".weapon", { options: weaponOptions })}${Object.entries(
+  return `<p class="hint">攻击模组决定动作、武器与弹道；外观由「实际使用 icon」配置。射程与攻速独立设置，装备可覆盖武器。</p><div class="fields">${field("攻击模组", path + ".attackModule", { options: attackModuleOptions })}${Object.entries(
     statLabels,
   )
     .map(([k, t]) =>
@@ -114,13 +116,14 @@ function growthPreview(path) {
 }
 function iconEditor(label, path, hint) {
   const value = get(path);
-  return `<div class="icon-editor"><img src="${iconURL(value, true)}" alt="${esc(label)}"><div><b>${esc(label)}</b><small>${esc(hint)}</small><select data-icon-select="${path}"><option value="" ${!builtInIcons.includes(value) ? "selected" : ""} disabled>上传的图片</option>${builtInIcons.map((k) => `<option value="${k}" ${k === value ? "selected" : ""}>${lookLabel(k)}</option>`).join("")}</select><label class="upload">上传图片<input type="file" accept="image/png,image/jpeg,image/webp" data-upload="${path}" hidden></label></div></div>`;
+  return `<div class="icon-editor"><img src="${iconURL(value, true)}" alt="${esc(label)}"><div><b>${esc(label)}</b><small>${esc(hint)}</small><select data-icon-select="${path}"><option value="" ${!builtInIcons.includes(value) ? "selected" : ""} disabled>上传的图片</option>${builtInIcons.map((k) => `<option value="${k}" ${k === value ? "selected" : ""}>${esc(RESOURCE_CARDS[k]?.name || lookLabel(k))}</option>`).join("")}</select><label class="upload">上传图片<input type="file" accept="image/png,image/jpeg,image/webp" data-upload="${path}" hidden></label></div></div>`;
 }
 function panel(title, body, aside = "") {
   return `<section class="editor-panel"><div class="panel-title"><h3>${title}</h3>${aside}</div>${body}</section>`;
 }
 function presetLibrary() {
-  return `<details class="hero-preset-library"><summary>英雄形象图鉴 <small>10 个预设 · 点击创建英雄牌</small></summary><div class="hero-preset-grid">${heroPresets.map(p => `<button type="button" data-hero-preset="${p.id}" title="以${p.name}为模板创建可编辑的英雄牌"><img src="${iconURL(p.id, true)}" alt="${p.name}" draggable="false"><strong>${p.name}</strong><small>${p.role}</small></button>`).join("")}</div></details>`;
+  const group = (title, presets) => `<h4 class="hero-preset-title">${title}</h4><div class="hero-preset-grid">${presets.map(p => `<button type="button" data-hero-preset="${p.id}" title="以${p.name}为模板创建可编辑的英雄牌"><img src="${iconURL(p.id, true)}" alt="${p.name}" draggable="false"><strong>${p.name}</strong><small>${p.role}</small></button>`).join("")}</div>`;
+  return `<details class="hero-preset-library"><summary>英雄形象图鉴 <small>${heroPresets.length} 个预设 · 点击创建英雄牌</small></summary>${group("血誓与狂怒", heroPresets.filter(p => p.theme === "blood"))}${group("中世纪军团", heroPresets.filter(p => p.theme === "medieval"))}${group("林地冒险者", heroPresets.filter(p => !p.theme))}</details>`;
 }
 function inventory(path) {
   const value = get(path);
@@ -225,7 +228,7 @@ function preview(card) {
 }
 function entityList(items, kind) {
   const depths = kind === "day" ? new Map(campaignLayout(draft).nodes.map((node) => [node.day.id, node.depth + 1])) : null;
-  return `<aside class="entity-list"><div class="entity-toolbar"><span>${items.length} 项</span><button data-action="add-${kind}">＋ 新增</button></div>${items.map(([key, item], i) => `<button class="entity ${String(selected) === String(key) ? "active" : ""}" data-select="${key}">${kind !== "day" ? `<img src="${iconURL(item.icon || item.useIcon, true)}" alt="">` : `<b class="wave-number">${depths.get(item.id)}</b>`}<span>${esc(item.name)}<small>${kind === "day" ? `${item.waves.length} 波 · ${item.waves.reduce((n, w) => n + waveCount(w), 0)} 名敌人` : esc(key)}</small></span></button>`).join("")}</aside>`;
+  return `<aside class="entity-list"><div class="entity-toolbar"><span>${items.length} 项</span><button data-action="add-${kind}">＋ 新增</button></div>${items.map(([key, item], i) => `<button class="entity ${String(selected) === String(key) ? "active" : ""}" data-select="${key}">${kind !== "day" ? `<img src="${iconURL(item.icon || item.useIcon, true)}" alt="">` : `<b class="wave-number">${depths.get(item.id)}</b>`}<span>${esc(item.name)}<small>${kind === "day" ? (item.kind === "shop" ? "商店" : `${item.waves.length} 波 · ${item.waves.reduce((n, w) => n + waveCount(w), 0)} 名敌人`) : esc(key)}</small></span></button>`).join("")}</aside>`;
 }
 function renderCards() {
   const items = Object.entries(draft.cards).filter(
@@ -278,8 +281,8 @@ function spawnGrid(w) {
 function renderWaves() {
   selected = Math.max(0, Math.min(Number(selected) || 0, draft.days.length - 1));
   const day = draft.days[selected], path = "days." + selected;
-  waveSelected = Math.min(waveSelected, day.waves.length - 1);
-  const w = day.waves[waveSelected], wp = path + ".waves." + waveSelected;
+  waveSelected = Math.max(0, Math.min(waveSelected, day.waves.length - 1));
+  const w = day.waves[waveSelected] || DEFAULT_CONFIG.days[0].waves[0], wp = path + ".waves." + waveSelected;
   const enemyOptions = Object.fromEntries(Object.entries(draft.enemies).map(([k, e]) => [k, e.name]));
   const dayButtons = '<button data-action="day-up">↑ 前移</button><button data-action="day-down">↓ 后移</button><button data-action="duplicate-day">复制天</button><button data-action="delete-day" class="danger">删除天</button>';
   const waveTabs = day.waves.map((wave, i) => '<button data-wave-select="' + i + '" class="' + (waveSelected === i ? 'active' : '') + '">第 ' + (i + 1) + ' 波<small>' + waveCount(wave) + ' 名敌人</small></button>').join('');
@@ -292,14 +295,18 @@ function renderWaves() {
   const connections = '<div class="route-links">' + draft.days.filter((d) => d.id !== day.id).map((d) => `<label class="route-link-option"><input type="checkbox" data-next-day="${esc(d.id)}" ${successors.includes(d.id) ? "checked" : ""}>${esc(d.name)}</label>`).join('') + '</div><p class="hint">勾选多个节点形成分支；不同分支可连接同一节点汇合。没有后续连接的节点为终点。</p>';
   const depth = campaignLayout(draft).nodes.find((node) => node.day.id === day.id).depth + 1;
   return '<div class="campaign-editor">' + panel('关卡路线 · 点击节点编辑', field('路线起点', 'startDayId', { options: Object.fromEntries(draft.days.map((d) => [d.id, d.name])) }) + routeGraph(draft, { selected: day.id, available: successors, editor: true }) + '<p class="hint">从左向右推进，每一列为一天。所有节点需从起点可达，路线不能形成循环。</p>') + '</div><div class="editor-columns two">' + entityList(draft.days.map((d, i) => [i, d]), 'day') + '<div class="entity-form"><div class="entity-title"><h2>第 ' + depth + ' 天 · ' + esc(day.name) + '</h2><div>' + dayButtons + '</div></div>'
-    + panel('关卡', field('名称', path + '.name'))
+    + panel('关卡', field('名称', path + '.name') + field('节点类型', path + '.kind', { options: { battle: '战斗', shop: '商店' } }))
     + panel('后续路线', connections)
-    + panel('当天地图 · 树木与金矿', terrainEditor.render(day))
+    + (day.kind === 'shop' ? shopSettings(path) : panel('当天地图 · 树木与金矿', terrainEditor.render(day))
     + panel('当天波次', '<div class="wave-tabs">' + waveTabs + '<button data-action="add-wave">＋ 新增波次</button></div><p class="hint">每波所有敌人出齐并被消灭后，才开始计算下一波的等待时间。最后一波结束后领取当天奖励。</p>')
     + panel('第 ' + (waveSelected + 1) + ' 波 · ' + waveCount(w) + ' 名敌人', '<div class="wave-actions"><button data-action="wave-up">↑ 前移</button><button data-action="wave-down">↓ 后移</button><button data-action="duplicate-wave">复制波次</button><button data-action="delete-wave" class="danger">删除波次</button></div><div class="fields">' + field('波次名称', wp + '.name') + (waveSelected === 0 ? '<p class="hint">第一波等待：' + draft.initial.firstWaveDelay + ' 秒（在「初始默认」修改，从开始当天起算）</p>' : field('上一波结束后等待（秒）', wp + '.startDelay', { type: 'number', max: 3600 })) + field('生命倍率', wp + '.hpScale', { type: 'number', min: 0.05, max: 100 }) + field('攻击倍率', wp + '.atkScale', { type: 'number', min: 0.05, max: 100 }) + '</div>')
     + panel('出生点与出兵配置', spawnGrid(w) + '<p class="hint">不同出生点独立计时，按各自列表顺序逐个出兵。出生格被占用时等待，不会转移出生点。</p>' + points)
     + '<p class="hint">保存后，尚未开始的波次使用新配置。已开始波次的出兵计划保持不变，避免重复刷怪；要立即替换本波请保存并重开。</p>'
-    + rewardSettings(path) + '</div></div>';
+    + rewardSettings(path)) + '</div></div>';
+}
+function shopSettings(path) {
+  const labels = { heroPrice: "英雄单价", refreshCost: "刷新两名英雄", heroPackPrice: "英雄卡包", resourcePackPrice: "资源卡包", equipmentPackPrice: "装备卡包" };
+  return panel("旅行商店", '<p class="hint">进入节点直接购物，不触发战斗或胜利奖励。英雄区随机两张，可反复付费刷新；卡包区随机两个卡包，每包限购一次，不参与刷新，拆包三选一。商品从对应类型的卡牌中等概率抽取，种类不足时允许重复。</p><div class="fields">' + Object.entries(labels).map(([key,label]) => field(label + "（金币）", path + ".shop." + key, { type: "number", min: 0, max: 999, step: 1 })).join("") + '</div>');
 }
 function rewardSettings(path) {
   return panel("当天胜利奖励 · 五选二", field("奖励池", path + ".rewardPool", { options: Object.fromEntries(Object.entries(draft.rewardPools).map(([key, pool]) => [key, pool.name])) }) + '<p class="hint">在「奖励池」页面编辑卡牌与权重；本关胜利后展示五张，选择两张收入手牌。</p>');
@@ -363,7 +370,7 @@ $("editor").addEventListener("input", (e) => {
     for (const tab of document.querySelectorAll("[data-wave-select]"))
       tab.querySelector("small").textContent = waveCount(day.waves[Number(tab.dataset.waveSelect)]) + " 名敌人";
     const total = document.querySelector(`[data-select="${selected}"] small`);
-    if (total) total.textContent = `${day.waves.length} 波 · ${day.waves.reduce((n, w) => n + waveCount(w), 0)} 名敌人`;
+    if (total) total.textContent = day.kind === "shop" ? "商店" : `${day.waves.length} 波 · ${day.waves.reduce((n, w) => n + waveCount(w), 0)} 名敌人`;
     const heading = document.querySelector(".wave-actions")?.closest(".editor-panel").querySelector("h3");
     if (heading) heading.textContent = `第 ${waveSelected + 1} 波 · ${waveCount(day.waves[waveSelected])} 名敌人`;
   }
@@ -373,6 +380,23 @@ $("config-name").oninput = (e) => {
   markDirty();
 };
 $("editor").addEventListener("change", async (e) => {
+  if (e.target.dataset.path?.endsWith(".attackModule")) {
+    const module = attackModules[e.target.value];
+    if (module) {
+      set(e.target.dataset.path, e.target.value);
+      set(e.target.dataset.path.replace(/\.attackModule$/, ".weapon"), module.weapon);
+    }
+    return;
+  }
+  if (e.target.dataset.path?.endsWith(".kind") && section === "waves") {
+    const day = draft.days[selected];
+    if (day.kind === "shop") day.shop ??= { ...SHOP_DEFAULTS };
+    else {
+      if (!day.waves.length) day.waves = clone(DEFAULT_CONFIG.days[0].waves);
+      day.rewardPool ??= Object.keys(draft.rewardPools)[0];
+    }
+    render(); return;
+  }
   if (e.target.dataset.generationCard) {
     const effect = get(e.target.dataset.generationPath), key = e.target.dataset.generationCard;
     effect.cards = e.target.checked ? [...new Set([...effect.cards, key])] : effect.cards.filter(id => id !== key);
@@ -447,6 +471,7 @@ document.addEventListener("click", (e) => {
   }
   if (b.dataset.triggerTemplate) {
     const templates = {
+      preparation: { ...newTriggerRule(), name: "整备随从", trigger: { event: "preparation", scope: "any", radius: -1 }, effects: [{ type: "summonFollower", hpPercent: 50, atkPercent: 50, count: 1 }] },
       growth: defaultHeroRules("hero_blue")[0], momentum: defaultHeroRules("hero_blue")[1],
       rally: defaultHeroRules("hero_green")[0], echo: defaultHeroRules("hero_purple")[0],
     };

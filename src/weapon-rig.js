@@ -28,7 +28,30 @@ function makeTexture(kind) {
   const g = canvas.getContext("2d");
   g.lineCap = "round";
   g.lineJoin = "round";
-  if (kind === "bow") {
+  if (kind === "musket") {
+    // Short walnut stock and long iron barrel point along the rig's local +X.
+    g.beginPath();g.moveTo(15,102);g.lineTo(58,87);g.lineTo(99,90);g.lineTo(95,104);g.lineTo(56,107);g.lineTo(33,124);g.lineTo(14,122);g.closePath();
+    g.fillStyle="#9d815e";g.strokeStyle="#304639";g.lineWidth=7;g.fill();g.stroke();
+    stroke(g,[[59,85],[177,85]],"#304639",17);
+    stroke(g,[[60,83],[177,83]],"#aab8ad",10);
+    stroke(g,[[66,81],[174,81]],"#dbd9b9",3);
+    stroke(g,[[110,79],[110,94]],"#b9a270",6);stroke(g,[[158,79],[158,93]],"#b9a270",6);
+    stroke(g,[[68,100],[65,114],[78,114],[83,103]],"#374e3d",5);
+    stroke(g,[[77,87],[72,74],[79,68]],"#526859",6);
+    disc(g,87,97,5,"#d9bd7a");
+  } else if (kind === "crossbow") {
+    stroke(g,[[34,99],[156,96]],"#304639",19);
+    stroke(g,[[35,98],[156,95]],"#aa8d62",11);
+    stroke(g,[[51,94],[146,92]],"#e0c58a",3);
+    for (const [color,width] of [["#304639",13],["#8fa594",7]]) {
+      g.beginPath();g.moveTo(74,24);g.quadraticCurveTo(135,57,130,95);g.quadraticCurveTo(135,132,74,169);g.strokeStyle=color;g.lineWidth=width;g.stroke();
+    }
+    stroke(g,[[74,26],[65,96],[74,167]],"#e5ddbb",3);
+    stroke(g,[[60,94],[170,94]],"#374c39",7);
+    stroke(g,[[62,93],[165,93]],"#e6cb90",3);
+    g.beginPath();g.moveTo(163,86);g.lineTo(179,94);g.lineTo(163,102);g.closePath();g.fillStyle="#d8dfbd";g.fill();
+    disc(g,125,95,6,"#cbb17a");
+  } else if (kind === "bow") {
     for (const [color, width] of [
       ["#2e4234", 15],
       ["#dcba71", 8],

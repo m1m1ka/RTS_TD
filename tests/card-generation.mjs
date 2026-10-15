@@ -51,8 +51,8 @@ const fixture = () => {
   g.phase="battle";
   g.enemies=[{id:90,x:5,y:5,hp:1000,maxHp:1000,side:"enemy"},{id:91,x:5,y:6,hp:1000,maxHp:1000,side:"enemy"}];
   g.playCard("fireball",5,5); assert.equal(g.cards.training,count+=2, "area damage does not multiply generation");
-  g.phase="route"; g.chooseDay(g.nextDays()[0]); g.playCard("hero_blue",7,3);
-  assert.equal(g.cards.training,count,"redeployment does not replay initial on-play effects");
+  g.phase="route"; g.chooseDay(g.nextDays()[0]);
+  assert.equal(g.cards.training,count,"keeping heroes does not replay initial on-play effects");
 }
 {
   const c = fixture(); c.cards.training.effects = [effect({pool:"selected",cards:["training"],count:2})];

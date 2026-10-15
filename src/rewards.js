@@ -4,6 +4,7 @@ export function migrateRewards(c) {
   c.rewardPools ??= {};
   for (const day of c.days) {
     if (!day || typeof day !== "object") continue;
+    if (day.kind === "shop") continue;
     if (day.rewardPool === undefined) {
       const key = `pool_${day.id}`, weights = {};
       for (const pack of day.rewards || []) for (const [id, count] of Object.entries(pack.cards || {}))

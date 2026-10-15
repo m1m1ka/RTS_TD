@@ -3,18 +3,43 @@ const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const inRange = (a, b, radius) => radius < 0 || distance(a, b) <= radius;
 
 export class HeroTriggers {
-  constructor(game) { this.game = game; }
+  constructor(game) { this.game = game; this.activations = 0; this.activeSources = new Set(); }
+  effectActive(effect) {
+    return !effect.whileSourceAlive || this.game.heroes.some(h => h.id === effect.sourceHeroId && h.hp > 0 && !h.destroyed);
+  }
+  syncSourceEffects() {
+    const game = this.game;
+    const active = new Set(game.heroes.filter(h => h.hp > 0 && !h.destroyed).map(h => h.id));
+    if (active.size === this.activeSources.size && [...active].every(id => this.activeSources.has(id))) return;
+    this.activeSources = active;
+    // Rebuild from base stats and equipment, rather than subtracting capped or multiplied bonuses.
+    for (const hero of [...game.heroes, ...game.heroReserve])
+      if ([...(hero.dayEffects || []), ...(hero.triggerPermanentEffects || [])].some(e => e.whileSourceAlive))
+        game.rebuildHero(hero, false);
+  }
+  prepare(heroes = this.game.heroes) {
+    const game = this.game;
+    if (!["ready", "between"].includes(game.phase) || game.currentDay().kind === "shop") return;
+    const dayId = game.currentDay().id;
+    for (const hero of [...heroes]) {
+      if (hero.hp <= 0 || hero.destroyed || hero.isFollower || hero.preparedDayId === dayId) continue;
+      hero.preparedDayId = dayId;
+      this.resolve(hero, "preparation");
+    }
+  }
   rules(hero, event) {
     return (this.game.config.cards[hero.cardId]?.triggerRules || [])
       .filter((rule) => rule.enabled && rule.trigger.event === event);
   }
-  targets(owner, eventHero, target) {
-    const allies = this.game.heroes.filter((h) => h.hp > 0 && inRange(owner, h, target.radius));
+  targets(owner, eventHero, target, deathEvent = false, fallenOnly = false) {
+    const allies = this.game.heroes.filter((h) => (fallenOnly ? h.hp <= 0 : h.hp > 0) && !h.destroyed && inRange(owner, h, target.radius));
     const nearby = allies.filter((h) => h !== owner)
       .sort((a, b) => distance(owner, a) - distance(owner, b) || a.id - b.id);
     if (target.kind === "self") return [owner];
-    if (target.kind === "eventHero") return allies.includes(eventHero) ? [eventHero] : [];
+    if (target.kind === "eventHero") return allies.includes(eventHero) || (deathEvent && eventHero === owner) ? [eventHero] : [];
     if (target.kind === "allAllies") return allies;
+    if (target.kind === "alliesWithFollowers") return allies.filter(h =>
+      this.game.followers.some(f => f.ownerId === h.id && f.hp > 0 && !f.destroyed));
     if (target.kind === "randomAllies") {
       // Sample without replacement; one rule's payloads share this selection.
       const count = Math.min(target.count, allies.length);
@@ -31,62 +56,88 @@ export class HeroTriggers {
     const game = this.game;
     const before = new Map(game.heroes.map((h) => [h.id, { rate: h.rate, speed: h.speed }]));
     this.activations = 0;
-    // Each normal activation gets its own cascade. Each hero may activate once
-    // per cascade, allowing extra activations without circular/branching loops.
-    for (const hero of [...heroes].filter((h) => h.hp > 0)) {
-      const cascade = { visited: new Set(), queue: [hero] };
-      for (let i = 0; i < cascade.queue.length; i++) {
-        const current = cascade.queue[i];
-        if (current.hp <= 0 || cascade.visited.has(current.id)) continue;
-        cascade.visited.add(current.id);
-        const rules = this.rules(current, "battleStart");
-        if (!rules.length) continue;
-        this.activations++;
-        for (const rule of rules) this.run(current, current, rule, cascade);
-        game.emit("heroBattleStart", { unit: current, extra: i > 0 });
-        // Listener effects never implicitly emit another activation event.
-        for (const listener of game.heroes.filter((h) => h.hp > 0))
-          for (const rule of this.rules(listener, "heroBattleStart")) {
-            const filter = rule.trigger;
-            if (filter.scope === "self" && listener !== current) continue;
-            if (filter.scope === "others" && listener === current) continue;
-            if (!inRange(listener, current, filter.radius)) continue;
-            this.run(listener, current, rule, cascade);
-          }
-      }
-    }
+    for (const hero of [...heroes]) this.resolve(hero, "battleStart");
     for (const hero of game.heroes) {
       const old = before.get(hero.id);
       if (old && (hero.rate !== old.rate || hero.speed !== old.speed))
         game.emit("battleBuff", { unit: hero, rate: hero.rate - old.rate, speed: hero.speed - old.speed });
     }
   }
-  run(owner, eventHero, rule, cascade) {
-    const game = this.game, targets = this.targets(owner, eventHero, rule.target);
+  victory() {
+    // Snapshot before end-of-wave revival: only actual survivors can respond.
+    const survivors = this.game.heroes.filter(h => h.hp > 0 && !h.destroyed);
+    for (const hero of survivors) this.resolve(hero, "victory");
+  }
+  resolve(hero, event) {
+    const game = this.game;
+    this.syncSourceEffects();
+    // Each root owns a shared, typed queue: cross-event echoes cannot recurse.
+    // Natural preparation is separate from the one extra preparation allowance.
+    const cascade = {
+      queued: new Set(event === "battleStart" ? [`${event}:${hero.id}`] : []),
+      queue: [{ hero, event, extra: false }],
+    };
+    for (let i = 0; i < cascade.queue.length; i++) {
+      const { hero: current, event: currentEvent, extra } = cascade.queue[i];
+      const deathEvent = currentEvent === "sacrifice";
+      if (!game.heroes.includes(current) || (deathEvent ? current.hp > 0 : current.hp <= 0 || current.destroyed)) continue;
+      const rules = this.rules(current, currentEvent);
+      if (!rules.length) continue;
+      if (currentEvent === "battleStart") this.activations++;
+      for (const rule of rules) this.run(current, current, rule, cascade, deathEvent);
+      const eventType = { preparation: "heroPreparation", battleStart: "heroBattleStart", sacrifice: "heroSacrifice", victory: "heroVictory" }[currentEvent];
+      game.emit(eventType, { unit: current, extra });
+      if (currentEvent !== "battleStart") continue;
+      // Listener effects share the queue and never implicitly emit an activation.
+      for (const listener of game.heroes.filter(h => h.hp > 0 && !h.destroyed))
+        for (const rule of this.rules(listener, "heroBattleStart")) {
+          const filter = rule.trigger;
+          if (filter.scope === "self" && listener !== current) continue;
+          if (filter.scope === "others" && listener === current) continue;
+          if (!inRange(listener, current, filter.radius)) continue;
+          this.run(listener, current, rule, cascade);
+        }
+    }
+  }
+  run(owner, eventHero, rule, cascade, deathEvent = false) {
+    const game = this.game, targets = this.targets(owner, eventHero, rule.target, deathEvent);
     for (const effect of rule.effects) {
+      if (effect.type === "revive") {
+        for (const target of this.targets(owner, eventHero, rule.target, deathEvent, true))
+          if (game.reviveHero(target, effect, owner))
+            game.emit("triggerEffect", { unit: target, source: owner, rule: rule.name, effect });
+        continue;
+      }
       if (effect.type === "generateCard") {
         game.generateCards(effect);
         game.emit("triggerEffect", { unit: owner, source: owner, rule: rule.name, effect });
         continue;
       }
       for (const target of targets) {
-        if (effect.type === "triggerBattleStart") {
-          if (!cascade.visited.has(target.id) && !cascade.queue.includes(target))
-            cascade.queue.push(target);
+        if (effect.type === "triggerBattleStart" || effect.type === "triggerPreparation") {
+          const event = effect.type === "triggerPreparation" ? "preparation" : "battleStart";
+          const key = `${event}:${target.id}`;
+          if (!cascade.queued.has(key)) {
+            cascade.queued.add(key);
+            cascade.queue.push({ hero: target, event, extra: true });
+          }
           continue;
         }
-        if (effect.type === "level") {
+        if (effect.type === "summonFollower") {
+          game.summonFollowers(target, effect);
+        } else if (effect.type === "level") {
           target.level += effect.value;
           game.rebuildHero(target, false);
-          target.hp = Math.min(target.maxHp, target.hp + game.config.initial.levelGrowth.heal * effect.value);
+          if (target.hp > 0) target.hp = Math.min(target.maxHp, target.hp + game.config.initial.levelGrowth.heal * effect.value);
           game.emit("upgrade", { unit: target });
         } else if (effect.type === "heal") {
+          if (target.hp <= 0 || target.destroyed) continue;
           const amount = Math.min(target.maxHp - target.hp, effectAmount(effect, target));
           target.hp += amount;
           if (amount > 0) game.emit("heal", { unit: target, amount });
         } else if (effect.type === "stat") {
           const bucket = effect.duration === "day" ? target.dayEffects : target.triggerPermanentEffects;
-          bucket.push(structuredClone(effect));
+          bucket.push({ ...structuredClone(effect), ...(effect.whileSourceAlive ? { sourceHeroId: owner.id } : {}) });
           game.rebuildHero(target, false);
         }
         game.emit("triggerEffect", { unit: target, source: owner, rule: rule.name, effect });

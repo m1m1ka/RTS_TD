@@ -1,0 +1,51 @@
+import { chromium } from "@playwright/test";
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { DEFAULT_CONFIG } from "../src/config/defaults.js";
+import { assertConfig } from "../src/config/schema.js";
+const fixture = structuredClone(DEFAULT_CONFIG);
+fixture.initial.firstWaveDelay = 0;
+Object.assign(fixture.enemies.grunt, { maxHp: 100000, atk: 100000, rate: 1, critChance: 0 });
+fixture.days[0].obstacles = []; fixture.days[0].mines = [];
+fixture.days[0].waves = [{ id: "revive_test", name: "Revive", startDelay: 0, hpScale: 1, atkScale: 1,
+  spawns: [{ x: 14, y: 5, delay: 0, interval: 1, enemies: [{ type: "grunt", count: 1, level: 1 }] }] }];
+const url = "http://127.0.0.1:5186";
+const server = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5186", "--strictPort"], { stdio: "ignore", windowsHide: true });
+let browser;
+try {
+  for (let i=0;i<60;i++) { try { if ((await fetch(url)).ok) break; } catch {} await new Promise(r=>setTimeout(r,200)); }
+  const chrome = process.env.CHROME_PATH || ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"].find(existsSync);
+  browser = await chromium.launch({ ...(chrome ? { executablePath: chrome } : {}), headless: true, args: ["--enable-unsafe-swiftshader"] });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  context.setDefaultTimeout(15000);
+  await context.addInitScript(c => { if (!localStorage.getItem("friday-defense-config-v1")) localStorage.setItem("friday-defense-config-v1", JSON.stringify(c)); }, assertConfig(fixture));
+  const game = await context.newPage(), editor = await context.newPage(), errors = [];
+  for (const page of [game,editor]) page.on("pageerror", e => errors.push(e.message));
+  await game.goto(url); await game.waitForFunction(()=>window.__game?.snapshot().frames>3);
+  await editor.goto(url + "/config.html");
+  await editor.locator('[data-select="hero_blue"]').click();
+  const rp = "cards.hero_blue.triggerRules.0", ep = rp + ".effects.0";
+  await editor.locator(`[data-path="${rp}.trigger.event"]`).selectOption("sacrifice");
+  await editor.locator(`[data-trigger-effect-type="${ep}"]`).selectOption("revive");
+  await editor.locator(`[data-path="${ep}.maxRevives"]`).fill("2");
+  await editor.locator(`[data-path="${ep}.hpPercent"]`).fill("40");
+  assert.equal(await editor.locator(`[data-path="${ep}.value"]`).count(), 0);
+  await editor.locator("#save-config").click(); await editor.reload();
+  await editor.locator('[data-select="hero_blue"]').click();
+  assert.equal(await editor.locator(`[data-path="${ep}.maxRevives"]`).inputValue(), "2");
+  assert.equal(await editor.locator(`[data-path="${ep}.hpPercent"]`).inputValue(), "40");
+  await game.bringToFront(); await game.locator('[data-card="hero_blue"]').click();
+  await game.evaluate(()=>window.__game.clickCell(13,4));
+  await game.locator("#start").click(); await game.locator("#pause").click();
+  await game.evaluate(()=>window.__game.advance(.9));
+  const hero = () => game.evaluate(()=>window.__game.snapshot().heroes[0]);
+  let h = await hero(); assert.equal(h.reviveUsage.used, 1); assert.equal(h.hp, Math.ceil(h.maxHp * .4));
+  await editor.locator("#save-config").click();
+  await game.evaluate(()=>window.__game.advance(1)); h = await hero();
+  assert.equal(h.reviveUsage.used, 2); assert.equal(h.hp, Math.ceil(h.maxHp * .4));
+  await game.evaluate(()=>window.__game.advance(1)); h = await hero();
+  assert.equal(h.hp, 0); assert.equal(h.reviveUsage.used, 2);
+  assert.deepEqual(errors, []);
+  console.log("PASS revival browser: effect editor, count/health persistence, live sync, two real combat revivals, exhausted allowance and no refill on save");
+} finally { await browser?.close(); server.kill(); }

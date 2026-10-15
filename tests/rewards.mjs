@@ -72,7 +72,7 @@ const fixture = () => {
   assert.equal(g.kills, 0, "sacrifice is not an enemy kill");
   g.phase = "reward"; g.rewardOptions = ["training","coffee","guard","tower","fireball"];
   g.chooseReward([0,1]); g.chooseDay(g.nextDays()[0]);
-  assert.equal(g.heroReserve.length, 2); assert.ok(!g.heroReserve.some(h => h.id === a.id));
+  assert.equal(g.heroes.length, 2); assert.ok(!g.heroes.some(h => h.id === a.id));
   assert.equal(g.cards.hero_blue, undefined, "destroyed hero never returns to the hand");
   assert.equal(g.gold, 3);
 }

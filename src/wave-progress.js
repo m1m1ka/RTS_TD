@@ -11,6 +11,8 @@ export class WaveProgress {
     this.focus = "";
   }
   update(game) {
+    this.element.hidden = game.currentDay().kind === "shop";
+    if (this.element.hidden) return;
     const waves = game.currentDay().waves, count = waves.length;
     const signature = JSON.stringify([game.day, waves.map((w) => w.id)]);
     if (signature !== this.signature) {

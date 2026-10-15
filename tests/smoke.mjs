@@ -307,7 +307,7 @@ try {
   assert.equal(await page.locator("#unit-hp").textContent(), `${Math.ceil(inspected.hp)} / ${Math.round(inspected.maxHp)}`);
   assert.equal(await page.locator("#unit-speed").count(), 0);
   assert.ok((await state()).movableCells.length > 0);
-  assert.ok(!(await state()).movableCells.includes("6,4"), "tower blocks reachable grid");
+  assert.ok((await state()).movableCells.includes("6,4"), "friendly tower can yield its reachable cell");
   await page.screenshot({ path: "logs/unit-inspector.png" });
   await clickUnit(7, 3);
   assert.equal((await state()).inspectedUnitId, null, "repeat click deselects");
@@ -390,7 +390,7 @@ try {
   assert.equal((await state()).phase, "route");
   await page.locator('#route-dialog .route-node.available').click();
   assert.equal((await state()).phase, "between");
-  assert.equal((await state()).cards.training, training + trainingReward);
+  assert.equal((await state()).cards.training || 0, training + trainingReward);
   assert.equal((await state()).day, 2);
   await page.waitForTimeout(150);
   assert.equal(await page.locator("#start").isVisible(), true, "next day can still be started");

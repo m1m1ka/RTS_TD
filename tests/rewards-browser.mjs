@@ -33,7 +33,7 @@ try {
   await editor.locator('[data-path="rewardPools.pool_1.cards.coin_purse"]').fill("4");
   await editor.locator('[data-section="waves"]').click();
   await editor.locator('[data-path="days.0.rewardPool"]').selectOption("pool_1");
-  await editor.locator("#save").click();
+  await editor.locator("#save-config").click();
   await editor.waitForFunction(()=>JSON.parse(localStorage.getItem("friday-defense-config-v1")).days[0].rewardPool==="pool_1");
   mkdirSync("logs",{recursive:true});
   await editor.locator('[data-section="pools"]').click();
@@ -47,6 +47,7 @@ try {
   }
   assert.equal(await editor.locator('[data-path="cards.siphon.effects.0.limit"]').inputValue(),"3");
   await editor.screenshot({path:"logs/resource-effects-config.png"});
+  await page.bringToFront();
   const state=()=>page.evaluate(()=>window.__game.snapshot());
   const use=async(key,x,y)=>{await page.locator(`[data-card="${key}"]`).click();await page.evaluate(({x,y})=>window.__game.clickCell(x,y),{x,y});};
   await use("hero_blue",7,3); await use("hero_green",6,3); await use("hero_purple",9,3);

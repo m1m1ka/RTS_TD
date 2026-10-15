@@ -1,6 +1,9 @@
 import { generationDefaults } from "../card-generation.js";
 // Event, source filter, target selection and payload are independent registries.
 export const triggerEvents = {
+  preparation: "整备（开战前上场）",
+  sacrifice: "牺牲（自身死亡时）",
+  victory: "胜利（存活至本天战斗胜利）",
   battleStart: "开战（点击迎战）",
   heroBattleStart: "英雄触发开战效果后",
 };
@@ -9,13 +12,17 @@ export const triggerTargets = {
   self: "自身", nearest: "最近的其他英雄", selfAndNearest: "自身 + 最近的其他英雄",
   allAllies: "范围内所有英雄（含自身）", eventHero: "触发事件的英雄",
   randomAllies: "范围内随机英雄（含自身）",
+  alliesWithFollowers: "范围内所有拥有随从的英雄",
 };
 export const triggerEffects = {
+  revive: { label: "复活", defaults: { maxRevives: 1, hpPercent: 50 } },
+  summonFollower: { label: "召唤随从分身", defaults: { hpPercent: 50, atkPercent: 50, count: 1 } },
   generateCard: { label: "生成卡牌", defaults: generationDefaults },
   level: { label: "提升等级", defaults: { value: 1 } },
   heal: { label: "恢复生命", defaults: { value: 50 } },
   stat: { label: "属性加成", defaults: { stat: "rate", mode: "add", value: 0.2, duration: "day" } },
   triggerBattleStart: { label: "额外触发一次开战效果", defaults: {} },
+  triggerPreparation: { label: "额外触发一次整备效果", defaults: {} },
 };
 export const newTriggerRule = () => ({
   name: "开战成长", enabled: true,

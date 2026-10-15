@@ -11,7 +11,7 @@ fixture.days[0].obstacles = []; fixture.days[0].mines = [];
 fixture.days[0].waves = [{ id: "revive_test", name: "Revive", startDelay: 0, hpScale: 1, atkScale: 1,
   spawns: [{ x: 14, y: 5, delay: 0, interval: 1, enemies: [{ type: "grunt", count: 1, level: 1 }] }] }];
 const url = "http://127.0.0.1:5186";
-const server = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5186", "--strictPort"], { stdio: "ignore", windowsHide: true });
+const server = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5186", "--strictPort"], { stdio: "ignore", windowsHide: true, env: { ...process.env, FRIDAY_CONFIG_SYNC: "0" } });
 let browser;
 try {
   for (let i=0;i<60;i++) { try { if ((await fetch(url)).ok) break; } catch {} await new Promise(r=>setTimeout(r,200)); }

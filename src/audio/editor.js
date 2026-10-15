@@ -2,7 +2,7 @@ import "../config/editor.css";
 import "./editor.css";
 import { escapeHTML as esc } from "../config/schema.js";
 import { AUDIO_EVENTS, assertAudioConfig, MAX_LIBRARY_BYTES } from "./schema.js";
-import { getAudioConfig, saveAudioConfig, subscribeAudioConfig, audioLoadError, importAudioFiles, exportAudioBundle, importAudioBundle } from "./store.js";
+import { getAudioConfig, saveAudioConfig, subscribeAudioConfig, audioLoadError, importAudioFiles, exportAudioBundle, importAudioBundle, audioSavesToProject } from "./store.js";
 import { SoundPlayer } from "./player.js";
 const $=id=>document.getElementById(id);
 let draft=getAudioConfig(), dirty=false, conflict=false, saving=false, busy=false, missing=new Set();
@@ -77,7 +77,7 @@ for(const id of ["audio-folder-input","audio-files-input"]) $(id).onchange=e=>ru
 $("save-audio").onclick=()=>run(async()=>{
   if(conflict)throw new Error("其他页面已修改音频配置，请先导出当前草稿，再刷新页面合并后保存。");
   saving=true;
-  try{draft=saveAudioConfig(draft);dirty=false;$("audio-save-state").textContent="✓ 已保存并同步";message("音频配置已同步到游戏。");}finally{saving=false;}
+  try{draft=await saveAudioConfig(draft);dirty=false;$("audio-save-state").textContent="✓ 已保存并同步";message(audioSavesToProject()?"已写入 public/config/audio.json（包含导入音效），提交推送后可随仓库迁移。":"音频配置已保存至本机。静态部署请导出后在本地导入保存至项目。");}finally{saving=false;}
 });
 $("export-audio-config").onclick=()=>run(async()=>{
   const blob=new Blob([await exportAudioBundle(draft)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");

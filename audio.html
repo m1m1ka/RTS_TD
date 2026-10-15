@@ -6,7 +6,7 @@
       <header class="workshop-header"><div><a href="/" target="_blank" rel="noopener" class="back-game">↗ 返回战场</a> <a href="/config.html" class="back-game">规则工坊</a><h1>声音工坊 <span>周五保卫战</span></h1></div><div class="toolbar"><button id="import-audio-config">导入音频配置</button><button id="export-audio-config">导出音频配置</button><button id="save-audio" class="primary">保存并同步</button></div></header>
       <main class="audio-workspace">
         <section class="audio-summary"><label>总音量 <input id="master-volume" type="range" min="0" max="100" step="1"><output id="master-value"></output></label><span id="audio-save-state" role="status">已保存</span><button id="stop-preview">停止试听</button></section>
-        <p class="sync-note">保存后立即同步游戏。游戏中点击右上角 ♫ 开启声音；这里可直接试听。音频配置独立保存，导出包含音效文件，可跨设备迁移。</p>
+        <p class="sync-note">保存后立即同步游戏。本地开发时同时写入项目音频配置，导入的音效数据随配置保存，提交推送后可随仓库迁移。游戏中点击右上角 ♫ 开启声音；这里可直接试听。</p>
         <p id="audio-message" role="status" hidden></p>
         <div class="audio-columns">
           <aside class="audio-library editor-panel"><h2>音效库 <small id="audio-count"></small></h2><p>自动识别 <code>public/audio</code> 及其子文件夹。</p><div class="audio-import-actions"><button id="scan-audio">重新扫描</button><button id="import-audio-folder">导入本地文件夹</button><button id="import-audio-files">添加文件</button></div><p class="hint">WAV / MP3 / OGG / M4A / AAC / FLAC / WebM，单文件最多 20 MB。已导入文件会保存在浏览器中。</p><input id="audio-search" type="search" placeholder="按文件名或路径查找" aria-label="搜索音效"><div id="audio-library"></div></aside>

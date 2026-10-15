@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "masterVolume": 0.8,
+  "assets": [],
+  "events": {
+    "enemyHit": {
+      "sound": "",
+      "enabled": true,
+      "volume": 1,
+      "cooldown": 60
+    },
+    "enemyDeath": {
+      "sound": "",
+      "enabled": true,
+      "volume": 1,
+      "cooldown": 60
+    },
+    "bowDraw": {
+      "sound": "",
+      "enabled": true,
+      "volume": 1,
+      "cooldown": 60
+    },
+    "arrowHit": {
+      "sound": "",
+      "enabled": true,
+      "volume": 1,
+      "cooldown": 60
+    },
+    "swordSwing": {
+      "sound": "",
+      "enabled": true,
+      "volume": 1,
+      "cooldown": 60
+    },
+    "swordHit": {
+      "sound": "",
+      "enabled": true,
+      "volume": 1,
+      "cooldown": 60
+    },
+    "magicHit": {
+      "sound": "",
+      "enabled": true,
+      "volume": 1,
+      "cooldown": 60
+    },
+    "heroHit": {
+      "sound": "",
+      "enabled": true,
+      "volume": 1,
+      "cooldown": 60
+    },
+    "heroDeath": {
+      "sound": "",
+      "enabled": true,
+      "volume": 1,
+      "cooldown": 80
+    },
+    "heroUpgrade": {
+      "sound": "",
+      "enabled": true,
+      "volume": 1,
+      "cooldown": 80
+    },
+    "heroDeploy": {
+      "sound": "",
+      "enabled": true,
+      "volume": 1,
+      "cooldown": 30
+    },
+    "victory": {
+      "sound": "",
+      "enabled": true,
+      "volume": 1,
+      "cooldown": 0
+    },
+    "battleStart": {
+      "sound": "",
+      "enabled": true,
+      "volume": 1,
+      "cooldown": 0
+    }
+  }
+}

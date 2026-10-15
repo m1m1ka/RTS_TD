@@ -19,7 +19,7 @@ engine.playCard("hero_ironwarden", 7, 3);
 assert.equal(attackKind(engine.heroes[0]), "slash");
 engine.heroes[0].weapon = "bow";
 assert.equal(attackKind(engine.heroes[0]), "arrow", "weapon can override a preset's melee action");
-const server = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5179", "--strictPort"], { stdio: "ignore", windowsHide: true });
+const server = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5179", "--strictPort"], { stdio: "ignore", windowsHide: true, env: { ...process.env, FRIDAY_CONFIG_SYNC: "0" } });
 let browser;
 try {
   for (let i = 0; i < 60; i++) { try { if ((await fetch("http://127.0.0.1:5179")).ok) break; } catch {} await new Promise(r => setTimeout(r, 200)); }

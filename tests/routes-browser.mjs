@@ -19,7 +19,7 @@ c.enemies.grunt.maxHp = 1;
 c.cards.hero_blue.unit.atk = 999;
 c.cards.hero_blue.unit.range = 24;
 c.cards.hero_blue.triggerRules = [];
-const server = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5177", "--strictPort"], { stdio: "ignore", windowsHide: true });
+const server = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5177", "--strictPort"], { stdio: "ignore", windowsHide: true, env: { ...process.env, FRIDAY_CONFIG_SYNC: "0" } });
 let browser;
 try {
   for (let i = 0; i < 60; i++) {

@@ -7,7 +7,7 @@ const c=structuredClone(DEFAULT_CONFIG);c.days=c.days.slice(0,3);
 c.initial.firstWaveDelay=0;c.initial.cards.coin_purse=1;c.cards.coin_purse.effects[0].value=30;
 c.enemies.grunt.maxHp=1;c.cards.hero_blue.unit.range=24;
 for(const day of c.days){day.waves=[day.waves[0]];day.waves[0].spawns=[{x:7,y:0,delay:0,interval:1,enemies:[{type:"grunt",count:1,level:1}]}];}
-const server=spawn(process.execPath,["node_modules/vite/bin/vite.js","--host","127.0.0.1","--port","5181","--strictPort"],{stdio:"ignore",windowsHide:true});
+const server=spawn(process.execPath,["node_modules/vite/bin/vite.js","--host","127.0.0.1","--port","5181","--strictPort"],{stdio:"ignore",windowsHide: true, env: { ...process.env, FRIDAY_CONFIG_SYNC: "0" }});
 let browser;
 try{
   for(let i=0;i<60;i++){try{if((await fetch("http://127.0.0.1:5181")).ok)break;}catch{}await new Promise(r=>setTimeout(r,200));}

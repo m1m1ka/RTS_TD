@@ -1,5 +1,8 @@
 import { defaultAudioConfig, assertAudioConfig, audioExtensions, MAX_AUDIO_BYTES, MAX_LIBRARY_BYTES } from "./schema.js";
+import { ProjectConfigSync } from "../config/project-sync.js";
 export const AUDIO_CONFIG_KEY = "friday-defense-audio-v1";
+const project = new ProjectConfigSync("audio", AUDIO_CONFIG_KEY);
+export const audioSavesToProject = () => project.writable;
 const listeners = new Set();
 export let audioLoadError = "";
 let current = defaultAudioConfig(), database;
@@ -8,14 +11,19 @@ if (typeof window !== "undefined") {
   catch(e) { audioLoadError = "音频配置读取失败：" + e.message; }
   window.addEventListener("storage",e=>{
     if(e.key!==AUDIO_CONFIG_KEY)return;
-    try { current=e.newValue?assertAudioConfig(JSON.parse(e.newValue)):defaultAudioConfig();for(const fn of listeners)fn(current); }
+    try { project.syncRevision();current=e.newValue?assertAudioConfig(JSON.parse(e.newValue)):defaultAudioConfig();for(const fn of listeners)fn(current); }
     catch(error) { console.warn("音频配置同步失败",error.message); }
   });
 }
 export const getAudioConfig = () => structuredClone(current);
 export function subscribeAudioConfig(fn) { listeners.add(fn);return()=>listeners.delete(fn); }
-export function saveAudioConfig(config) {
+export async function saveAudioConfig(config) {
   const next=assertAudioConfig(config);
+  if (project.writable) {
+    const bundle = structuredClone(next);
+    for (const asset of bundle.assets) if (asset.source === "local") asset.data = await dataURL(await audioBlob(asset));
+    await project.save(bundle);
+  }
   localStorage.setItem(AUDIO_CONFIG_KEY,JSON.stringify(next));
   current=next;for(const fn of listeners)fn(current);
   return structuredClone(next);
@@ -85,6 +93,7 @@ export async function importAudioBundle(text) {
   let total=0;
   for(const asset of input.assets) {
     const {data,...metadata}=asset || {};
+    if (metadata.source === "project" && data === undefined) { assets.push(metadata); continue; }
     if(typeof data!=="string" || !/^data:(?:audio\/[\w.+-]+|application\/(?:octet-stream|ogg))?;base64,[A-Za-z0-9+/]*={0,2}$/.test(data))throw new Error("音频配置必须包含完整的音频数据");
     const comma=data.indexOf(","), bytes=Uint8Array.from(atob(data.slice(comma+1)),c=>c.charCodeAt(0));
     total+=bytes.length;
@@ -100,4 +109,12 @@ export async function importAudioBundle(text) {
   const next=assertAudioConfig({...input,assets});
   await storeAudioFiles(entries);
   return next;
+}
+if (typeof window !== "undefined") {
+  try {
+    const stored = await project.load(current);
+    current = stored.assets.some(a => a.data) ? await importAudioBundle(JSON.stringify(stored)) : assertAudioConfig(stored);
+    localStorage.setItem(AUDIO_CONFIG_KEY, JSON.stringify(current));
+    project.markLoaded();
+  } catch (e) { audioLoadError = "项目音频配置读取失败，保留本机配置：" + e.message; }
 }

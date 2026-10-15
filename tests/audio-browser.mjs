@@ -9,7 +9,7 @@ const filename="__audio_test.wav", filepath="public/audio/"+filename;
 writeFileSync(filepath,waveFile());
 const c=structuredClone(DEFAULT_CONFIG);c.initial.firstWaveDelay=0;c.enemies.grunt.maxHp=1;c.cards.hero_blue.unit.range=24;
 c.days[0].waves=[c.days[0].waves[0]];c.days[0].waves[0].spawns=[{x:7,y:0,delay:0,interval:1,enemies:[{type:"grunt",count:1,level:1}]}];
-const server=spawn(process.execPath,["node_modules/vite/bin/vite.js","--host","127.0.0.1","--port","5182","--strictPort"],{stdio:"ignore",windowsHide:true});
+const server=spawn(process.execPath,["node_modules/vite/bin/vite.js","--host","127.0.0.1","--port","5182","--strictPort"],{stdio:"ignore",windowsHide: true, env: { ...process.env, FRIDAY_CONFIG_SYNC: "0" }});
 let browser;
 try {
   for(let i=0;i<60;i++){try{if((await fetch("http://127.0.0.1:5182")).ok)break;}catch{}await new Promise(r=>setTimeout(r,200));}

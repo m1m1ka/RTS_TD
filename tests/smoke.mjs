@@ -13,7 +13,7 @@ const server = spawn(
     "5175",
     "--strictPort",
   ],
-  { stdio: "ignore", windowsHide: true },
+  { stdio: "ignore", windowsHide: true, env: { ...process.env, FRIDAY_CONFIG_SYNC: "0" } },
 );
 let browser;
 try {

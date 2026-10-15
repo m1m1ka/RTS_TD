@@ -19,7 +19,9 @@
     "test:audio": "node tests/audio-browser.mjs",
     "test:attack-modules": "node tests/attack-modules-browser.mjs",
     "test:revive": "node tests/revive-browser.mjs",
-    "test:movement": "node tests/friendly-movement-browser.mjs"
+    "test:movement": "node tests/friendly-movement-browser.mjs",
+    "test:project-config": "node tests/project-config-browser.mjs",
+    "test:project-static": "node tests/project-config-static.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"

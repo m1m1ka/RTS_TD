@@ -10,7 +10,7 @@ c.days[0].waves[0].spawns = [{x:7,y:0,delay:0,interval:1,enemies:[{type:"grunt",
 c.initial.firstWaveDelay = 0; c.enemies.grunt.maxHp = 1;
 c.cards.hero_green.unit.range = 24;
 Object.assign(c.initial.cards, Object.fromEntries(keys.map(k => [k,2])));
-const server = spawn(process.execPath,["node_modules/vite/bin/vite.js","--host","127.0.0.1","--port","5180","--strictPort"],{stdio:"ignore",windowsHide:true});
+const server = spawn(process.execPath,["node_modules/vite/bin/vite.js","--host","127.0.0.1","--port","5180","--strictPort"],{stdio:"ignore",windowsHide: true, env: { ...process.env, FRIDAY_CONFIG_SYNC: "0" }});
 let browser;
 try {
   for(let i=0;i<60;i++){try{if((await fetch("http://127.0.0.1:5180")).ok)break;}catch{} await new Promise(r=>setTimeout(r,200));}

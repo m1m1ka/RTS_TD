@@ -3,6 +3,7 @@ import "../cards.css";
 import {
   getConfig,
   saveConfig,
+  savesToProject,
   subscribeConfig,
   configLoadError,
 } from "./store.js";
@@ -671,7 +672,8 @@ document.addEventListener("click", (e) => {
   markDirty();
   render();
 });
-function save(mode) {
+async function save(mode) {
+  if (saving) return;
   const errors = validateConfig(draft);
   if (errors.length) {
     message(errors.slice(0, 12).join("\n"), true);
@@ -681,7 +683,7 @@ function save(mode) {
     return;
   try {
     saving = true;
-    draft = saveConfig(draft, mode);
+    draft = await saveConfig(draft, mode);
     dirty = false;
     conflict = false;
     $("save-state").textContent = "✓ 已保存并同步";
@@ -689,7 +691,7 @@ function save(mode) {
     message(
       mode === "restart"
         ? "已保存，打开的游戏已重新开局。"
-        : "已保存至本机，并同步到打开的游戏。跨设备请导出配置文件。",
+        : savesToProject() ? "已写入 public/config/game.json 并同步游戏。提交并推送后，其他设备拉取即可获得配置。" : "已保存至本机并同步游戏。静态部署无法写入仓库，请导出后在本地配置页导入保存。",
     );
   } catch (error) {
     message(

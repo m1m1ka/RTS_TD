@@ -1,0 +1,2842 @@
+{
+  "version": 2,
+  "name": "周五保卫战 · 默认规则",
+  "initial": {
+    "baseHp": 1000,
+    "cards": {
+      "hero_blue": 1,
+      "coffee": 1,
+      "hero_green": 1
+    },
+    "levelGrowth": {
+      "maxHp": 65,
+      "atk": 12,
+      "heal": 100
+    },
+    "waveHeal": 0,
+    "reviveHp": 1,
+    "firstWaveDelay": 1
+  },
+  "cards": {
+    "hero_blue": {
+      "name": "阿蓝",
+      "category": "hero",
+      "target": "ground",
+      "text": "开战：等级+1",
+      "icon": "blue",
+      "useIcon": "blue",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 350,
+        "atk": 20,
+        "range": 1,
+        "rate": 0.5,
+        "weapon": "",
+        "speed": 1,
+        "levelGrowth": {
+          "maxHp": 50,
+          "atk": 2
+        },
+        "critChance": 0,
+        "attackModule": "slash"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "battleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "level",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "hero_green": {
+      "name": "小叶",
+      "category": "hero",
+      "target": "ground",
+      "text": "开战：为自身和最近英雄提供攻速加成",
+      "icon": "green",
+      "useIcon": "green",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "小叶",
+        "type": "green",
+        "weapon": "bow",
+        "maxHp": 120,
+        "atk": 20,
+        "range": 4,
+        "rate": 1,
+        "speed": 1,
+        "levelGrowth": {
+          "maxHp": 25,
+          "atk": 5
+        },
+        "critChance": 0,
+        "attackModule": "bow"
+      },
+      "triggerRules": [
+        {
+          "name": "并肩作战",
+          "enabled": true,
+          "trigger": {
+            "event": "battleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "selfAndNearest",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "stat",
+              "stat": "rate",
+              "mode": "add",
+              "value": 0.2,
+              "duration": "day"
+            }
+          ]
+        }
+      ]
+    },
+    "hero_purple": {
+      "name": "咕咕",
+      "category": "hero",
+      "target": "ground",
+      "text": "开战：获得一张等级牌",
+      "icon": "purple",
+      "useIcon": "purple",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "咕咕",
+        "type": "purple",
+        "weapon": "staff",
+        "maxHp": 120,
+        "atk": 20,
+        "range": 3,
+        "rate": 0.8,
+        "speed": 3,
+        "levelGrowth": {
+          "maxHp": 25,
+          "atk": 3
+        },
+        "critChance": 0,
+        "attackModule": "staff"
+      },
+      "triggerRules": [
+        {
+          "name": "战意回响",
+          "enabled": true,
+          "trigger": {
+            "event": "battleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "nearest",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "generateCard",
+              "pool": "category",
+              "category": "resource",
+              "cards": [
+                "tower",
+                "training"
+              ],
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    "training": {
+      "name": "实战心得",
+      "category": "resource",
+      "target": "hero",
+      "text": "英雄等级 +1",
+      "icon": "training",
+      "useIcon": "training",
+      "visual": "fireball",
+      "effects": [
+        {
+          "type": "level",
+          "value": 1
+        }
+      ]
+    },
+    "coffee": {
+      "name": "热咖啡",
+      "category": "resource",
+      "target": "hero",
+      "text": "恢复 120 生命",
+      "icon": "coffee",
+      "useIcon": "coffee",
+      "visual": "fireball",
+      "effects": [
+        {
+          "type": "heal",
+          "value": 120
+        }
+      ]
+    },
+    "fireball": {
+      "name": "爆裂火球",
+      "category": "battle",
+      "target": "area",
+      "text": "小范围 · 110 伤害",
+      "icon": "fireball",
+      "useIcon": "fireball",
+      "visual": "fireball",
+      "effects": [
+        {
+          "type": "damage",
+          "value": 110,
+          "radius": 1
+        }
+      ]
+    },
+    "lightning": {
+      "name": "落雷",
+      "category": "battle",
+      "target": "enemy",
+      "text": "单体 · 240 伤害",
+      "icon": "lightning",
+      "useIcon": "lightning",
+      "visual": "lightning",
+      "effects": [
+        {
+          "type": "damage",
+          "value": 240,
+          "radius": 0
+        }
+      ]
+    },
+    "frost": {
+      "name": "寒霜冲击",
+      "category": "battle",
+      "target": "area",
+      "text": "范围伤害 · 减速 3 秒",
+      "icon": "frost",
+      "useIcon": "frost",
+      "visual": "frost",
+      "effects": [
+        {
+          "type": "damage",
+          "value": 45,
+          "radius": 2
+        },
+        {
+          "type": "slow",
+          "value": 0.55,
+          "duration": 3,
+          "radius": 2
+        }
+      ]
+    },
+    "quiver": {
+      "name": "鹰眼箭袋",
+      "category": "equipment",
+      "target": "hero",
+      "text": "攻击 +8 · 射程 +1",
+      "icon": "quiver",
+      "useIcon": "quiver",
+      "visual": "fireball",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "atk",
+          "mode": "add",
+          "value": 8
+        },
+        {
+          "type": "stat",
+          "stat": "range",
+          "mode": "add",
+          "value": 1
+        }
+      ]
+    },
+    "haste": {
+      "name": "疾风徽章",
+      "category": "equipment",
+      "target": "hero",
+      "text": "攻击速度 +25%",
+      "icon": "haste",
+      "useIcon": "haste",
+      "visual": "fireball",
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "rate",
+          "mode": "multiply",
+          "value": 1.25
+        }
+      ]
+    },
+    "vampire": {
+      "name": "饮血吊坠",
+      "category": "equipment",
+      "target": "hero",
+      "text": "攻击吸血 15%",
+      "icon": "vampire",
+      "useIcon": "vampire",
+      "visual": "fireball",
+      "effects": [
+        {
+          "type": "lifesteal",
+          "value": 0.15
+        }
+      ]
+    },
+    "guard": {
+      "name": "守护护符",
+      "category": "equipment",
+      "target": "hero",
+      "text": "受到伤害减少 25%",
+      "icon": "guard",
+      "useIcon": "guard",
+      "visual": "fireball",
+      "effects": [
+        {
+          "type": "mitigation",
+          "value": 0.25
+        }
+      ]
+    },
+    "arcane": {
+      "name": "星辉法杖",
+      "category": "equipment",
+      "target": "hero",
+      "text": "装备法杖 · 获得溅射",
+      "icon": "arcane",
+      "useIcon": "arcane",
+      "visual": "fireball",
+      "effects": [
+        {
+          "type": "weapon",
+          "weapon": "staff",
+          "range": 3
+        }
+      ]
+    },
+    "hero_catgirl": {
+      "name": "米娅",
+      "category": "hero",
+      "target": "ground",
+      "text": "开战：每触发一次开战效果暴击率增加",
+      "icon": "catgirl",
+      "useIcon": "catgirl",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "米娅",
+        "type": "catgirl",
+        "weapon": "",
+        "maxHp": 250,
+        "atk": 34,
+        "range": 1,
+        "rate": 1,
+        "speed": 6,
+        "levelGrowth": {
+          "maxHp": 30,
+          "atk": 8
+        },
+        "critChance": 0,
+        "attackModule": "claw"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "heroBattleStart",
+            "scope": "self",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "stat",
+              "stat": "critChance",
+              "mode": "percent",
+              "value": 5,
+              "duration": "day"
+            }
+          ]
+        }
+      ]
+    },
+    "hero_1": {
+      "name": "壳卫",
+      "category": "hero",
+      "target": "ground",
+      "text": "开战：场上随机3个英雄等级+1",
+      "icon": "shellguard",
+      "useIcon": "shellguard",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "shellguard",
+        "maxHp": 500,
+        "atk": 20,
+        "range": 1,
+        "rate": 0.5,
+        "weapon": "",
+        "speed": 1,
+        "levelGrowth": {
+          "maxHp": 100,
+          "atk": 2
+        },
+        "critChance": 0,
+        "attackModule": "claw"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "battleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "randomAllies",
+            "radius": -1,
+            "count": 3
+          },
+          "effects": [
+            {
+              "type": "level",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "hero_2": {
+      "name": "浪人",
+      "category": "hero",
+      "target": "ground",
+      "text": "开战：每触发一次开战，增加攻击力和攻击速度",
+      "icon": "ronin",
+      "useIcon": "ronin",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "ronin",
+        "maxHp": 360,
+        "atk": 100,
+        "range": 1,
+        "rate": 1,
+        "weapon": "",
+        "speed": 4,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 30
+        },
+        "critChance": 0,
+        "attackModule": "slash"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "heroBattleStart",
+            "scope": "others",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "stat",
+              "stat": "atk",
+              "mode": "add",
+              "value": 30,
+              "duration": "day"
+            },
+            {
+              "type": "stat",
+              "stat": "rate",
+              "mode": "add",
+              "value": 0.2,
+              "duration": "day"
+            }
+          ]
+        }
+      ]
+    },
+    "hero_3": {
+      "name": "小鹿",
+      "category": "hero",
+      "target": "ground",
+      "text": "开战：为最近的一位英雄提供持续生命值恢复",
+      "icon": "antler",
+      "useIcon": "antler",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 250,
+        "atk": 20,
+        "range": 1,
+        "rate": 0.8,
+        "weapon": "",
+        "speed": 2,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 3
+        },
+        "critChance": 0,
+        "attackModule": "slash"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "battleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "nearest",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "heal",
+              "value": 30,
+              "valueMode": "percent"
+            }
+          ]
+        }
+      ]
+    },
+    "coin_purse": {
+      "name": "小金库",
+      "icon": "coin_purse",
+      "useIcon": "coin_purse",
+      "text": "立即获得 3 金币",
+      "target": "any",
+      "category": "resource",
+      "visual": "fireball",
+      "effects": [
+        {
+          "type": "gold",
+          "value": 3
+        }
+      ]
+    },
+    "war_drum": {
+      "name": "再响战鼓",
+      "icon": "war_drum",
+      "useIcon": "war_drum",
+      "text": "触发目标一次开战效果",
+      "target": "hero",
+      "category": "resource",
+      "visual": "fireball",
+      "effects": [
+        {
+          "type": "battleStart"
+        }
+      ]
+    },
+    "level_swap": {
+      "name": "换位思考",
+      "icon": "level_swap",
+      "useIcon": "level_swap",
+      "text": "与最近的英雄交换等级",
+      "target": "hero",
+      "category": "resource",
+      "visual": "fireball",
+      "effects": [
+        {
+          "type": "swapLevels",
+          "radius": -1
+        }
+      ]
+    },
+    "legacy": {
+      "name": "薪火相传",
+      "icon": "legacy",
+      "useIcon": "legacy",
+      "text": "销毁目标 · 全部等级转赠随机英雄",
+      "target": "hero",
+      "category": "resource",
+      "visual": "fireball",
+      "effects": [
+        {
+          "type": "sacrifice",
+          "radius": -1
+        }
+      ]
+    },
+    "siphon": {
+      "name": "经验虹吸",
+      "icon": "siphon",
+      "useIcon": "siphon",
+      "text": "吸取 2 格内英雄等级 · 每人 1 级 · 上限 3 级",
+      "target": "hero",
+      "category": "resource",
+      "visual": "fireball",
+      "effects": [
+        {
+          "type": "drainLevels",
+          "radius": 2,
+          "limit": 3,
+          "perHero": 1
+        }
+      ]
+    },
+    "hero_4": {
+      "name": "盾兵",
+      "category": "hero",
+      "target": "ground",
+      "text": "整备：召唤一位随从",
+      "icon": "footman",
+      "useIcon": "footman",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 360,
+        "atk": 5,
+        "range": 1,
+        "rate": 0.5,
+        "weapon": "",
+        "speed": 2,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 2
+        },
+        "critChance": 0,
+        "attackModule": "slash"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "preparation",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "summonFollower",
+              "hpPercent": 30,
+              "atkPercent": 30,
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    "hero_5": {
+      "name": "燧羽",
+      "category": "hero",
+      "target": "ground",
+      "text": "整备：召唤一位随从",
+      "icon": "musketeer",
+      "useIcon": "musketeer",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 120,
+        "atk": 30,
+        "range": 3,
+        "rate": 1,
+        "weapon": "crossbow",
+        "speed": 11,
+        "levelGrowth": {
+          "maxHp": 25,
+          "atk": 5
+        },
+        "critChance": 0,
+        "attackModule": "crossbow"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "preparation",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "summonFollower",
+              "hpPercent": 30,
+              "atkPercent": 30,
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    "hero_6": {
+      "name": "铜镜",
+      "category": "hero",
+      "target": "ground",
+      "text": "整备：随机3名英雄等级+1",
+      "icon": "gunner",
+      "useIcon": "gunner",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 120,
+        "atk": 20,
+        "range": 4,
+        "rate": 1,
+        "weapon": "crossbow",
+        "speed": 1,
+        "levelGrowth": {
+          "maxHp": 25,
+          "atk": 5
+        },
+        "critChance": 0,
+        "attackModule": "crossbow"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "preparation",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "randomAllies",
+            "radius": -1,
+            "count": 3
+          },
+          "effects": [
+            {
+              "type": "level",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    "hero_7": {
+      "name": "粟骑",
+      "category": "hero",
+      "target": "ground",
+      "text": "整备：召唤一位随从",
+      "icon": "cavalier",
+      "useIcon": "cavalier",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 400,
+        "atk": 100,
+        "range": 1,
+        "rate": 0.5,
+        "weapon": "",
+        "speed": 6,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 15
+        },
+        "critChance": 0,
+        "attackModule": "slash"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "preparation",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "summonFollower",
+              "hpPercent": 30,
+              "atkPercent": 30,
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    "hero_8": {
+      "name": "棋手",
+      "category": "hero",
+      "target": "ground",
+      "text": "整备：触发最近两位英雄的整备效果",
+      "icon": "standardbearer",
+      "useIcon": "standardbearer",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 360,
+        "atk": 20,
+        "range": 1,
+        "rate": 0.5,
+        "weapon": "",
+        "speed": 1,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 5
+        },
+        "critChance": 0,
+        "attackModule": "slash"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "preparation",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "nearest",
+            "radius": -1,
+            "count": 2
+          },
+          "effects": [
+            {
+              "type": "triggerPreparation"
+            }
+          ]
+        }
+      ]
+    },
+    "hero_9": {
+      "name": "牧师",
+      "category": "hero",
+      "target": "ground",
+      "text": "整备：为最近的英雄召唤一位随从",
+      "icon": "chaplain",
+      "useIcon": "chaplain",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 360,
+        "atk": 36,
+        "range": 2,
+        "rate": 1.4,
+        "weapon": "staff",
+        "speed": 5.2631578947368425,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 12
+        },
+        "critChance": 0,
+        "attackModule": "staff"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "preparation",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "nearest",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "summonFollower",
+              "hpPercent": 30,
+              "atkPercent": 30,
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    "hero_10": {
+      "name": "指挥官",
+      "category": "hero",
+      "target": "ground",
+      "text": "存活时，为所有随从和其英雄提供攻击力和攻击速度",
+      "icon": "commander",
+      "useIcon": "commander",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 360,
+        "atk": 36,
+        "range": 2,
+        "rate": 1.4,
+        "weapon": "",
+        "speed": 5.2631578947368425,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 12
+        },
+        "critChance": 0,
+        "attackModule": "slash"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "battleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "alliesWithFollowers",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "stat",
+              "stat": "atk",
+              "mode": "percent",
+              "value": 50,
+              "duration": "day",
+              "whileSourceAlive": true
+            },
+            {
+              "type": "stat",
+              "stat": "rate",
+              "mode": "percent",
+              "value": 50,
+              "duration": "day",
+              "whileSourceAlive": true
+            }
+          ]
+        }
+      ]
+    },
+    "hero_11": {
+      "name": "斗士",
+      "category": "hero",
+      "target": "ground",
+      "text": "牺牲：阵亡时等级+2",
+      "icon": "chainbreaker",
+      "useIcon": "chainbreaker",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 400,
+        "atk": 20,
+        "range": 1,
+        "rate": 0.5,
+        "weapon": "",
+        "speed": 1,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 2
+        },
+        "critChance": 0,
+        "attackModule": "claw"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "sacrifice",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "level",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    },
+    "hero_12": {
+      "name": "死士",
+      "category": "hero",
+      "target": "ground",
+      "text": "牺牲：第一次阵亡时复活",
+      "icon": "bloodknight",
+      "useIcon": "bloodknight",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 360,
+        "atk": 40,
+        "range": 1,
+        "rate": 0.5,
+        "weapon": "",
+        "speed": 1,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 12
+        },
+        "critChance": 0,
+        "attackModule": "slash"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "sacrifice",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "revive",
+              "maxRevives": 1,
+              "hpPercent": 100
+            }
+          ]
+        }
+      ]
+    },
+    "hero_13": {
+      "name": "铃公主",
+      "category": "hero",
+      "target": "ground",
+      "text": "胜利时英雄每有一位随从存活，其等级+1",
+      "icon": "frostwitch",
+      "useIcon": "frostwitch",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 360,
+        "atk": 36,
+        "range": 2,
+        "rate": 1.4,
+        "weapon": "staff",
+        "speed": 5.2631578947368425,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 12
+        },
+        "critChance": 0,
+        "attackModule": "staff"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "victory",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "alliesWithFollowers",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "level",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "enemies": {
+    "grunt": {
+      "name": "加班小兵",
+      "type": "grunt",
+      "useIcon": "grunt",
+      "maxHp": 100,
+      "atk": 10,
+      "range": 1,
+      "rate": 0.5,
+      "speed": 0.6,
+      "weapon": "",
+      "levelGrowth": {
+        "maxHp": 20,
+        "atk": 5
+      },
+      "critChance": 0,
+      "attackModule": "claw"
+    },
+    "runner": {
+      "name": "催稿蜘蛛",
+      "type": "runner",
+      "useIcon": "runner",
+      "maxHp": 60,
+      "atk": 15,
+      "range": 1,
+      "rate": 1.1,
+      "speed": 2,
+      "weapon": "",
+      "levelGrowth": {
+        "maxHp": 10,
+        "atk": 10
+      },
+      "critChance": 0,
+      "attackModule": "claw"
+    },
+    "tank": {
+      "name": "会议重甲",
+      "type": "tank",
+      "useIcon": "tank",
+      "maxHp": 300,
+      "atk": 20,
+      "range": 1,
+      "rate": 0.6,
+      "speed": 0.45,
+      "weapon": "",
+      "levelGrowth": {
+        "maxHp": 50,
+        "atk": 5
+      },
+      "critChance": 0,
+      "attackModule": "claw"
+    },
+    "boss": {
+      "name": "周五临时需求",
+      "type": "boss",
+      "useIcon": "boss",
+      "maxHp": 950,
+      "atk": 45,
+      "range": 1,
+      "rate": 0.75,
+      "speed": 0.38,
+      "weapon": "",
+      "levelGrowth": {
+        "maxHp": 0,
+        "atk": 0
+      },
+      "critChance": 0,
+      "attackModule": "claw"
+    },
+    "enemy_1": {
+      "name": "远程小兵",
+      "type": "grunt",
+      "useIcon": "grunt",
+      "maxHp": 80,
+      "atk": 15,
+      "range": 4,
+      "rate": 0.7,
+      "speed": 0.6,
+      "weapon": "bow",
+      "levelGrowth": {
+        "maxHp": 10,
+        "atk": 5
+      },
+      "critChance": 0,
+      "attackModule": "bow"
+    }
+  },
+  "days": [
+    {
+      "id": "wave_1",
+      "name": "“就占用你五分钟”",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 4,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 2,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 5,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 1
+        },
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "y": 9
+        },
+        {
+          "x": 4,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 9
+        },
+        {
+          "x": 8,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        },
+        {
+          "x": 7,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "y": 1
+        },
+        {
+          "x": 6,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 2
+        },
+        {
+          "x": 14,
+          "y": 3
+        },
+        {
+          "x": 14,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 5
+        },
+        {
+          "x": 14,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 7
+        },
+        {
+          "x": 14,
+          "y": 8
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_wave_1",
+      "kind": "battle"
+    },
+    {
+      "id": "wave_2",
+      "name": "“这个需求很简单”",
+      "desc": "催稿蜘蛛加入 · 移动速度更快",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1.13,
+          "atkScale": 1.08,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1.13,
+          "atkScale": 1.08,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "y": 1
+        },
+        {
+          "x": 5,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "y": 1
+        },
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "y": 9
+        },
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 4,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "y": 1
+        },
+        {
+          "x": 8,
+          "y": 1
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 7,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 7,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        }
+      ],
+      "mines": [
+        {
+          "x": 11,
+          "y": 5,
+          "maxHp": 180
+        }
+      ],
+      "rewardPool": "pool_wave_1",
+      "kind": "battle"
+    },
+    {
+      "id": "wave_3",
+      "name": "“下班前再改一版”",
+      "desc": "会议重甲加入 · 高生命值",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1.26,
+          "atkScale": 1.16,
+          "spawns": [
+            {
+              "x": 7,
+              "y": 0,
+              "delay": 0,
+              "interval": 4.08,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 1.02,
+              "interval": 4.08,
+              "enemies": [
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 10,
+              "delay": 2.04,
+              "interval": 4.08,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 3.06,
+              "interval": 4.08,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [],
+      "mines": [],
+      "rewardPool": "pool_wave_3",
+      "kind": "shop",
+      "shop": {
+        "heroPrice": 3,
+        "refreshCost": 1,
+        "heroPackPrice": 3,
+        "resourcePackPrice": 2,
+        "equipmentPackPrice": 3
+      }
+    },
+    {
+      "id": "wave_4",
+      "name": "“大家再坚持一下”",
+      "desc": "四面围攻 · 注意保护侧翼",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1.3900000000000001,
+          "atkScale": 1.24,
+          "spawns": [
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 0.9299999999999999,
+              "interval": 3.7199999999999998,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 5,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 2,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 2.79,
+              "interval": 3.7199999999999998,
+              "enemies": [
+                {
+                  "type": "runner",
+                  "count": 4,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1.3900000000000001,
+          "atkScale": 1.24,
+          "spawns": [
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 0.9299999999999999,
+              "interval": 3.7199999999999998,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 5,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 5,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 2.79,
+              "interval": 3.7199999999999998,
+              "enemies": [
+                {
+                  "type": "runner",
+                  "count": 10,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_3",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1.3900000000000001,
+          "atkScale": 1.24,
+          "spawns": [
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 0.9299999999999999,
+              "interval": 3.7199999999999998,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 10,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 8,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 2.79,
+              "interval": 3.7199999999999998,
+              "enemies": [
+                {
+                  "type": "enemy_1",
+                  "count": 5,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "y": 1
+        },
+        {
+          "x": 5,
+          "y": 1
+        },
+        {
+          "x": 6,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "y": 1
+        },
+        {
+          "x": 8,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "y": 1
+        },
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "y": 9
+        },
+        {
+          "x": 4,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 9
+        },
+        {
+          "x": 8,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 0
+        },
+        {
+          "x": 7,
+          "y": 10
+        }
+      ],
+      "mines": [
+        {
+          "x": 4,
+          "y": 5,
+          "maxHp": 180
+        }
+      ],
+      "rewardPool": "pool_wave_1",
+      "kind": "battle"
+    },
+    {
+      "id": "wave_5",
+      "name": "“周末方便带电脑吗”",
+      "desc": "重甲大军 · 建塔分担火力",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1.52,
+          "atkScale": 1.32,
+          "spawns": [
+            {
+              "x": 7,
+              "y": 0,
+              "delay": 0,
+              "interval": 3.36,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 0.84,
+              "interval": 3.36,
+              "enemies": [
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 10,
+              "delay": 1.68,
+              "interval": 3.36,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 2.52,
+              "interval": 3.36,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [],
+      "mines": [],
+      "rewardPool": "pool_wave_1",
+      "kind": "battle"
+    },
+    {
+      "id": "wave_6",
+      "name": "“周五临时需求”",
+      "desc": "最终首领来袭 · 守住你的周末",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1.65,
+          "atkScale": 1.4,
+          "spawns": [
+            {
+              "x": 7,
+              "y": 0,
+              "delay": 0,
+              "interval": 3,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "boss",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 0.75,
+              "interval": 3,
+              "enemies": [
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 10,
+              "delay": 1.5,
+              "interval": 3,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 2.25,
+              "interval": 3,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "grunt",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "runner",
+                  "count": 1,
+                  "level": 1
+                },
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [],
+      "mines": [],
+      "rewardPool": "pool_wave_1",
+      "kind": "battle"
+    }
+  ],
+  "heroContentVersion": 1,
+  "resourceContentVersion": 1,
+  "rewardPools": {
+    "pool_wave_1": {
+      "name": "“就占用你五分钟”奖励池",
+      "cards": {
+        "training": 3,
+        "coffee": 2,
+        "fireball": 2,
+        "lightning": 2,
+        "frost": 1,
+        "hero_green": 1,
+        "haste": 1,
+        "coin_purse": 1,
+        "war_drum": 1,
+        "legacy": 1,
+        "hero_blue": 1,
+        "hero_3": 1,
+        "hero_1": 1,
+        "hero_12": 1,
+        "hero_13": 1,
+        "hero_9": 1,
+        "hero_8": 1,
+        "hero_4": 1,
+        "hero_5": 1,
+        "hero_2": 1,
+        "hero_catgirl": 1,
+        "hero_10": 1,
+        "hero_6": 1,
+        "hero_11": 1,
+        "hero_7": 1,
+        "hero_purple": 1,
+        "quiver": 1,
+        "vampire": 1,
+        "guard": 1
+      }
+    },
+    "pool_wave_2": {
+      "name": "“这个需求很简单”奖励池",
+      "cards": {
+        "training": 3,
+        "coffee": 2,
+        "fireball": 2,
+        "lightning": 2,
+        "frost": 1,
+        "hero_purple": 1,
+        "vampire": 1,
+        "coin_purse": 1,
+        "war_drum": 1,
+        "level_swap": 1,
+        "legacy": 1,
+        "siphon": 1
+      }
+    },
+    "pool_wave_3": {
+      "name": "“下班前再改一版”奖励池",
+      "cards": {
+        "training": 3,
+        "coffee": 2,
+        "fireball": 2,
+        "lightning": 2,
+        "frost": 1,
+        "hero_blue": 1,
+        "arcane": 1,
+        "coin_purse": 1,
+        "war_drum": 1,
+        "level_swap": 1,
+        "legacy": 1,
+        "siphon": 1
+      }
+    },
+    "pool_wave_4": {
+      "name": "“大家再坚持一下”奖励池",
+      "cards": {
+        "training": 3,
+        "coffee": 2,
+        "fireball": 2,
+        "lightning": 2,
+        "frost": 1,
+        "hero_green": 1,
+        "quiver": 1,
+        "coin_purse": 1,
+        "war_drum": 1,
+        "level_swap": 1,
+        "legacy": 1,
+        "siphon": 1
+      }
+    },
+    "pool_wave_5": {
+      "name": "“周末方便带电脑吗”奖励池",
+      "cards": {
+        "training": 3,
+        "coffee": 2,
+        "fireball": 2,
+        "lightning": 2,
+        "frost": 1,
+        "hero_purple": 1,
+        "guard": 1,
+        "coin_purse": 1,
+        "war_drum": 1,
+        "level_swap": 1,
+        "legacy": 1,
+        "siphon": 1
+      }
+    },
+    "pool_wave_6": {
+      "name": "“周五临时需求”奖励池",
+      "cards": {
+        "training": 3,
+        "coffee": 2,
+        "fireball": 2,
+        "lightning": 2,
+        "frost": 1,
+        "hero_blue": 1,
+        "haste": 1,
+        "coin_purse": 1,
+        "war_drum": 1,
+        "level_swap": 1,
+        "legacy": 1,
+        "siphon": 1
+      }
+    }
+  }
+}

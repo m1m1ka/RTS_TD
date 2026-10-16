@@ -1,20 +1,26 @@
 import { generationDefaults } from "../card-generation.js";
 // Event, source filter, target selection and payload are independent registries.
 export const triggerEvents = {
+  interval: "战斗中每隔 X 秒",
+  towerBuilt: "建设炮台时",
   preparation: "整备（开战前上场）",
   sacrifice: "牺牲（自身死亡时）",
   victory: "胜利（存活至本天战斗胜利）",
   battleStart: "开战（点击迎战）",
   heroBattleStart: "英雄触发开战效果后",
+  heroSacrifice: "英雄触发牺牲效果后",
 };
 export const triggerScopes = { any: "任意英雄（含自身）", self: "仅自身", others: "其他英雄" };
 export const triggerTargets = {
+  eventTower: "本次建造的炮台",
   self: "自身", nearest: "最近的其他英雄", selfAndNearest: "自身 + 最近的其他英雄",
   allAllies: "范围内所有英雄（含自身）", eventHero: "触发事件的英雄",
   randomAllies: "范围内随机英雄（含自身）",
   alliesWithFollowers: "范围内所有拥有随从的英雄",
 };
 export const triggerEffects = {
+  victoryGold: { label: "胜利后额外获得金币", defaults: { value: 2 } },
+  ownerLevel: { label: "按自身等级比例提升目标等级", defaults: { percent: 50 } },
   revive: { label: "复活", defaults: { maxRevives: 1, hpPercent: 50 } },
   summonFollower: { label: "召唤随从分身", defaults: { hpPercent: 50, atkPercent: 50, count: 1 } },
   generateCard: { label: "生成卡牌", defaults: generationDefaults },
@@ -26,7 +32,7 @@ export const triggerEffects = {
 };
 export const newTriggerRule = () => ({
   name: "开战成长", enabled: true,
-  trigger: { event: "battleStart", scope: "any", radius: -1 },
+  trigger: { event: "battleStart", scope: "any", radius: -1, interval: 10 },
   target: { kind: "self", radius: -1, count: 1 },
   effects: [{ type: "level", value: 1 }],
 });

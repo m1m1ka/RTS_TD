@@ -1,5 +1,6 @@
 // Small, outlined illustrations share the battlefield's muted palette.
 const drawings = {
+  parts: '<path fill="#b7ad83" d="m34 12 8 2 5-8 12 5-1 9 8 5 8-3 7 12-6 6 1 10 8 5-5 13-10-1-7 6 1 9-13 5-5-8-10-1-6 7-12-7 3-9-4-9-9-2 1-14 9-3 5-8z"/><circle cx="47" cy="39" r="14" fill="#6f8978"/><circle cx="47" cy="39" r="6" fill="#d8d5ad"/><path fill="#9fae9a" d="m51 81 14-27-2-13 11-9 2 13 8 3 9-9 1 13-12 8-15 28z"/><path stroke="#d9d5b2" d="m59 77 11-20"/>',
   coin_purse: '<path fill="#b18b59" d="m32 19 10 12-21 23c-14 30 5 34 27 34s42-5 28-33L55 31l9-13-18 4z"/><path stroke="#e4c784" stroke-width="6" d="M34 34h27"/><circle fill="#e4bd64" cx="48" cy="62" r="17"/><path stroke="#ffe3a0" stroke-width="5" d="M48 52v20m-6-17h10"/>',
   war_drum: '<path fill="#9b695b" d="M23 34v38c0 14 50 14 50 0V34"/><ellipse fill="#e4d3a2" cx="48" cy="33" rx="25" ry="11"/><path fill="none" stroke="#d0b987" d="m26 45 11 30 12-28 11 28 11-30"/><path stroke="#b29363" stroke-width="6" d="m19 13 23 16m38-16L55 29"/><circle fill="#dbc792" cx="43" cy="29" r="5"/><circle fill="#dbc792" cx="54" cy="29" r="5"/>',
   level_swap: '<path fill="#9bad8c" d="M13 34h51V22l22 20-22 18V48H13z"/><path fill="#c5ac80" d="M83 64H32V52L10 72l22 18V77h51z"/><path stroke="#e5e0b6" d="M21 40h32m22 31H43"/>',

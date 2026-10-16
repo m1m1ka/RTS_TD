@@ -1,0 +1,81 @@
+import { chromium } from "@playwright/test";
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { mkdirSync } from "node:fs";
+import { DEFAULT_CONFIG } from "../src/config/defaults.js";
+import { createPresetCard } from "../src/hero-presets.js";
+const url = "http://127.0.0.1:5190", c = structuredClone(DEFAULT_CONFIG);
+c.cards.hero_blue = createPresetCard("fieldmedic");
+for (const card of Object.values(c.cards)) if (card.category === "hero") {
+  card.triggerRules = []; Object.assign(card.unit, {maxHp:10000,atk:0,range:1,rate:2,speed:6});
+}
+c.initial.cards = {hero_blue:1,hero_green:1,hero_purple:1}; c.initial.firstWaveDelay=0;
+Object.assign(c.enemies.grunt,{maxHp:100000,atk:300,rate:1,range:1,speed:1,critChance:0});
+c.days[0].waves=[{id:"healing",name:"治疗",startDelay:0,hpScale:1,atkScale:1,spawns:[0,14].map(x=>({x,y:5,delay:0,interval:1,enemies:[{type:"grunt",count:1,level:1}]}))}];
+const server=spawn(process.execPath,["node_modules/vite/bin/vite.js","--host","127.0.0.1","--port","5190","--strictPort"],{stdio:"ignore",windowsHide:true,env:{...process.env,FRIDAY_CONFIG_SYNC:"0"}});
+let browser;
+try {
+  for(let i=0;i<60;i++){try{if((await fetch(url)).ok)break;}catch{}await new Promise(r=>setTimeout(r,200));}
+  browser=await chromium.launch({executablePath:process.env.CHROME_PATH||"C:/Program Files/Google/Chrome/Application/chrome.exe",headless:true,args:["--enable-unsafe-swiftshader"]});
+  const context=await browser.newContext({viewport:{width:1440,height:1000}});context.setDefaultTimeout(15000);
+  const editor=await context.newPage(),errors=[];
+  editor.on("pageerror",e=>errors.push(e.message));
+  await editor.goto(url+"/config.html");
+  await editor.evaluate(c=>localStorage.setItem("friday-defense-config-v1",JSON.stringify(c)),c);await editor.reload();
+  const game=await context.newPage();game.on("pageerror",e=>errors.push(e.message));
+  await game.goto(url);await game.waitForFunction(()=>window.__game?.snapshot().frames>3);
+  await editor.bringToFront();
+  await editor.locator('[data-path="cards.hero_blue.unit.combatBehavior"]').selectOption("heal");
+  await editor.locator('[data-path="cards.hero_blue.unit.healing.valueMode"]').selectOption("percent");
+  await editor.locator('[data-path="cards.hero_blue.unit.healing.value"]').fill("1");
+  await editor.locator('#save-config').click();
+  await editor.waitForFunction(()=>JSON.parse(localStorage.getItem("friday-defense-config-v1")).cards.hero_blue.unit.healing?.value===1);
+  await editor.reload();
+  assert.equal(await editor.locator('[data-path="cards.hero_blue.unit.combatBehavior"]').inputValue(),"heal");
+  assert.equal(await editor.locator('[data-path="cards.hero_blue.unit.healing.valueMode"]').inputValue(),"percent");
+  mkdirSync("logs",{recursive:true});
+  await editor.locator('.entity-form').screenshot({path:"logs/healing-config.png"});
+  await game.bringToFront();
+  for(const [key,x,y] of [["hero_blue",7,3],["hero_green",13,5],["hero_purple",1,5]]) {
+    await game.locator(`[data-card="${key}"]`).focus();await game.keyboard.press("Enter");
+    await game.evaluate(([x,y])=>window.__game.clickCell(x,y),[x,y]);
+  }
+  await game.locator('#start').click();
+  await game.waitForFunction(()=>window.__game.snapshot().combat.counts.heals>0);
+  let state=await game.evaluate(()=>window.__game.snapshot());
+  assert.equal(state.heroes[0].combatBehavior,"heal");
+  assert.ok(state.heroes[0].x>7,"healer crossed the map to the nearest injured ally");
+  assert.equal(state.heroes[0].healingTargetId,state.heroes[1].id);
+  await game.evaluate(h=>window.__game.clickCell(h.x,h.y),state.heroes[0]);
+  assert.equal(await game.locator('#unit-power-label').innerText(),"治疗量");
+  assert.match(await game.locator('#unit-atk').innerText(),/1%/);
+  assert.equal(await game.locator('#unit-rate-label').innerText(),"治疗速度");
+  assert.equal(await game.locator('#unit-crit-row').isVisible(),false);
+  await game.evaluate(()=>window.__game.clickCell(2,4));
+  state=await game.evaluate(()=>window.__game.snapshot());
+  assert.deepEqual(state.heroes[0].path.at(-1),{x:2,y:4});
+  await game.locator('#pause').click();
+  const healed=state.combat.counts.heals;
+  await game.evaluate(()=>window.__game.advance(.5));
+  state=await game.evaluate(()=>window.__game.snapshot());
+  assert.equal(state.combat.counts.heals,healed,"manual movement suppresses automatic casts");
+  assert.deepEqual(state.heroes[0].path.at(-1),{x:2,y:4});
+  await game.evaluate(()=>window.__game.advance(2.5));
+  state=await game.evaluate(()=>window.__game.snapshot());
+  assert.equal(state.heroes[0].healingTargetId,state.heroes[2].id,"manual destination changes the patient");
+  assert.ok(state.combat.counts.heals>healed);
+  await game.locator('#pause').click();
+  await game.waitForFunction(()=>window.__game.snapshot().combat.activeKinds.includes("healing"));
+  await game.screenshot({path:"logs/healing-battlefield.png"});
+  await game.locator('#pause').click();
+  await editor.bringToFront();
+  await editor.locator('[data-path="cards.hero_blue.unit.healing.valueMode"]').selectOption("fixed");
+  await editor.locator('[data-path="cards.hero_blue.unit.healing.value"]').fill("40");
+  await editor.locator('[data-path="cards.hero_blue.unit.healing.targets"]').selectOption("towers");
+  await editor.locator('#save-config').click();
+  await game.waitForFunction(()=>window.__game.snapshot().heroes[0].healing?.value===40);
+  await game.evaluate(()=>window.__game.advance(.1));
+  assert.equal(await game.evaluate(()=>window.__game.snapshot().heroes[0].healingTargetId),null);
+  assert.deepEqual(errors,[]);
+  console.log("PASS healing browser: editor persistence/live sync, percent/fixed targets, autonomous approach, manual retargeting, treatment HUD and green healing visuals");
+} finally {await browser?.close();server.kill();}

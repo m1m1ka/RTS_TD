@@ -150,13 +150,12 @@ export class CardUI {
               hand.length < 2 ? 0 : (i / (hand.length - 1) - 0.5) * 2;
             const label =
               cardTypes[c.category] +
-              "牌 · " +
-              {
+              "牌 · " + (c.temporary ? "临时" : {
                 hero: `Lv.${this.game.heroReserve.find((h) => h.cardId === k)?.level ?? 1} · 部署`,
                 resource: "消耗",
                 battle: "消耗",
                 equipment: "装备",
-              }[c.category];
+              }[c.category]);
             const description = escapeHTML(c.text)
               .replace(/ · /g, "<br>")
               .replace(/([+]?\d+(?:%)?)/g, "<em>$1</em>");

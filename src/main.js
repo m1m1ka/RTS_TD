@@ -517,12 +517,24 @@ function onEvent(e) {
         `${e.unit.name || "咖啡炮台"}已倒下${game.heroes.includes(e.unit) ? "，下一波归队" : ""}`,
       );
   }
+  if (e.type === "heroAwakened") { floating(e.unit,"苏醒","#e5d8a2"); combatVFX.shield(e.unit); }
+  if (e.type === "blocked") combatVFX.shield(e.unit);
+  if (e.type === "healingCast") {
+    combatVFX.heal(e.source, e.target);
+    const v = unitMeshes.get(e.source.id);
+    if (v) {
+      v.attackDuration = v.attack = .3;
+      v.attackDirection.set(e.target.x - e.source.x, e.source.y - e.target.y).normalize();
+      v.recoil = false;
+      v.weapon?.aimAt(pos(e.target.x, e.target.y, 1.1), true);
+    }
+  }
   if (e.type === "heal" || e.type === "upgrade") {
     if (e.type === "heal")
       floating(e.unit, "+" + Math.ceil(e.amount), "#ccec9c");
     else floating(e.unit, "等级提升", "#ffda72");
     if (e.type === "upgrade") combatVFX.upgrade(e.unit);
-    else burst(e.unit, "#d6f4a0");
+    else if (!e.automatic) burst(e.unit, "#d6f4a0");
     if (!audioHandled) tone(650, 0.2);
     if (e.useIcon) {
       const map = new THREE.TextureLoader().load(iconURL(e.useIcon));
@@ -613,11 +625,16 @@ function updateInspector() {
   if (!unit) return;
   const movable = game.canControl(unit);
   $("unit-inspector").dataset.side = unit.side;
-  $("unit-side").textContent = unit.side === "enemy" ? "敌方" : unit.isFollower ? "我方随从" : movable ? "我方英雄" : "我方建筑";
+  $("unit-side").textContent = unit.side === "enemy" ? "敌方" : unit.isFollower ? "我方随从" : game.heroes.includes(unit) ? (game.isDormant(unit) ? "我方英雄 · 沉睡" : unit.mechanics?.immobile ? "我方英雄 · 固守" : "我方英雄") : "我方建筑";
   $("unit-name").textContent = unit.name || "咖啡炮台";
   const src = iconURL(unit.useIcon || unit.type, true);
   if ($("unit-icon").getAttribute("src") !== src) $("unit-icon").src = src;
-  $("unit-atk").textContent = Math.round(unit.atk);
+  const healing = unit.combatBehavior === "heal";
+  $("unit-power-label").textContent = healing ? "治疗量" : "攻击力";
+  $("unit-rate-label").textContent = healing ? "治疗速度" : "攻击速度";
+  $("unit-range-label").textContent = healing ? "治疗距离" : "攻击距离";
+  $("unit-crit-row").hidden = healing;
+  $("unit-atk").textContent = healing ? `${unit.healing.value}${unit.healing.valueMode === "percent" ? "% 最大生命" : ""}` : Math.round(unit.atk);
   $("unit-hp").textContent = `${Math.ceil(unit.hp)} / ${Math.round(unit.maxHp)}`;
   $("unit-rate").textContent = unit.rate.toFixed(1);
   $("unit-range").textContent = Math.round(unit.range);
@@ -775,7 +792,7 @@ function updateRanges() {
   const movable = game.canControl(h);
   const occupancy = [...game.heroes, ...game.followers, ...game.enemies, ...game.towers]
     .filter((u) => u.hp > 0).map((u) => `${u.x},${u.y}`).join("|");
-  const nextMoveKey = `${h.id}:${h.x},${h.y}:${occupancy}`;
+  const nextMoveKey = `${h.id}:${h.x},${h.y}:${movable}:${occupancy}`;
   if (nextMoveKey !== moveKey) {
     moveKey = nextMoveKey;
     clearGroup(moveGroup);
@@ -1169,7 +1186,7 @@ function animate(now) {
     const v = unitMeshes.get(u.id) || addVisual(u),
       target = pos(u.x, u.y, 1.1);
     v.dying = 0;
-    v.sprite.material.opacity = 1;
+    v.sprite.material.opacity = game.isDormant(u) ? .55 : 1;
     v.group.position.lerp(target, Math.min(1, dt * 15));
     v.group.position.z = 1.1 + u.y * 0.005;
     v.healthBar.update(u.hp, u.maxHp, dt, u.level || 0, u.equipment || []);
@@ -1178,11 +1195,13 @@ function animate(now) {
     syncWeapon(v, u);
     if (v.weapon) {
       const candidates =
-        u.side === "enemy"
+        game.isDormant(u) ? [] : u.side === "enemy"
           ? [...game.heroes, ...game.followers, ...game.towers]
               .filter((h) => h.hp > 0)
               .concat(BASE)
-          : game.enemies.filter((e) => e.hp > 0);
+          : u.combatBehavior === "heal"
+            ? [...game.heroes, ...game.followers, ...game.towers].filter(t => t.hp > 0 && t.id === u.healingTargetId)
+            : game.enemies.filter((e) => e.hp > 0);
       const targetUnit = candidates
         .filter((t) => gridDistance(u, t) <= u.range)
         .sort((a, b) => gridDistance(u, a) - gridDistance(u, b))[0];
@@ -1190,7 +1209,7 @@ function animate(now) {
         ? unitMeshes.get(targetUnit.id)?.group.position ||
           pos(targetUnit.x, targetUnit.y, 1.1)
         : null;
-      v.weapon.setOpacity(1);
+      v.weapon.setOpacity(game.isDormant(u) ? .45 : 1);
       v.weapon.update(
         dt,
         targetPoint,

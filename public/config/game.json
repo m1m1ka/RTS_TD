@@ -4,9 +4,13 @@
   "initial": {
     "baseHp": 1000,
     "cards": {
-      "hero_blue": 1,
-      "coffee": 1,
-      "hero_green": 1
+      "hero_19": 1,
+      "hero_20": 1,
+      "hero_16": 1,
+      "hero_14": 1,
+      "hero_15": 1,
+      "hero_17": 1,
+      "hero_18": 1
     },
     "levelGrowth": {
       "maxHp": 65,
@@ -172,19 +176,33 @@
       ]
     },
     "training": {
-      "name": "实战心得",
+      "name": "零件",
       "category": "resource",
-      "target": "hero",
-      "text": "英雄等级 +1",
-      "icon": "training",
-      "useIcon": "training",
+      "target": "ground",
+      "text": "可以安装一个炮塔",
+      "icon": "tower",
+      "useIcon": "tower",
       "visual": "fireball",
       "effects": [
         {
-          "type": "level",
-          "value": 1
+          "type": "summon"
         }
-      ]
+      ],
+      "unit": {
+        "type": "tower",
+        "maxHp": 260,
+        "atk": 24,
+        "range": 4,
+        "rate": 1,
+        "speed": 1,
+        "weapon": "coffeeCannon",
+        "levelGrowth": {
+          "maxHp": 0,
+          "atk": 0
+        },
+        "critChance": 0,
+        "attackModule": "coffeeCannon"
+      }
     },
     "coffee": {
       "name": "热咖啡",
@@ -1122,6 +1140,373 @@
           ]
         }
       ]
+    },
+    "hero_14": {
+      "name": "赤鬓",
+      "category": "hero",
+      "target": "ground",
+      "text": "当场上其他所有英雄阵亡时苏醒，每有一个英雄牺牲，攻击速度与吸血增加\n",
+      "icon": "emberblade",
+      "useIcon": "emberblade",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 400,
+        "atk": 100,
+        "range": 2,
+        "rate": 1,
+        "weapon": "",
+        "speed": 5,
+        "levelGrowth": {
+          "maxHp": 100,
+          "atk": 50
+        },
+        "critChance": 0,
+        "attackModule": "slash",
+        "mechanics": {
+          "dormant": true
+        }
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "heroSacrifice",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "stat",
+              "stat": "rate",
+              "mode": "add",
+              "value": 0.2,
+              "duration": "day",
+              "whileSourceAlive": true
+            },
+            {
+              "type": "stat",
+              "stat": "lifeSteal",
+              "mode": "add",
+              "value": 0.05,
+              "duration": "day",
+              "whileSourceAlive": true
+            }
+          ]
+        }
+      ]
+    },
+    "hero_15": {
+      "name": "医疗兵",
+      "category": "hero",
+      "target": "ground",
+      "text": "整备：召唤一名随从",
+      "icon": "fieldmedic",
+      "useIcon": "fieldmedic",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 360,
+        "atk": 0,
+        "range": 1,
+        "rate": 0.5,
+        "weapon": "",
+        "speed": 5,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 0
+        },
+        "critChance": 0,
+        "attackModule": "claw",
+        "combatBehavior": "heal",
+        "healing": {
+          "targets": "heroes",
+          "valueMode": "fixed",
+          "value": 30
+        }
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "preparation",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "summonFollower",
+              "hpPercent": 50,
+              "atkPercent": 50,
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    "hero_16": {
+      "name": "枪兵",
+      "category": "hero",
+      "target": "ground",
+      "text": "部署后无法移动，攻击击退敌人",
+      "icon": "pikeman",
+      "useIcon": "pikeman",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 360,
+        "atk": 36,
+        "range": 1,
+        "rate": 0.5,
+        "weapon": "",
+        "speed": 1,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 12
+        },
+        "critChance": 0,
+        "attackModule": "slash",
+        "mechanics": {
+          "immobile": true,
+          "knockback": {
+            "distance": 1
+          }
+        }
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "battleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "level",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "name": "越战越勇",
+          "enabled": true,
+          "trigger": {
+            "event": "heroBattleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "stat",
+              "stat": "speed",
+              "mode": "add",
+              "value": 0.5,
+              "duration": "day"
+            }
+          ]
+        }
+      ]
+    },
+    "hero_17": {
+      "name": "烛尽",
+      "category": "hero",
+      "target": "ground",
+      "text": "所有英雄死亡视为牺牲",
+      "icon": "candlekeeper",
+      "useIcon": "candlekeeper",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 360,
+        "atk": 36,
+        "range": 2,
+        "rate": 0.6,
+        "weapon": "staff",
+        "speed": 1,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 12
+        },
+        "critChance": 0,
+        "attackModule": "staff",
+        "combatBehavior": "attack",
+        "healing": {
+          "targets": "allies",
+          "valueMode": "fixed",
+          "value": 30
+        },
+        "mechanics": {
+          "deathsAsSacrifice": true
+        }
+      },
+      "triggerRules": []
+    },
+    "hero_18": {
+      "name": "零件工人",
+      "category": "hero",
+      "target": "ground",
+      "text": "可以生成零件",
+      "icon": "gearengineer",
+      "useIcon": "gearengineer",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 360,
+        "atk": 36,
+        "range": 2,
+        "rate": 0.6,
+        "weapon": "musket",
+        "speed": 1,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 12
+        },
+        "critChance": 0,
+        "attackModule": "musket"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "interval",
+            "scope": "any",
+            "radius": -1,
+            "interval": 5
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "generateCard",
+              "pool": "selected",
+              "category": "resource",
+              "cards": [
+                "training"
+              ],
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    "hero_19": {
+      "name": "维修工人",
+      "category": "hero",
+      "target": "ground",
+      "text": "可以维修炮台",
+      "icon": "wrenchsmith",
+      "useIcon": "wrenchsmith",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 360,
+        "atk": 36,
+        "range": 2,
+        "rate": 1.4,
+        "weapon": "",
+        "speed": 5.2631578947368425,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 12
+        },
+        "critChance": 0,
+        "attackModule": "slash",
+        "combatBehavior": "heal",
+        "healing": {
+          "targets": "towers",
+          "valueMode": "fixed",
+          "value": 30
+        }
+      },
+      "triggerRules": []
+    },
+    "hero_20": {
+      "name": "机器人",
+      "category": "hero",
+      "target": "ground",
+      "text": "建设炮塔时会分配自身等级",
+      "icon": "rivetbot",
+      "useIcon": "blue",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 360,
+        "atk": 36,
+        "range": 2,
+        "rate": 1.4,
+        "weapon": "",
+        "speed": 5.2631578947368425,
+        "levelGrowth": {
+          "maxHp": 65,
+          "atk": 12
+        },
+        "critChance": 0,
+        "attackModule": "slash"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "towerBuilt",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "eventTower",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "ownerLevel",
+              "percent": 30
+            }
+          ]
+        }
+      ]
     }
   },
   "enemies": {
@@ -1232,7 +1617,7 @@
               "enemies": [
                 {
                   "type": "grunt",
-                  "count": 4,
+                  "count": 50,
                   "level": 1
                 }
               ]
@@ -2838,5 +3223,6 @@
         "siphon": 1
       }
     }
-  }
+  },
+  "workshopContentVersion": 1
 }

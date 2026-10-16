@@ -50,6 +50,10 @@ function line(g, points, color, width) {
 }
 function createTextures() {
   return {
+    healing: texture(g => {
+      circle(g, 96, 96, 68, "#719b75", "#284a39", 9);
+      path(g, [[81,49],[111,49],[111,81],[143,81],[143,111],[111,111],[111,143],[81,143],[81,111],[49,111],[49,81],[81,81]], "#e2edb7", "#355641", 5);
+    }),
     bullet: texture(g => {
       line(g, [[35,96],[113,96]], "#d6c58d", 13);
       circle(g,126,96,24,"#b0b6a8","#334b3b",7);
@@ -601,6 +605,7 @@ export class CombatVFX {
       shield: 0,
       upgrades: 0,
       impacts: 0,
+      heals: 0,
       bloodHits: 0,
       bloodDeaths: 0,
     };
@@ -635,6 +640,22 @@ export class CombatVFX {
     const effect = { kind, mesh, age: 0, duration, size, animate };
     this.effects.push(effect);
     return effect;
+  }
+  heal(source, target) {
+    this.counts.heals++;
+    const from = this.positionOf(source).clone(), to = this.positionOf(target).clone();
+    this.effect("healing", from, .36, .5, (f, t) => {
+      f.mesh.position.lerpVectors(from, to, Math.min(1, t * 1.5));
+      f.mesh.position.y += Math.sin(Math.min(1, t * 1.5) * Math.PI) * .35;
+      f.mesh.position.z = 3.3;
+      f.mesh.material.opacity = Math.min(1, (1 - t) * 4);
+      f.mesh.scale.setScalar(.32 + .16 * Math.sin(t * Math.PI));
+    });
+    this.effect("ring", to, .8, .6, (f, t) => {
+      f.mesh.scale.setScalar(.55 + t * .7);
+      f.mesh.material.opacity = (1 - t) * .65;
+      f.mesh.material.color.set("#b2d797");
+    });
   }
   upgrade(unit) {
     this.counts.upgrades++;

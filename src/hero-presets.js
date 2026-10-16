@@ -1,5 +1,10 @@
 // Looks and starting stat templates only; equipment and trigger rules remain editable.
 export const heroPresets = [
+  { id: "gearengineer", name: "螺帽", role: "护目镜工程师", theme: "workshop", color: "#b7ab83", shade: "#7c876a", stats: [280, 34, 4, 1, 4.5, 10], growth: [40, 7], weapon: "coffeeCannon" },
+  { id: "rivetbot", name: "铆钉", role: "重装机器人", theme: "workshop", color: "#a6b3a4", shade: "#697f70", stats: [510, 30, 1, .9, 3, 5], growth: [78, 7], weapon: "", melee: "claw" },
+  { id: "wrenchsmith", name: "扳手", role: "随队维修工", theme: "workshop", color: "#a8b49a", shade: "#6e8772", stats: [310, 26, 1, 1.2, 5, 5], growth: [46, 6], weapon: "", melee: "slash" },
+  { id: "sparkwelder", name: "火花", role: "面罩焊接工", theme: "workshop", color: "#b7a18a", shade: "#7e7766", stats: [350, 39, 1, 1.05, 4, 15], growth: [52, 8], weapon: "", melee: "slash" },
+  { id: "windupbot", name: "发条", role: "钟芯小机灵", theme: "workshop", color: "#c5b48b", shade: "#8b8e6b", stats: [235, 27, 3, 1.5, 6, 15], growth: [34, 6], weapon: "staff" },
   { id: "ragebear", name: "噬鬃", role: "凶熊 · 狂暴前排", theme: "blood", color: "#a28a73", shade: "#6b6452", stats: [540, 42, 1, .85, 4, 15], growth: [80, 9], weapon: "", melee: "claw" },
   { id: "bloodknight", name: "赤誓", role: "血誓盾卫", theme: "blood", color: "#ad8b83", shade: "#78635e", stats: [440, 27, 1, 1, 3.5, 5], growth: [68, 6], weapon: "", melee: "slash" },
   { id: "frenzyaxe", name: "裂鬃", role: "双斧狂战士", theme: "blood", color: "#bb957c", shade: "#865f50", stats: [320, 40, 1, 1.4, 5, 20], growth: [45, 9], weapon: "", melee: "slash" },

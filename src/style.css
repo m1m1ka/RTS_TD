@@ -112,6 +112,7 @@ button img {
 .unit-inspector[data-side="enemy"] .unit-heading small { color: #d69a88; }
 .unit-stats { margin: 11px 0 0; padding-top: 8px; border-top: 1px solid #78835b80; }
 .unit-stats > div { display: flex; align-items: baseline; justify-content: space-between; padding: 4px 0; }
+.unit-stats > div[hidden] { display: none; }
 .unit-stats dt { color: #bbc6a4; font-size: 11px; }
 .unit-stats dd { margin: 0; font: 900 17px Arial, sans-serif; color: #fff7dd; }
 .unit-stats small { font: 9px "Noto Sans SC", sans-serif; color: #a4b294; margin-left: 4px; }

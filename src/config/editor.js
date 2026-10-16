@@ -1,5 +1,8 @@
 import "./editor.css";
 import "../cards.css";
+import { workshopRules } from "./workshop-content.js";
+import { mechanicsEditor } from "./mechanics-editor.js";
+import { combatBehaviors, healingTargets, healingDefaults } from "../healing-behavior.js";
 import {
   getConfig,
   saveConfig,
@@ -94,11 +97,14 @@ function field(
   return `<label class="field ${wide ? "wide" : ""}"><span>${esc(label)}</span>${input}</label>`;
 }
 function unitFields(path) {
-  return `<p class="hint">攻击模组决定动作、武器与弹道；外观由「实际使用 icon」配置。射程与攻速独立设置，装备可覆盖武器。</p><div class="fields">${field("攻击模组", path + ".attackModule", { options: attackModuleOptions })}${Object.entries(
+  const hero = path.startsWith("cards.") && draft.cards[path.split(".")[1]]?.category === "hero";
+  const healing = hero && get(path + ".combatBehavior") === "heal";
+  const behavior = hero ? `<div class="fields">${field("战斗行为", path + ".combatBehavior", { options: combatBehaviors })}${healing ? field("治疗对象", path + ".healing.targets", { options: healingTargets }) + field("治疗量类型", path + ".healing.valueMode", { options: { fixed: "固定生命值", percent: "目标最大生命值百分比" } }) + field(get(path + ".healing.valueMode") === "percent" ? "每次治疗（最大生命的 %）" : "每次治疗生命值", path + ".healing.value", { type: "number", min: get(path + ".healing.valueMode") === "percent" ? .01 : 1, max: get(path + ".healing.valueMode") === "percent" ? 100 : 100000, step: "any" }) : ""}</div>${healing ? '<p class="hint">战斗中全图寻找最近的受伤队友，走入治疗距离后自动治疗。斜角为 1 格；不治疗自身、阵亡单位、核心或金矿，不攻击敌人。治疗不暴击，最多回到满血。手动移动优先，到达后重新选择目标。治疗速度、距离使用原攻速和射程属性，增益与装备仍有效。</p>' : ""}` : "";
+  return `${behavior}${hero ? mechanicsEditor(get(path),path,field) : ""}<p class="hint">攻击模组决定攻击动作、武器与弹道；自动治疗使用独立的绿色治疗特效。外观由「实际使用 icon」配置，装备可覆盖武器。</p><div class="fields">${field("攻击模组", path + ".attackModule", { options: attackModuleOptions })}${Object.entries(
     statLabels,
   )
     .map(([k, t]) =>
-      field(["maxHp", "atk"].includes(k) ? t + "（1 级基础值）" : t, path + "." + k, {
+      field(healing && k === "rate" ? "治疗速度（次/秒）" : healing && k === "range" ? "治疗距离（格）" : ["maxHp", "atk"].includes(k) ? t + "（1 级基础值）" : t, path + "." + k, {
         type: "number",
         min: ["rate", "speed"].includes(k) ? 0.05 : k === "maxHp" ? 1 : 0,
         max: k === "critChance" ? 100 : ["rate", "speed"].includes(k) ? 20 : k === "range" ? 24 : 1000000,
@@ -124,7 +130,7 @@ function panel(title, body, aside = "") {
 }
 function presetLibrary() {
   const group = (title, presets) => `<h4 class="hero-preset-title">${title}</h4><div class="hero-preset-grid">${presets.map(p => `<button type="button" data-hero-preset="${p.id}" title="以${p.name}为模板创建可编辑的英雄牌"><img src="${iconURL(p.id, true)}" alt="${p.name}" draggable="false"><strong>${p.name}</strong><small>${p.role}</small></button>`).join("")}</div>`;
-  return `<details class="hero-preset-library"><summary>英雄形象图鉴 <small>${heroPresets.length} 个预设 · 点击创建英雄牌</small></summary>${group("血誓与狂怒", heroPresets.filter(p => p.theme === "blood"))}${group("中世纪军团", heroPresets.filter(p => p.theme === "medieval"))}${group("林地冒险者", heroPresets.filter(p => !p.theme))}</details>`;
+  return `<details class="hero-preset-library"><summary>英雄形象图鉴 <small>${heroPresets.length} 个预设 · 点击创建英雄牌</small></summary>${group("齿轮工坊", heroPresets.filter(p => p.theme === "workshop"))}${group("血誓与狂怒", heroPresets.filter(p => p.theme === "blood"))}${group("中世纪军团", heroPresets.filter(p => p.theme === "medieval"))}${group("林地冒险者", heroPresets.filter(p => !p.theme))}</details>`;
 }
 function inventory(path) {
   const value = get(path);
@@ -225,7 +231,7 @@ function effectsEditor(card, path) {
     )}</select><button data-action="add-effect">＋ 叠加效果</button></div>`;
 }
 function preview(card) {
-  return `<div class="preview-sticky"><div class="nav-caption">卡面预览</div><div class="hand-card ${card.category} config-preview"><b class="card-count"><span>×</span>1</b><strong class="card-title">${esc(card.name)}</strong><div class="card-picture"><img src="${iconURL(card.icon, true)}" alt=""></div><span class="card-kind">${types[card.category]}</span><small class="card-description">${esc(card.text).replace(/ · /g, "<br>")}</small><span class="card-flourish">◆</span></div><small>属性效果按列表顺序叠加，等级成长先计入基础属性。描述为独立展示文本。</small><div class="actual-preview"><img src="${iconURL(card.useIcon)}" alt="使用图标"><span>实际使用图标</span></div></div>`;
+  return `<div class="preview-sticky"><div class="nav-caption">卡面预览</div><div class="hand-card ${card.category} config-preview"><b class="card-count"><span>×</span>1</b><strong class="card-title">${esc(card.name)}</strong><div class="card-picture"><img src="${iconURL(card.icon, true)}" alt=""></div><span class="card-kind">${types[card.category]}${card.temporary ? " · 临时" : ""}</span><small class="card-description">${esc(card.text).replace(/ · /g, "<br>")}</small><span class="card-flourish">◆</span></div><small>属性效果按列表顺序叠加，等级成长先计入基础属性。描述为独立展示文本。</small><div class="actual-preview"><img src="${iconURL(card.useIcon)}" alt="使用图标"><span>实际使用图标</span></div></div>`;
 }
 function entityList(items, kind) {
   const depths = kind === "day" ? new Map(campaignLayout(draft).nodes.map((node) => [node.day.id, node.depth + 1])) : null;
@@ -244,7 +250,7 @@ function renderCards() {
     )
     .join(
       "",
-    )}</div><div class="editor-columns">${entityList(items, "card")}${card ? `<div class="entity-form"><div class="entity-title"><h2>${esc(card.name)}</h2><div><button data-action="duplicate-card">复制</button><button data-action="delete-card" class="danger">删除</button></div></div>${panel("基本信息", `<div class="fields">${field("名字", "cards." + selected + ".name")}${field("使用目标", "cards." + selected + ".target", { options: { hero: { ground: "空地" }, resource: { any: "\u6218\u573a\u4efb\u610f\u4f4d\u7f6e", hero: "我方英雄", ground: "空地（放置炮台）" }, battle: { area: "范围位置", enemy: "敌方单位" }, equipment: { hero: "我方英雄" } }[category] })}${field("描述", "cards." + selected + ".text", { type: "textarea", wide: true })}</div><div class="icon-pair">${iconEditor("卡牌 icon", "cards." + selected + ".icon", "显示在手牌与奖励牌上")}${iconEditor("实际使用 icon", "cards." + selected + ".useIcon", "单位外观 / 装备标记 / 施放图标")}</div>`)}${category === "hero" ? panel("英雄属性", unitFields("cards." + selected + ".unit")) : ""}${category === "battle" ? panel("战斗表现", field("施法特效", "cards." + selected + ".visual", { options: { fireball: "火球爆环", lightning: "落雷", frost: "寒霜" } })) : ""}${panel("组合效果", effectsEditor(card, "cards." + selected))}${card.effects.some((e) => e.type === "summon") ? panel("炮台属性", unitFields("cards." + selected + ".unit")) : ""}</div><aside id="card-preview">${preview(card)}</aside>` : '<div class="empty-editor">该分类暂无卡牌，点击新增开始配置。</div>'}</div>`;
+    )}</div><div class="editor-columns">${entityList(items, "card")}${card ? `<div class="entity-form"><div class="entity-title"><h2>${esc(card.name)}</h2><div><button data-action="duplicate-card">复制</button><button data-action="delete-card" class="danger">删除</button></div></div>${panel("基本信息", `<div class="fields">${field("名字", "cards." + selected + ".name")}${field("使用目标", "cards." + selected + ".target", { options: { hero: { ground: "空地" }, resource: { any: "\u6218\u573a\u4efb\u610f\u4f4d\u7f6e", hero: "我方英雄", ground: "空地（放置炮台）" }, battle: { area: "范围位置", enemy: "敌方单位" }, equipment: { hero: "我方英雄" } }[category] })}${field("描述", "cards." + selected + ".text", { type: "textarea", wide: true })}<label class="trigger-enable"><input type="checkbox" data-path="cards.${selected}.temporary" ${card.temporary ? "checked" : ""}>临时牌（本场战斗结束清除）</label></div><div class="icon-pair">${iconEditor("卡牌 icon", "cards." + selected + ".icon", "显示在手牌与奖励牌上")}${iconEditor("实际使用 icon", "cards." + selected + ".useIcon", "单位外观 / 装备标记 / 施放图标")}</div>`)}${category === "hero" ? panel("英雄属性", unitFields("cards." + selected + ".unit")) : ""}${category === "battle" ? panel("战斗表现", field("施法特效", "cards." + selected + ".visual", { options: { fireball: "火球爆环", lightning: "落雷", frost: "寒霜" } })) : ""}${panel("组合效果", effectsEditor(card, "cards." + selected))}${card.effects.some((e) => e.type === "summon") ? panel("炮台属性", unitFields("cards." + selected + ".unit")) : ""}</div><aside id="card-preview">${preview(card)}</aside>` : '<div class="empty-editor">该分类暂无卡牌，点击新增开始配置。</div>'}</div>`;
 }
 function renderInitial() {
   return `<div class="entity-title"><h2>初始默认配置</h2><span class="hint">每次开局的规则</span></div><div class="initial-layout"><div>${panel("核心与波后恢复", `<div class="fields">${field("每天第一波开始等待（秒）", "initial.firstWaveDelay", { type: "number", max: 3600 })}${field("核心初始生命", "initial.baseHp", { type: "number", min: 1 })}${field("波后治疗比例", "initial.waveHeal", { type: "number", max: 1 })}${field("阵亡英雄复活血量比例", "initial.reviveHp", { type: "number", min: 0.01, max: 1 })}</div>`)}${panel(
@@ -381,6 +387,19 @@ $("config-name").oninput = (e) => {
   markDirty();
 };
 $("editor").addEventListener("change", async (e) => {
+  if (e.target.dataset.mechanic) {
+    const unit = get(e.target.dataset.unitPath), key = e.target.dataset.mechanic;
+    unit.mechanics ??= {};
+    if (e.target.checked) unit.mechanics[key] = key === "knockback" ? {distance:1} : key === "arrowReduction" ? {mode:"percent",value:50} : true;
+    else delete unit.mechanics[key];
+    if (!Object.keys(unit.mechanics).length) delete unit.mechanics;
+    markDirty(); render(); return;
+  }
+  if (e.target.dataset.path?.endsWith(".combatBehavior")) {
+    const unit = get(e.target.dataset.path.replace(/\.combatBehavior$/, ""));
+    if (unit.combatBehavior === "heal") { unit.healing ??= clone(healingDefaults); unit.range = Math.max(1, unit.range); }
+    render(); return;
+  }
   if (e.target.dataset.path?.endsWith(".attackModule")) {
     const module = attackModules[e.target.value];
     if (module) {
@@ -419,6 +438,12 @@ $("editor").addEventListener("change", async (e) => {
     return;
   }
   if (e.target.dataset.path?.includes(".triggerRules.") && e.target.tagName === "SELECT") {
+    if (e.target.dataset.path.endsWith(".trigger.event")) {
+      const rule = get(e.target.dataset.path.replace(/\.trigger\.event$/, ""));
+      if (rule.trigger.event === "interval") rule.trigger.interval ??= 10;
+      if (rule.trigger.event === "towerBuilt") rule.target.kind = "eventTower";
+      else if (rule.target.kind === "eventTower") rule.target.kind = "self";
+    }
     render();
     return;
   }
@@ -472,6 +497,8 @@ document.addEventListener("click", (e) => {
   }
   if (b.dataset.triggerTemplate) {
     const templates = {
+      victoryGold: { ...newTriggerRule(), name:"胜利奖金", trigger:{event:"victory",scope:"any",radius:-1}, effects:[{type:"victoryGold",value:2}] },
+      ...workshopRules,
       preparation: { ...newTriggerRule(), name: "整备随从", trigger: { event: "preparation", scope: "any", radius: -1 }, effects: [{ type: "summonFollower", hpPercent: 50, atkPercent: 50, count: 1 }] },
       growth: defaultHeroRules("hero_blue")[0], momentum: defaultHeroRules("hero_blue")[1],
       rally: defaultHeroRules("hero_green")[0], echo: defaultHeroRules("hero_purple")[0],

@@ -7,9 +7,10 @@ import { migrateResourceContent } from "../resource-effects.js";
 import { migrateRewards } from "../rewards.js";
 import { migrateShops } from "../shop.js";
 import { migrateAttackModules } from "../attack-modules.js";
+import { migrateWorkshopContent } from "./workshop-content.js";
 // Version 1 stored each level as a wave. Preserve each level as a day.
 export function migrateConfig(value) {
-  const c = migrateShops(structuredClone(value));
+  const c = migrateWorkshopContent(migrateShops(structuredClone(value)));
   if (c?.version !== 1) return migrateAttackModules(migrateRewards(migrateResourceContent(migrateCritical(migrateTerrain(migrateLevelGrowth(migrateHeroContent(migrateHeroRules(c))))))));
   if (!Array.isArray(c.waves) || !c.initial) throw new Error("旧配置缺少关卡或初始规则");
   c.version = 2;
@@ -35,6 +36,7 @@ export function migrateConfig(value) {
   });
   delete c.waves;
   migrateShops(c);
+  migrateWorkshopContent(c);
   return migrateAttackModules(migrateRewards(migrateResourceContent(migrateCritical(migrateTerrain(migrateLevelGrowth(migrateHeroContent(migrateHeroRules(c))))))));
 }
 export const waveCount = (wave) => (wave?.spawns || []).reduce(

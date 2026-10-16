@@ -1,6 +1,7 @@
 import { reachableTerrain } from "../terrain.js";
 import { presetIds } from "../hero-presets.js";
 import { attackModuleOptions } from "../attack-modules.js";
+import { combatBehaviors, healingTargets } from "../healing-behavior.js";
 import { valueModes, statModes } from "../effect-values.js";
 import { generationDefaults, generationCategories } from "../card-generation.js";
 import { RESOURCE_CARDS, resourceEffectTypes } from "../resource-effects.js";
@@ -10,6 +11,7 @@ import { migrateConfig } from "./migrate.js";
 import { triggerEvents, triggerScopes, triggerTargets, triggerEffects } from "./trigger-rules.js";
 export const CONFIG_VERSION = 2;
 export const builtInIcons = [
+  "parts",
   ...Object.keys(RESOURCE_CARDS),
   ...presetIds,
   "catgirl",
@@ -172,7 +174,7 @@ export function validateConfig(c) {
       for (const key of e.cards) if (typeof key !== "string" || !own(c.cards, key)) fail(p, "候选卡牌不存在");
     }
   };
-  const unit = (u, p) => {
+  const unit = (u, p, hero = false) => {
     if (!isObject(u)) {
       fail(p, "缺少单位属性");
       return;
@@ -184,6 +186,9 @@ export function validateConfig(c) {
           "type",
           "weapon",
           "attackModule",
+          "combatBehavior",
+          "healing",
+          "mechanics",
           "maxHp",
           "atk",
           "range",
@@ -198,6 +203,36 @@ export function validateConfig(c) {
     enumeration(u.type, p + "外观", skins);
     enumeration(u.weapon, p + "武器", Object.keys(weaponOptions));
     if (u.attackModule !== undefined) enumeration(u.attackModule, p + "攻击模组", Object.keys(attackModuleOptions));
+    if (u.combatBehavior !== undefined) enumeration(u.combatBehavior, p + "战斗行为", Object.keys(combatBehaviors));
+    if (u.mechanics !== undefined) {
+      const m = u.mechanics;
+      if (!hero || !isObject(m)) fail(p,"特殊机制必须是英雄配置对象");
+      else {
+        for (const k of Object.keys(m)) if (!["immobile","dormant","deathsAsSacrifice","knockback","arrowReduction"].includes(k)) fail(p,"未知特殊机制 "+k);
+        for (const k of ["immobile","dormant","deathsAsSacrifice"]) if (m[k] !== undefined && typeof m[k] !== "boolean") fail(p,k+" 必须为开关");
+        if (m.knockback !== undefined) {
+          if (!isObject(m.knockback)) fail(p,"击退配置格式错误");
+          else num(m.knockback.distance,p+"击退距离",1,24,true);
+        }
+        if (m.arrowReduction !== undefined) {
+          if (!isObject(m.arrowReduction)) fail(p,"弓箭减伤配置格式错误");
+          else {
+            enumeration(m.arrowReduction.mode,p+"弓箭减伤方式",["fixed","percent"]);
+            num(m.arrowReduction.value,p+"弓箭减伤量",0,m.arrowReduction.mode==="percent"?100:100000);
+          }
+        }
+      }
+    }
+    if (u.combatBehavior === "heal" && !hero) fail(p, "自动治疗行为仅适用于英雄");
+    if (u.combatBehavior === "heal" || u.healing !== undefined) {
+      if (!isObject(u.healing)) fail(p, "缺少治疗参数");
+      else {
+        enumeration(u.healing.targets, p + "治疗对象", Object.keys(healingTargets));
+        enumeration(u.healing.valueMode, p + "治疗数值类型", ["fixed", "percent"]);
+        num(u.healing.value, p + "单次治疗量", u.healing.valueMode === "percent" ? .01 : 1, u.healing.valueMode === "percent" ? 100 : 100000);
+      }
+      if (u.combatBehavior === "heal" && u.range < 1) fail(p, "治疗距离至少为 1 格");
+    }
     num(u.maxHp, p + "生命", 1, 1000000);
     num(u.atk, p + "攻击", 0, 100000);
     num(u.range, p + "距离", 0, 24, true);
@@ -236,6 +271,7 @@ export function validateConfig(c) {
     }
     str(card.name, p + "名称", 32);
     str(card.text, p + "描述", 180);
+    if (card.temporary !== undefined && typeof card.temporary !== "boolean") fail(p, "临时牌开关必须为布尔值");
     enumeration(card.category, p + "类型", [
       "hero",
       "resource",
@@ -271,9 +307,11 @@ export function validateConfig(c) {
         str(rule.name, rp + "名称", 32);
         if (typeof rule.enabled !== "boolean") fail(rp, "启用状态必须是布尔值");
         enumeration(rule.trigger.event, rp + "事件", Object.keys(triggerEvents));
+        if (rule.trigger.event === "interval") num(rule.trigger.interval, rp + "触发间隔（秒）", .1, 3600);
         enumeration(rule.trigger.scope, rp + "事件来源", Object.keys(triggerScopes));
         num(rule.trigger.radius, rp + "监听半径", -1, 24, true);
         enumeration(rule.target.kind, rp + "目标", Object.keys(triggerTargets));
+        if (rule.target.kind === "eventTower" && rule.trigger.event !== "towerBuilt") fail(rp, "本次建造的炮台只能搭配建设炮台时");
         num(rule.target.radius, rp + "目标半径", -1, 24, true);
         num(rule.target.count, rp + "目标英雄数量", 1, 20, true);
         if (!Array.isArray(rule.effects) || !rule.effects.length || rule.effects.length > 20) {
@@ -282,6 +320,12 @@ export function validateConfig(c) {
         for (const effect of rule.effects) {
           if (!isObject(effect)) { fail(rp, "效果格式错误"); continue; }
           enumeration(effect.type, rp + "效果", Object.keys(triggerEffects));
+          if (effect.type === "victoryGold") {
+            num(effect.value,rp+"额外胜利金币",1,999,true);
+            if (rule.trigger.event !== "victory") fail(rp,"额外胜利金币需搭配胜利触发时机");
+          }
+          if (rule.target.kind === "eventTower" && ["revive", "summonFollower", "triggerBattleStart", "triggerPreparation"].includes(effect.type)) fail(rp, "炮台不能响应英雄专属的复活、随从、开战或整备效果");
+          if (effect.type === "ownerLevel") num(effect.percent, rp + "自身等级比例", .01, 1000);
           if (effect.type === "revive") {
             num(effect.maxRevives, rp + "每天复活次数", 1, 99, true);
             num(effect.hpPercent, rp + "复活生命比例", 1, 100);
@@ -319,7 +363,7 @@ export function validateConfig(c) {
     if (card.category !== "hero" && !card.effects.length)
       fail(p, "至少需要一个效果");
     const summoned = card.effects.filter((e) => e?.type === "summon").length;
-    if (card.category === "hero" || summoned) unit(card.unit, p);
+    if (card.category === "hero" || summoned) unit(card.unit, p, card.category === "hero");
     if (
       card.category === "resource" &&
       ((card.target === "ground" && summoned !== 1) ||

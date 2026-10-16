@@ -91,7 +91,9 @@ export class GoldVisuals {
       g.fillStyle = "#d39b39"; g.strokeStyle = "#4c4229"; g.lineWidth = 3;
       g.beginPath(); g.ellipse(0, 0, 10, 11, 0, 0, Math.PI * 2); g.fill(); g.stroke();
       g.strokeStyle = "#ffe3a0"; g.lineWidth = 2; g.beginPath(); g.ellipse(0, -1, 6.5, 7, 0, 0, Math.PI * 2); g.stroke();
-      g.fillStyle = "#ffe3a0"; g.fillRect(-1.5, -5, 3, 8); g.restore();
+      g.fillStyle = "#ffe3a0"; g.fillRect(-1.5, -5, 3, 8);
+      if (coin.amount > 1) { g.font='bold 13px Arial'; g.textAlign='left'; g.fillText('×'+coin.amount,14,5); }
+      g.restore();
     }
   }
 }

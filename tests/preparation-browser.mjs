@@ -98,6 +98,15 @@ try {
   const lifecycle = await editor.evaluate(()=>JSON.parse(localStorage.getItem("friday-defense-config-v1")).cards.hero_blue.triggerRules);
   assert.equal(lifecycle[0].effects[0].type, "level");
   assert.equal(lifecycle[1].effects[0].type, "stat");
+  const listenerPath = "cards.hero_blue.triggerRules.1.trigger";
+  await editor.locator(`[data-path="${listenerPath}.event"]`).selectOption("heroSacrifice");
+  await editor.locator(`[data-path="${listenerPath}.scope"]`).selectOption("others");
+  await editor.locator(`[data-path="${listenerPath}.radius"]`).fill("2");
+  await editor.locator('#save-config').click(); await editor.reload();
+  await editor.locator('[data-select="hero_blue"]').click();
+  assert.equal(await editor.locator(`[data-path="${listenerPath}.event"]`).inputValue(), "heroSacrifice");
+  assert.equal(await editor.locator(`[data-path="${listenerPath}.scope"]`).inputValue(), "others");
+  assert.equal(await editor.locator(`[data-path="${listenerPath}.radius"]`).inputValue(), "2");
   assert.deepEqual(errors,[]);
   console.log("PASS preparation browser: event/effect editor, live sync, follower commands/bounds, extra preparation, follower-target buffs, sacrifice/victory editing and persistence");
 } finally {await browser?.close();server.kill();}

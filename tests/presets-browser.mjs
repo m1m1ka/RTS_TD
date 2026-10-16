@@ -8,6 +8,7 @@ import { assertConfig } from "../src/config/schema.js";
 import { Game, attackKind } from "../src/game.js";
 const fixture = structuredClone(DEFAULT_CONFIG);
 assert.equal(heroPresets.filter(p => p.theme === "blood").length, 8);
+assert.equal(heroPresets.filter(p => p.theme === "workshop").length, 5);
 fixture.initial.cards = {};
 for (const p of heroPresets) {
   fixture.cards[`hero_${p.id}`] = createPresetCard(p.id);
@@ -58,7 +59,7 @@ try {
   const game = await gameContext.newPage(); game.on("pageerror", e => errors.push(e.message));
   await game.goto("http://127.0.0.1:5179");
   await game.waitForFunction(() => window.__game?.snapshot().frames > 5);
-  const slots = [2,4,7,9].flatMap(y => [1,3,5,7,9,11,13].map(x => [x,y]));
+  const slots = [1,3,5,7,9].flatMap(y => [1,3,5,7,9,11,13].map(x => [x,y])).filter(([x,y]) => x !== 7 || y !== 5);
   for (let i = 0; i < heroPresets.length; i++) {
     await game.locator(`[data-card="hero_${heroPresets[i].id}"]`).focus();
     await game.keyboard.press("Enter");

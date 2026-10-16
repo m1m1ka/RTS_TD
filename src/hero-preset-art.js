@@ -1,7 +1,9 @@
 import { drawMedievalHero } from "./medieval-hero-art.js";
 import { drawBloodHero } from "./blood-hero-art.js";
+import { drawWorkshopHero } from "./workshop-hero-art.js";
 // Use the original heroes' canvas primitives, ink and proportions.
 export function drawHeroPreset(g, type, { shape, rounded, ellipse, line, ink }) {
+  if (drawWorkshopHero(g, type, { shape, rounded, ellipse, line, ink })) return;
   if (drawBloodHero(g, type, { shape, rounded, ellipse, line, ink })) return;
   if (drawMedievalHero(g, type, { shape, rounded, ellipse, line, ink })) return;
   const poly = (points, fill, width = 5) => shape(g, points, fill, ink, width);

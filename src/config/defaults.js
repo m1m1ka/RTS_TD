@@ -6,6 +6,7 @@ import { migrateResourceContent } from "../resource-effects.js";
 import { migrateRewards } from "../rewards.js";
 import { migrateShops } from "../shop.js";
 import { migrateAttackModules } from "../attack-modules.js";
+import { migrateWorkshopContent } from "./workshop-content.js";
 export const DEFAULT_CONFIG = {
   "heroContentVersion": HERO_CONTENT_VERSION,
   "version": 2,
@@ -1549,3 +1550,5 @@ migrateResourceContent(DEFAULT_CONFIG);
 migrateRewards(DEFAULT_CONFIG);
 migrateShops(DEFAULT_CONFIG);
 migrateAttackModules(DEFAULT_CONFIG);
+// Keep the new card available in fresh games and portable default exports.
+migrateWorkshopContent(DEFAULT_CONFIG);

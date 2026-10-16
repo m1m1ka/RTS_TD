@@ -1,9 +1,38 @@
 import { effectAmount } from "./effect-values.js";
+import { addVictoryBonus, deathCountsAsSacrifice } from "./hero-mechanics.js";
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const inRange = (a, b, radius) => radius < 0 || distance(a, b) <= radius;
 
 export class HeroTriggers {
-  constructor(game) { this.game = game; this.activations = 0; this.activeSources = new Set(); }
+  constructor(game) { this.game = game; this.activations = 0; this.activeSources = new Set(); this.timers = new Map(); }
+  tick(dt) {
+    const game = this.game;
+    if (!["waiting", "battle"].includes(game.phase) || !(dt > 0)) return;
+    const active = new Set();
+    for (const hero of [...game.heroes]) {
+      if (hero.hp <= 0 || hero.destroyed || hero.isFollower) continue;
+      for (const [i, rule] of this.rules(hero, "interval").entries()) {
+        const key = `${hero.id}:${i}:${JSON.stringify(rule)}`;
+        active.add(key);
+        let elapsed = (this.timers.get(key) || 0) + dt;
+        const interval = rule.trigger.interval;
+        if (!(interval >= .1)) continue;
+        while (elapsed + 1e-9 >= interval && hero.hp > 0 && !hero.destroyed) {
+          elapsed = Math.max(0, elapsed - interval);
+          this.resolve(hero, "interval", { rules: [rule] });
+        }
+        this.timers.set(key, elapsed);
+      }
+    }
+    for (const key of this.timers.keys()) if (!active.has(key)) this.timers.delete(key);
+  }
+  towerBuilt(tower) {
+    for (const hero of [...this.game.heroes]) {
+      if (hero.hp <= 0 || hero.destroyed || hero.isFollower) continue;
+      const rules = this.rules(hero, "towerBuilt").filter(rule => inRange(hero, tower, rule.trigger.radius));
+      if (rules.length) this.resolve(hero, "towerBuilt", { rules, eventHero: tower });
+    }
+  }
   effectActive(effect) {
     return !effect.whileSourceAlive || this.game.heroes.some(h => h.id === effect.sourceHeroId && h.hp > 0 && !h.destroyed);
   }
@@ -13,7 +42,7 @@ export class HeroTriggers {
     if (active.size === this.activeSources.size && [...active].every(id => this.activeSources.has(id))) return;
     this.activeSources = active;
     // Rebuild from base stats and equipment, rather than subtracting capped or multiplied bonuses.
-    for (const hero of [...game.heroes, ...game.heroReserve])
+    for (const hero of [...game.heroes, ...game.heroReserve, ...game.towers])
       if ([...(hero.dayEffects || []), ...(hero.triggerPermanentEffects || [])].some(e => e.whileSourceAlive))
         game.rebuildHero(hero, false);
   }
@@ -28,10 +57,12 @@ export class HeroTriggers {
     }
   }
   rules(hero, event) {
+    if (this.game.isDormant(hero)) return [];
     return (this.game.config.cards[hero.cardId]?.triggerRules || [])
       .filter((rule) => rule.enabled && rule.trigger.event === event);
   }
   targets(owner, eventHero, target, deathEvent = false, fallenOnly = false) {
+    if (target.kind === "eventTower") return !fallenOnly && this.game.towers.includes(eventHero) && eventHero.hp > 0 && inRange(owner, eventHero, target.radius) ? [eventHero] : [];
     const allies = this.game.heroes.filter((h) => (fallenOnly ? h.hp <= 0 : h.hp > 0) && !h.destroyed && inRange(owner, h, target.radius));
     const nearby = allies.filter((h) => h !== owner)
       .sort((a, b) => distance(owner, a) - distance(owner, b) || a.id - b.id);
@@ -68,33 +99,38 @@ export class HeroTriggers {
     const survivors = this.game.heroes.filter(h => h.hp > 0 && !h.destroyed);
     for (const hero of survivors) this.resolve(hero, "victory");
   }
-  resolve(hero, event) {
+  resolve(hero, event, options = {}) {
     const game = this.game;
+    const convertedDeath = event === "sacrifice" && deathCountsAsSacrifice(game,hero);
+    if (event === "sacrifice") for (const key of this.timers.keys())
+      if (key.startsWith(`${hero.id}:`)) this.timers.delete(key);
     this.syncSourceEffects();
     // Each root owns a shared, typed queue: cross-event echoes cannot recurse.
     // Natural preparation is separate from the one extra preparation allowance.
     const cascade = {
       queued: new Set(event === "battleStart" ? [`${event}:${hero.id}`] : []),
-      queue: [{ hero, event, extra: false }],
+      queue: [{ hero, event, extra: false, rules: options.rules, eventHero: options.eventHero }],
     };
     for (let i = 0; i < cascade.queue.length; i++) {
-      const { hero: current, event: currentEvent, extra } = cascade.queue[i];
+      const { hero: current, event: currentEvent, extra, rules: specifiedRules, eventHero = current } = cascade.queue[i];
       const deathEvent = currentEvent === "sacrifice";
       if (!game.heroes.includes(current) || (deathEvent ? current.hp > 0 : current.hp <= 0 || current.destroyed)) continue;
-      const rules = this.rules(current, currentEvent);
-      if (!rules.length) continue;
+      const rules = specifiedRules || this.rules(current, currentEvent);
+      if (!rules.length && !(deathEvent && convertedDeath)) continue;
+      const eventPosition = { x: current.x, y: current.y };
       if (currentEvent === "battleStart") this.activations++;
-      for (const rule of rules) this.run(current, current, rule, cascade, deathEvent);
-      const eventType = { preparation: "heroPreparation", battleStart: "heroBattleStart", sacrifice: "heroSacrifice", victory: "heroVictory" }[currentEvent];
+      for (const rule of rules) this.run(current, eventHero, rule, cascade, deathEvent);
+      const eventType = { interval: "heroInterval", towerBuilt: "heroTowerBuilt", preparation: "heroPreparation", battleStart: "heroBattleStart", sacrifice: "heroSacrifice", victory: "heroVictory" }[currentEvent];
       game.emit(eventType, { unit: current, extra });
-      if (currentEvent !== "battleStart") continue;
+      const listenerEvent = currentEvent === "battleStart" ? "heroBattleStart" : deathEvent ? "heroSacrifice" : null;
+      if (!listenerEvent) continue;
       // Listener effects share the queue and never implicitly emit an activation.
       for (const listener of game.heroes.filter(h => h.hp > 0 && !h.destroyed))
-        for (const rule of this.rules(listener, "heroBattleStart")) {
+        for (const rule of this.rules(listener, listenerEvent)) {
           const filter = rule.trigger;
           if (filter.scope === "self" && listener !== current) continue;
           if (filter.scope === "others" && listener === current) continue;
-          if (!inRange(listener, current, filter.radius)) continue;
+          if (!inRange(listener, deathEvent ? eventPosition : current, filter.radius)) continue;
           this.run(listener, current, rule, cascade);
         }
     }
@@ -102,6 +138,10 @@ export class HeroTriggers {
   run(owner, eventHero, rule, cascade, deathEvent = false) {
     const game = this.game, targets = this.targets(owner, eventHero, rule.target, deathEvent);
     for (const effect of rule.effects) {
+      if (effect.type === "victoryGold") {
+        if (game.phase === "victory" && game.settlement) addVictoryBonus(game.settlement,owner,effect.value);
+        continue;
+      }
       if (effect.type === "revive") {
         for (const target of this.targets(owner, eventHero, rule.target, deathEvent, true))
           if (game.reviveHero(target, effect, owner))
@@ -113,6 +153,7 @@ export class HeroTriggers {
         game.emit("triggerEffect", { unit: owner, source: owner, rule: rule.name, effect });
         continue;
       }
+      const levelAmount = effect.type === "ownerLevel" ? Math.floor(owner.level * effect.percent / 100) : effect.value;
       for (const target of targets) {
         if (effect.type === "triggerBattleStart" || effect.type === "triggerPreparation") {
           const event = effect.type === "triggerPreparation" ? "preparation" : "battleStart";
@@ -125,10 +166,12 @@ export class HeroTriggers {
         }
         if (effect.type === "summonFollower") {
           game.summonFollowers(target, effect);
-        } else if (effect.type === "level") {
-          target.level += effect.value;
+        } else if (effect.type === "level" || effect.type === "ownerLevel") {
+          const amount = levelAmount;
+          if (amount <= 0) continue;
+          target.level = Math.max(1, target.level) + amount;
           game.rebuildHero(target, false);
-          if (target.hp > 0) target.hp = Math.min(target.maxHp, target.hp + game.config.initial.levelGrowth.heal * effect.value);
+          if (target.hp > 0) target.hp = Math.min(target.maxHp, target.hp + game.config.initial.levelGrowth.heal * amount);
           game.emit("upgrade", { unit: target });
         } else if (effect.type === "heal") {
           if (target.hp <= 0 || target.destroyed) continue;

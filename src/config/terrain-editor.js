@@ -55,7 +55,7 @@ export class TerrainEditor {
     this.stop();
     const trees = obstacleKeys(day);
     const mines = new Set((day.mines || []).map((m) => `${m.x},${m.y}`));
-    const gates = new Set(day.waves.flatMap((w) => w.spawns).map((p) => `${p.x},${p.y}`));
+    const gates = new Set((day.waves || []).flatMap((w) => w.spawns).map((p) => `${p.x},${p.y}`));
     return `<div class="terrain-toolbar"><button type="button" data-terrain-toggle aria-pressed="${this.painting}">${this.painting ? "完成绘制" : "绘制障碍"}</button><select data-terrain-brush aria-label="地图画笔"><option value="tree" ${this.brush === "tree" ? "selected" : ""}>树木</option><option value="mine" ${this.brush === "mine" ? "selected" : ""}>金矿</option></select><label>金矿生命 <input data-mine-hp type="number" min="1" max="100000" value="${this.mineHp}"></label><span data-terrain-count>${trees.size} 格树木 · ${mines.size} 座金矿</span></div><p class="hint">左键按住绘制，右键按住清除。金矿存活至当天胜利可额外获得 2 金币；生命值用于接下来绘制的金矿。打卡机与出生点不可绘制。</p><div class="terrain-grid ${this.painting ? "painting" : ""}" style="--tree-art:url('${this.treeURL}');--mine-art:url('${this.mineURL}')" role="group" aria-label="当天障碍地图">${Array.from({ length: 165 }, (_, i) => {
       const x = i % 15, y = Math.floor(i / 15), key = `${x},${y}`;
       const core = key === "7,5", gate = gates.has(key), tree = trees.has(key), mine = mines.has(key);
@@ -76,7 +76,7 @@ export class TerrainEditor {
     const start = this.stroke.last || end;
     const trees = obstacleKeys(day);
     const mines = new Map((day.mines || []).map((m) => [`${m.x},${m.y}`, m]));
-    const gates = new Set(day.waves.flatMap((w) => w.spawns).map((p) => `${p.x},${p.y}`));
+    const gates = new Set((day.waves || []).flatMap((w) => w.spawns).map((p) => `${p.x},${p.y}`));
     let [x, y] = start;
     const [tx, ty] = end, dx = Math.abs(tx - x), dy = -Math.abs(ty - y);
     const sx = x < tx ? 1 : -1, sy = y < ty ? 1 : -1;

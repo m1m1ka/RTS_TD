@@ -59,6 +59,7 @@ try {
   await page.evaluate(()=>window.__game.advance(12));
   assert.equal((await state()).phase,"reward");
   assert.equal(await page.locator('[data-reward]').count(),5);
+  assert.ok(await page.locator('#reward-dialog').evaluate(el => { const s = getComputedStyle(el); return s.borderTopWidth === '0px' && s.boxShadow === 'none' && s.backgroundColor === 'rgba(0, 0, 0, 0)' && s.backgroundImage === 'none'; }), "rewards have no enclosing panel");
   assert.deepEqual(new Set((await state()).rewardOptions),new Set(keys),"editor pool binding is live");
   await page.waitForTimeout(1100);
   await page.screenshot({path:"logs/rewards-five-cards.png"});

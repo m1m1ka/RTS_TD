@@ -33,10 +33,6 @@
         <div class="resources-hud">
           <div class="loot">
             <span class="gold-counter" title="金币"><i aria-hidden="true">Ⅰ</i> <b id="gold-total">0</b></span>
-            <span title="持有卡牌">▱</span><b id="cards-total">14</b
-            ><span class="kill-counter" title="击退"
-              >☠ <b id="kills">0</b></span
-            >
           </div>
           <div class="system-controls">
             <button id="route-toggle" class="rune" title="远征路线" aria-label="打开远征路线">⚑</button>
@@ -69,7 +65,7 @@
             <div><dt id="unit-range-label">攻击距离</dt><dd><b id="unit-range"></b><small>格</small></dd></div>
             <div id="unit-crit-row"><dt>暴击率</dt><dd id="unit-crit"></dd></div>
           </dl>
-          <div id="unit-move-hint" class="unit-move-hint">◇ 可移动格子</div>
+          <div id="unit-profile" class="unit-profile" hidden><span id="unit-role"></span><p id="unit-description"></p></div>
         </aside>
         <div id="toast" role="status"></div>
         <div id="wave-banner"></div>

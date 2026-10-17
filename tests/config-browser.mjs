@@ -88,7 +88,7 @@ try {
       .querySelector('[data-card="hero_blue"]')
       .textContent.includes("迁移先锋"),
   );
-  await game.locator('[data-card="hero_blue"]').click();
+  await game.locator('[data-card="hero_blue"]').first().click();
   await game.evaluate(() => window.__game.clickCell(7, 3));
   assert.equal(
     (await game.evaluate(() => window.__game.snapshot())).heroes[0].maxHp,
@@ -98,7 +98,7 @@ try {
   await editor.locator('[data-path="cards.hero_blue.unit.levelGrowth.maxHp"]').fill("80");
   await editor.locator('[data-path="cards.hero_blue.unit.levelGrowth.atk"]').fill("7.5");
   assert.ok((await editor.locator('[data-growth-preview="cards.hero_blue.unit"]').textContent()).includes("1319"), "level 5 preview updates while typing");
-  await editor.locator(".level-growth").screenshot({ path: "logs/config-level-growth.png" });
+  await editor.locator(".level-growth").filter({ has: editor.locator("[data-growth-preview]") }).screenshot({ path: "logs/config-level-growth.png" });
   await editor.locator("#save-config").click();
   await game.waitForFunction(
     () => window.__game.snapshot().heroes[0].maxHp === 999,
@@ -252,7 +252,7 @@ try {
   await editor.locator("#save-config").click();
   await editor.evaluate(() => window.scrollTo(0, 0));
   await editor.screenshot({ path: "logs/config-waves.png", fullPage: true });
-  await game.locator('[data-card="hero_blue"]').click();
+  await game.locator('[data-card="hero_blue"]').first().click();
   await game.evaluate(() => window.__game.clickCell(5, 5));
   await game.locator("#start").click();
   const started = (await game.evaluate(() => window.__game.snapshot())).heroes[0];
@@ -314,7 +314,7 @@ try {
   assert.equal(await migrated.locator('[data-path="cards.hero_blue.triggerRules.0.effects.1.value"]').inputValue(), "0.4", "trigger rules migrate across devices");
   assert.ok(
     await migratedGame
-      .locator('[data-card="hero_blue"] img')
+      .locator('[data-card="hero_blue"] img').first()
       .getAttribute("src")
       .then((s) => s.startsWith("data:image/png")),
   );

@@ -303,6 +303,12 @@ try {
   let inspected = (await state()).heroes[0];
   assert.equal((await state()).inspectedUnitId, inspected.id);
   assert.equal(await page.locator("#unit-name").textContent(), inspected.name);
+  assert.equal(await page.locator("#unit-profile").isVisible(), true);
+  assert.ok(await page.locator("#unit-profile").evaluate(el => el.getBoundingClientRect().left >= document.querySelector(".unit-stats").getBoundingClientRect().right), "description sits to the right of stats");
+  assert.equal(await page.locator("#unit-move-hint, #cards-total, #kills").count(), 0);
+  assert.equal(await page.locator(".loot > *").count(), 1);
+  assert.ok((await page.locator("#unit-role").textContent()).length > 0);
+  assert.equal(await page.locator("#unit-description").textContent(), await page.evaluate(() => JSON.parse(localStorage.getItem("friday-defense-config-v1")).cards.hero_blue.text));
   assert.equal(await page.locator("#unit-rate").textContent(), inspected.rate.toFixed(1));
   assert.equal(await page.locator("#unit-hp").textContent(), `${Math.ceil(inspected.hp)} / ${Math.round(inspected.maxHp)}`);
   assert.equal(await page.locator("#unit-speed").count(), 0);
@@ -389,6 +395,7 @@ try {
   await page.waitForFunction(() => window.__game.snapshot().phase === "route");
   assert.equal((await state()).phase, "route");
   await page.locator('#route-dialog .route-node.available').click();
+  await page.locator('[data-route-depart]').click();
   assert.equal((await state()).phase, "between");
   assert.equal((await state()).cards.training || 0, training + trainingReward);
   assert.equal((await state()).day, 2);

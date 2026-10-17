@@ -1,4 +1,6 @@
 import { reachableTerrain } from "../terrain.js";
+import { mapLayoutErrors } from "../map-presets.js";
+import { heroRarities, heroRoles, heroStatFields } from "../hero-grades.js";
 import { presetIds } from "../hero-presets.js";
 import { attackModuleOptions } from "../attack-modules.js";
 import { combatBehaviors, healingTargets } from "../healing-behavior.js";
@@ -8,7 +10,7 @@ import { RESOURCE_CARDS, resourceEffectTypes } from "../resource-effects.js";
 import { SHOP_DEFAULTS } from "../shop.js";
 import { campaignErrors } from "../campaign.js";
 import { migrateConfig } from "./migrate.js";
-import { triggerEvents, triggerScopes, triggerTargets, triggerEffects } from "./trigger-rules.js";
+import { triggerEvents, triggerScopes, triggerTargets, triggerEffects, cardPlayCategories, randomStatLabels } from "./trigger-rules.js";
 export const CONFIG_VERSION = 2;
 export const builtInIcons = [
   "parts",
@@ -61,9 +63,9 @@ export const statLabels = {
   range: "攻击距离（格）",
   rate: "攻击速度（次/秒）",
   speed: "移动速度（格/秒）",
-  critChance: "暴击率（%，暴击伤害 200%）",
+  critChance: "暴击率（%）",
 };
-export const triggerStatLabels = { ...statLabels, lifeSteal: "吸血率" };
+export const triggerStatLabels = { ...statLabels, lifeSteal: "吸血率", critDamage: "暴击伤害（%，默认 200）" };
 export const effectTypes = {
   ...resourceEffectTypes,
   generateCard: { label: "生成卡牌", categories: ["hero", "resource", "battle", "equipment"], defaults: generationDefaults },
@@ -203,6 +205,7 @@ export function validateConfig(c) {
     enumeration(u.type, p + "外观", skins);
     enumeration(u.weapon, p + "武器", Object.keys(weaponOptions));
     if (u.attackModule !== undefined) enumeration(u.attackModule, p + "攻击模组", Object.keys(attackModuleOptions));
+    if (u.attackModule === "heal" && !hero) fail(p, "治疗模组仅适用于英雄");
     if (u.combatBehavior !== undefined) enumeration(u.combatBehavior, p + "战斗行为", Object.keys(combatBehaviors));
     if (u.mechanics !== undefined) {
       const m = u.mechanics;
@@ -239,6 +242,7 @@ export function validateConfig(c) {
     num(u.rate, p + "攻速", 0.05, 20);
     num(u.speed, p + "移速", 0.05, 20);
     if (u.critChance !== undefined) num(u.critChance, p + "暴击率", 0, 100);
+    if (u.critDamage !== undefined) num(u.critDamage, p + "暴击伤害", 100, 100000);
     if (u.levelGrowth !== undefined) {
       if (!isObject(u.levelGrowth)) fail(p + "等级成长", "缺少生命和攻击每级增量");
       else for (const key of ["maxHp", "atk"])
@@ -262,6 +266,25 @@ export function validateConfig(c) {
     return [...errors, "缺少 cards / enemies / initial / days 配置"];
   if (Object.keys(c.cards).length < 1 || Object.keys(c.cards).length > 100)
     fail("卡牌", "需要 1～100 张卡牌定义");
+  if (!isObject(c.mapPresets) || Object.keys(c.mapPresets).length > 100) fail("地图预设", "需要最多 100 个地图预设");
+  else for (const [key, preset] of Object.entries(c.mapPresets)) {
+    id(key, "地图预设 ID");
+    if (!isObject(preset)) { fail("地图预设 " + key, "格式错误"); continue; }
+    str(preset.name, "地图预设名称", 80);
+    for (const error of mapLayoutErrors(preset)) fail("地图预设 " + preset.name, error);
+  }
+  if (!isObject(c.initial.heroStatPresets)) fail("英雄数值预设", "缺少品质与定位预设");
+  else for (const rarity of Object.keys(heroRarities)) {
+    for (const role of Object.keys(heroRoles)) {
+      const preset = c.initial.heroStatPresets[rarity]?.[role];
+      const label = `英雄预设 ${heroRarities[rarity]} · ${heroRoles[role]}`;
+      if (!isObject(preset)) { fail(label, "缺少数值配置"); continue; }
+      for (const [path, spec] of Object.entries(heroStatFields)) {
+        const value = path.split(".").reduce((v, key) => v?.[key], preset);
+        num(value, label + " " + spec.label, spec.min, spec.max, spec.step === 1);
+      }
+    }
+  }
   for (const [key, card] of Object.entries(c.cards)) {
     const p = `卡牌 ${key}`;
     id(key, p);
@@ -270,6 +293,11 @@ export function validateConfig(c) {
       continue;
     }
     str(card.name, p + "名称", 32);
+    if (card.category === "hero") {
+      enumeration(card.rarity, p + "品质", Object.keys(heroRarities));
+      enumeration(card.role, p + "定位", Object.keys(heroRoles));
+      enumeration(card.statSource, p + "数值来源", ["preset", "custom"]);
+    }
     str(card.text, p + "描述", 180);
     if (card.temporary !== undefined && typeof card.temporary !== "boolean") fail(p, "临时牌开关必须为布尔值");
     enumeration(card.category, p + "类型", [
@@ -307,6 +335,10 @@ export function validateConfig(c) {
         str(rule.name, rp + "名称", 32);
         if (typeof rule.enabled !== "boolean") fail(rp, "启用状态必须是布尔值");
         enumeration(rule.trigger.event, rp + "事件", Object.keys(triggerEvents));
+        if (rule.trigger.event === "cardPlayed") {
+          num(rule.trigger.every ?? 1, rp + "用牌间隔", 1, 999, true);
+          enumeration(rule.trigger.category ?? "all", rp + "用牌类型", Object.keys(cardPlayCategories));
+        }
         if (rule.trigger.event === "interval") num(rule.trigger.interval, rp + "触发间隔（秒）", .1, 3600);
         enumeration(rule.trigger.scope, rp + "事件来源", Object.keys(triggerScopes));
         num(rule.trigger.radius, rp + "监听半径", -1, 24, true);
@@ -320,6 +352,12 @@ export function validateConfig(c) {
         for (const effect of rule.effects) {
           if (!isObject(effect)) { fail(rp, "效果格式错误"); continue; }
           enumeration(effect.type, rp + "效果", Object.keys(triggerEffects));
+          if (effect.type === "randomStat") for (const stat of Object.keys(randomStatLabels))
+            num(effect[stat], rp + randomStatLabels[stat], 0, ["lifeSteal", "critChance"].includes(stat) ? 100 : 100000);
+          if (effect.type === "refundCard") {
+            num(effect.chance, rp + "返还概率", 0, 100);
+            if (rule.trigger.event !== "cardPlayed") fail(rp, "返还卡牌需要搭配用牌触发时机");
+          }
           if (effect.type === "victoryGold") {
             num(effect.value,rp+"额外胜利金币",1,999,true);
             if (rule.trigger.event !== "victory") fail(rp,"额外胜利金币需搭配胜利触发时机");

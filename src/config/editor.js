@@ -1,8 +1,10 @@
+import { heroRarityClass, heroGradeLabel, heroRarities, heroRoles, heroStatFields, applyHeroStatPreset, syncHeroStatPresets } from "../hero-grades.js";
+import { copyMapLayout, mapLayoutErrors, applyMapPreset } from "../map-presets.js";
 import "./editor.css";
 import "../cards.css";
 import { workshopRules } from "./workshop-content.js";
 import { mechanicsEditor } from "./mechanics-editor.js";
-import { combatBehaviors, healingTargets, healingDefaults } from "../healing-behavior.js";
+import { combatBehaviors, healingTargets } from "../healing-behavior.js";
 import {
   getConfig,
   saveConfig,
@@ -22,13 +24,13 @@ import {
   builtInIcons,
 } from "./schema.js";
 import { iconURL } from "./icons.js";
-import { attackModules, attackModuleOptions } from "../attack-modules.js";
+import { attackModuleOptions, damagingModuleOptions, selectAttackModule } from "../attack-modules.js";
 import { obstacleKeys } from "../terrain.js";
 import { TerrainEditor } from "./terrain-editor.js";
 import { nextDayIds, materializeRoutes, campaignLayout } from "../campaign.js";
 import { routeGraph } from "../route-map.js";
 import { triggerRulesEditor } from "./trigger-editor.js";
-import { newTriggerRule, defaultHeroRules, triggerEffects } from "./trigger-rules.js";
+import { newTriggerRule, defaultHeroRules, triggerEffects, cardPlayRules } from "./trigger-rules.js";
 import { levelStats } from "../level-stats.js";
 import { heroPresets, lookLabel, createPresetCard, presetById } from "../hero-presets.js";
 import { valueModes, statModes } from "../effect-values.js";
@@ -70,7 +72,7 @@ function message(text, error = false) {
   $("config-message").textContent = text;
   $("config-message").className = error ? "error" : "success";
 }
-const terrainEditor = new TerrainEditor($("editor"), () => section === "waves" ? draft.days[selected] : null, markDirty);
+const terrainEditor = new TerrainEditor($("editor"), () => section === "waves" ? draft.days[selected] : section === "maps" ? draft.mapPresets[selected] : null, markDirty);
 function field(
   label,
   path,
@@ -81,6 +83,7 @@ function field(
     step = "any",
     options,
     wide = false,
+    disabled = false,
   } = {},
 ) {
   const value = get(path) ?? "";
@@ -93,25 +96,27 @@ function field(
         .join("")}</select>`
     : type === "textarea"
       ? `<textarea data-path="${path}" rows="2" maxlength="180">${esc(value)}</textarea>`
-      : `<input data-path="${path}" type="${type}" value="${esc(value)}" ${type === "number" ? `min="${min}" max="${max}" step="${step}"` : 'maxlength="80"'}>`;
+      : `<input data-path="${path}" type="${type}" value="${esc(value)}" ${disabled ? "disabled" : ""} ${type === "number" ? `min="${min}" max="${max}" step="${step}"` : 'maxlength="80"'}>`;
   return `<label class="field ${wide ? "wide" : ""}"><span>${esc(label)}</span>${input}</label>`;
 }
 function unitFields(path) {
   const hero = path.startsWith("cards.") && draft.cards[path.split(".")[1]]?.category === "hero";
+  const preset = hero && draft.cards[path.split(".")[1]].statSource === "preset";
   const healing = hero && get(path + ".combatBehavior") === "heal";
   const behavior = hero ? `<div class="fields">${field("战斗行为", path + ".combatBehavior", { options: combatBehaviors })}${healing ? field("治疗对象", path + ".healing.targets", { options: healingTargets }) + field("治疗量类型", path + ".healing.valueMode", { options: { fixed: "固定生命值", percent: "目标最大生命值百分比" } }) + field(get(path + ".healing.valueMode") === "percent" ? "每次治疗（最大生命的 %）" : "每次治疗生命值", path + ".healing.value", { type: "number", min: get(path + ".healing.valueMode") === "percent" ? .01 : 1, max: get(path + ".healing.valueMode") === "percent" ? 100 : 100000, step: "any" }) : ""}</div>${healing ? '<p class="hint">战斗中全图寻找最近的受伤队友，走入治疗距离后自动治疗。斜角为 1 格；不治疗自身、阵亡单位、核心或金矿，不攻击敌人。治疗不暴击，最多回到满血。手动移动优先，到达后重新选择目标。治疗速度、距离使用原攻速和射程属性，增益与装备仍有效。</p>' : ""}` : "";
-  return `${behavior}${hero ? mechanicsEditor(get(path),path,field) : ""}<p class="hint">攻击模组决定攻击动作、武器与弹道；自动治疗使用独立的绿色治疗特效。外观由「实际使用 icon」配置，装备可覆盖武器。</p><div class="fields">${field("攻击模组", path + ".attackModule", { options: attackModuleOptions })}${Object.entries(
+  return `${behavior}${hero ? mechanicsEditor(get(path),path,field) : ""}<p class="hint">攻击模组决定攻击动作、武器与弹道；选择治疗模组会自动治疗受伤友军，目标显示绿色光环与十字特效。外观由「实际使用 icon」配置，装备可覆盖武器。</p><div class="fields">${field("攻击模组", path + ".attackModule", { options: hero ? attackModuleOptions : damagingModuleOptions })}${Object.entries(
     statLabels,
   )
     .map(([k, t]) =>
       field(healing && k === "rate" ? "治疗速度（次/秒）" : healing && k === "range" ? "治疗距离（格）" : ["maxHp", "atk"].includes(k) ? t + "（1 级基础值）" : t, path + "." + k, {
         type: "number",
+        disabled: preset,
         min: ["rate", "speed"].includes(k) ? 0.05 : k === "maxHp" ? 1 : 0,
         max: k === "critChance" ? 100 : ["rate", "speed"].includes(k) ? 20 : k === "range" ? 24 : 1000000,
         step: k === "range" ? 1 : "any",
       }),
     )
-    .join("")}</div><div class="level-growth"><h4>等级成长 · 一次函数</h4><p class="hint">属性 = 1 级基础值 + 每级增量 ×（等级 − 1）。装备和其他增益在此基础上计算。</p><div class="fields">${field("生命值每级增加", path + ".levelGrowth.maxHp", { type: "number", max: 100000, step: "any" })}${field("攻击力每级增加", path + ".levelGrowth.atk", { type: "number", max: 100000, step: "any" })}</div><div data-growth-preview="${path}">${growthPreview(path)}</div></div>`;
+    .join("")}</div><div class="level-growth"><h4>等级成长 · 一次函数</h4><p class="hint">属性 = 1 级基础值 + 每级增量 ×（等级 − 1）。装备和其他增益在此基础上计算。</p><div class="fields">${field("生命值每级增加", path + ".levelGrowth.maxHp", { type: "number", max: 100000, step: "any", disabled: preset })}${field("攻击力每级增加", path + ".levelGrowth.atk", { type: "number", max: 100000, step: "any", disabled: preset })}</div><div data-growth-preview="${path}">${growthPreview(path)}</div></div>`;
 }
 function growthPreview(path) {
   const unit = get(path);
@@ -231,7 +236,7 @@ function effectsEditor(card, path) {
     )}</select><button data-action="add-effect">＋ 叠加效果</button></div>`;
 }
 function preview(card) {
-  return `<div class="preview-sticky"><div class="nav-caption">卡面预览</div><div class="hand-card ${card.category} config-preview"><b class="card-count"><span>×</span>1</b><strong class="card-title">${esc(card.name)}</strong><div class="card-picture"><img src="${iconURL(card.icon, true)}" alt=""></div><span class="card-kind">${types[card.category]}${card.temporary ? " · 临时" : ""}</span><small class="card-description">${esc(card.text).replace(/ · /g, "<br>")}</small><span class="card-flourish">◆</span></div><small>属性效果按列表顺序叠加，等级成长先计入基础属性。描述为独立展示文本。</small><div class="actual-preview"><img src="${iconURL(card.useIcon)}" alt="使用图标"><span>实际使用图标</span></div></div>`;
+  return `<div class="preview-sticky"><div class="nav-caption">卡面预览</div><div class="hand-card ${card.category} ${heroRarityClass(card)} config-preview">${card.category === "hero" ? "" : '<b class="card-count">×1</b>'}<strong class="card-title">${esc(card.name)}</strong><div class="card-picture"><img src="${iconURL(card.icon, true)}" alt=""></div><span class="card-kind">${heroGradeLabel(card) || types[card.category]}${card.temporary ? " · 临时" : ""}</span><small class="card-description">${esc(card.text).replace(/ · /g, "<br>")}</small><span class="card-flourish">◆</span></div><small>属性效果按列表顺序叠加，等级成长先计入基础属性。描述为独立展示文本。</small><div class="actual-preview"><img src="${iconURL(card.useIcon)}" alt="使用图标"><span>实际使用图标</span></div></div>`;
 }
 function entityList(items, kind) {
   const depths = kind === "day" ? new Map(campaignLayout(draft).nodes.map((node) => [node.day.id, node.depth + 1])) : null;
@@ -250,7 +255,14 @@ function renderCards() {
     )
     .join(
       "",
-    )}</div><div class="editor-columns">${entityList(items, "card")}${card ? `<div class="entity-form"><div class="entity-title"><h2>${esc(card.name)}</h2><div><button data-action="duplicate-card">复制</button><button data-action="delete-card" class="danger">删除</button></div></div>${panel("基本信息", `<div class="fields">${field("名字", "cards." + selected + ".name")}${field("使用目标", "cards." + selected + ".target", { options: { hero: { ground: "空地" }, resource: { any: "\u6218\u573a\u4efb\u610f\u4f4d\u7f6e", hero: "我方英雄", ground: "空地（放置炮台）" }, battle: { area: "范围位置", enemy: "敌方单位" }, equipment: { hero: "我方英雄" } }[category] })}${field("描述", "cards." + selected + ".text", { type: "textarea", wide: true })}<label class="trigger-enable"><input type="checkbox" data-path="cards.${selected}.temporary" ${card.temporary ? "checked" : ""}>临时牌（本场战斗结束清除）</label></div><div class="icon-pair">${iconEditor("卡牌 icon", "cards." + selected + ".icon", "显示在手牌与奖励牌上")}${iconEditor("实际使用 icon", "cards." + selected + ".useIcon", "单位外观 / 装备标记 / 施放图标")}</div>`)}${category === "hero" ? panel("英雄属性", unitFields("cards." + selected + ".unit")) : ""}${category === "battle" ? panel("战斗表现", field("施法特效", "cards." + selected + ".visual", { options: { fireball: "火球爆环", lightning: "落雷", frost: "寒霜" } })) : ""}${panel("组合效果", effectsEditor(card, "cards." + selected))}${card.effects.some((e) => e.type === "summon") ? panel("炮台属性", unitFields("cards." + selected + ".unit")) : ""}</div><aside id="card-preview">${preview(card)}</aside>` : '<div class="empty-editor">该分类暂无卡牌，点击新增开始配置。</div>'}</div>`;
+    )}</div><div class="editor-columns">${entityList(items, "card")}${card ? `<div class="entity-form"><div class="entity-title"><h2>${esc(card.name)}</h2><div><button data-action="duplicate-card">复制</button><button data-action="delete-card" class="danger">删除</button></div></div>${panel("基本信息", `<div class="fields">${field("名字", "cards." + selected + ".name")}${field("使用目标", "cards." + selected + ".target", { options: { hero: { ground: "空地" }, resource: { any: "\u6218\u573a\u4efb\u610f\u4f4d\u7f6e", hero: "我方英雄", ground: "空地（放置炮台）" }, battle: { area: "范围位置", enemy: "敌方单位" }, equipment: { hero: "我方英雄" } }[category] })}${field("描述", "cards." + selected + ".text", { type: "textarea", wide: true })}<label class="trigger-enable"><input type="checkbox" data-path="cards.${selected}.temporary" ${card.temporary ? "checked" : ""}>临时牌（本场战斗结束清除）</label></div><div class="icon-pair">${iconEditor("卡牌 icon", "cards." + selected + ".icon", "显示在手牌与奖励牌上")}${iconEditor("实际使用 icon", "cards." + selected + ".useIcon", "单位外观 / 装备标记 / 施放图标")}</div>`)}${category === "hero" ? heroGradeEditor(card) + panel("英雄属性", unitFields("cards." + selected + ".unit")) : ""}${category === "battle" ? panel("战斗表现", field("施法特效", "cards." + selected + ".visual", { options: { fireball: "火球爆环", lightning: "落雷", frost: "寒霜" } })) : ""}${panel("组合效果", effectsEditor(card, "cards." + selected))}${card.effects.some((e) => e.type === "summon") ? panel("炮台属性", unitFields("cards." + selected + ".unit")) : ""}</div><aside id="card-preview">${preview(card)}</aside>` : '<div class="empty-editor">该分类暂无卡牌，点击新增开始配置。</div>'}</div>`;
+}
+function heroGradeEditor(card) {
+  const path = "cards." + selected;
+  return panel("英雄品质与定位", `<div class="fields">${field("品质", path + ".rarity", { options: heroRarities })}${field("定位", path + ".role", { options: heroRoles })}${field("数值来源", path + ".statSource", { options: { preset: "跟随品质与定位预设", custom: "单独配置" } })}</div><p class="hint">选择品质或定位会自动套用对应预设，覆盖基础属性与等级成长；外观、攻击模组、治疗行为和技能保持不变。预设可在「初始默认」中修改。${card.statSource === "preset" ? "当前数值随预设同步；如需单独调整，请切换为「单独配置」。" : "当前保留单独数值；切换为「跟随品质与定位预设」即可套用。"}</p>`);
+}
+function heroPresetsEditor() {
+  return panel("英雄基础数值预设", `<p class="hint">按品质与定位设置 1 级基础属性和每级成长。修改后会同步到所有选择「跟随品质与定位预设」的英雄，保存后生效；单独配置的英雄不受影响。</p><div class="hero-stat-presets">${Object.entries(heroRarities).map(([rarity, label]) => `<details class="hero-stat-tier rarity-${rarity}" ${rarity === "common" ? "open" : ""}><summary>${label}<small>5 种定位</small></summary>${Object.entries(heroRoles).map(([role, title]) => `<section class="hero-role-preset"><h4>${label} · ${title}</h4><div class="fields">${Object.entries(heroStatFields).map(([key, spec]) => field(spec.label, `initial.heroStatPresets.${rarity}.${role}.${key}`, { type: "number", ...spec })).join("")}</div></section>`).join("")}</details>`).join("")}</div>`);
 }
 function renderInitial() {
   return `<div class="entity-title"><h2>初始默认配置</h2><span class="hint">每次开局的规则</span></div><div class="initial-layout"><div>${panel("核心与波后恢复", `<div class="fields">${field("每天第一波开始等待（秒）", "initial.firstWaveDelay", { type: "number", max: 3600 })}${field("核心初始生命", "initial.baseHp", { type: "number", min: 1 })}${field("波后治疗比例", "initial.waveHeal", { type: "number", max: 1 })}${field("阵亡英雄复活血量比例", "initial.reviveHp", { type: "number", min: 0.01, max: 1 })}</div>`)}${panel(
@@ -260,7 +272,7 @@ function renderInitial() {
     })
       .map(([k, t]) => field(t, "initial.levelGrowth." + k, { type: "number" }))
       .join("")}</div><p class="hint">生命值与攻击力的等级公式在各英雄、敌人的属性中分别配置。</p>`,
-  )}</div>${panel("初始手牌", inventory("initial.cards"))}</div>`;
+  )}</div>${panel("初始手牌", inventory("initial.cards"))}</div>${heroPresetsEditor()}`;
 }
 function renderEnemies() {
   const items = Object.entries(draft.enemies);
@@ -285,6 +297,14 @@ function spawnGrid(w) {
     "",
   )}</div><div class="spawn-coordinates">${w.spawns.map((p) => `<span>(${p.x}, ${p.y})</span>`).join("")}</div>`;
 }
+function mapPresetPicker() {
+  return `<div class="map-preset-controls"><label class="field"><span>套用地图预设</span><select data-map-preset><option value="">选择预设，替换当前地图</option>${Object.entries(draft.mapPresets).map(([id, preset]) => `<option value="${esc(id)}">${esc(preset.name)} · ${preset.obstacles.length} 树木 / ${preset.mines.length} 金矿</option>`).join("")}</select></label><button type="button" data-action="capture-map">将当前地图存为预设</button></div><p class="hint">套用树木、金矿位置及金矿生命；波次和出生点保持当前关卡的配置。套用后的地图可独立修改，不随预设后续编辑变化。</p>`;
+}
+function renderMapPresets() {
+  if (!draft.mapPresets[selected]) selected = Object.keys(draft.mapPresets)[0];
+  const preset = draft.mapPresets[selected];
+  return `<div class="entity-title"><h2>地图预设</h2><span class="hint">保存布局，在不同关卡重复使用</span></div><div class="editor-columns two">${entityList(Object.entries(draft.mapPresets).map(([key, item]) => [key, { ...item, icon: "base" }]), "map")}${preset ? `<div class="entity-form"><div class="entity-title"><h2>${esc(preset.name)}</h2><div><button data-action="duplicate-map">复制预设</button><button data-action="delete-map" class="danger">删除预设</button></div></div>${panel("地图信息", field("名称", `mapPresets.${selected}.name`) + '<p class="hint">预设保存树木与金矿布局。出生点、波次、敌人及奖励在各关卡中单独配置；也可在关卡地图中点击「将当前地图存为预设」。</p>')}${panel("地图布局 · 15 × 11", terrainEditor.render(preset))}</div>` : '<div class="empty-editor">暂无地图预设，点击新增绘制地图，或从关卡保存现有地图。</div>'}</div>`;
+}
 function renderWaves() {
   selected = Math.max(0, Math.min(Number(selected) || 0, draft.days.length - 1));
   const day = draft.days[selected], path = "days." + selected;
@@ -304,7 +324,7 @@ function renderWaves() {
   return '<div class="campaign-editor">' + panel('关卡路线 · 点击节点编辑', field('路线起点', 'startDayId', { options: Object.fromEntries(draft.days.map((d) => [d.id, d.name])) }) + routeGraph(draft, { selected: day.id, available: successors, editor: true }) + '<p class="hint">从左向右推进，每一列为一天。所有节点需从起点可达，路线不能形成循环。</p>') + '</div><div class="editor-columns two">' + entityList(draft.days.map((d, i) => [i, d]), 'day') + '<div class="entity-form"><div class="entity-title"><h2>第 ' + depth + ' 天 · ' + esc(day.name) + '</h2><div>' + dayButtons + '</div></div>'
     + panel('关卡', field('名称', path + '.name') + field('节点类型', path + '.kind', { options: { battle: '战斗', shop: '商店' } }))
     + panel('后续路线', connections)
-    + (day.kind === 'shop' ? shopSettings(path) : panel('当天地图 · 树木与金矿', terrainEditor.render(day))
+    + (day.kind === 'shop' ? shopSettings(path) : panel('当天地图 · 树木与金矿', mapPresetPicker() + terrainEditor.render(day))
     + panel('当天波次', '<div class="wave-tabs">' + waveTabs + '<button data-action="add-wave">＋ 新增波次</button></div><p class="hint">每波所有敌人出齐并被消灭后，才开始计算下一波的等待时间。最后一波结束后领取当天奖励。</p>')
     + panel('第 ' + (waveSelected + 1) + ' 波 · ' + waveCount(w) + ' 名敌人', '<div class="wave-actions"><button data-action="wave-up">↑ 前移</button><button data-action="wave-down">↓ 后移</button><button data-action="duplicate-wave">复制波次</button><button data-action="delete-wave" class="danger">删除波次</button></div><div class="fields">' + field('波次名称', wp + '.name') + (waveSelected === 0 ? '<p class="hint">第一波等待：' + draft.initial.firstWaveDelay + ' 秒（在「初始默认」修改，从开始当天起算）</p>' : field('上一波结束后等待（秒）', wp + '.startDelay', { type: 'number', max: 3600 })) + field('生命倍率', wp + '.hpScale', { type: 'number', min: 0.05, max: 100 }) + field('攻击倍率', wp + '.atkScale', { type: 'number', min: 0.05, max: 100 }) + '</div>')
     + panel('出生点与出兵配置', spawnGrid(w) + '<p class="hint">不同出生点独立计时，按各自列表顺序逐个出兵。出生格被占用时等待，不会转移出生点。</p>' + points)
@@ -330,6 +350,7 @@ function render() {
     enemies: ["03", "敌方单位"],
     waves: ["04", "关卡路线"],
     pools: ["05", "奖励池"],
+    maps: ["06", "地图预设"],
   })
     .map(
       ([k, [n, t]]) =>
@@ -343,6 +364,7 @@ function render() {
     enemies: renderEnemies,
     waves: renderWaves,
     pools: renderPools,
+    maps: renderMapPresets,
   }[section]();
   if (section === "cards" && draft.cards[selected]?.category === "hero") {
     document.querySelector(".entity-form").insertAdjacentHTML("beforeend",
@@ -368,6 +390,7 @@ $("editor").addEventListener("input", (e) => {
     path,
     e.target.type === "checkbox" ? e.target.checked : e.target.type === "number" ? Number(e.target.value) : e.target.value,
   );
+  if (path.startsWith("initial.heroStatPresets.")) syncHeroStatPresets(draft);
   for (const element of document.querySelectorAll("[data-growth-preview]"))
     element.innerHTML = growthPreview(element.dataset.growthPreview);
   if (section === "cards" && $("card-preview"))
@@ -387,6 +410,27 @@ $("config-name").oninput = (e) => {
   markDirty();
 };
 $("editor").addEventListener("change", async (e) => {
+  if (e.target.matches("[data-map-preset]")) {
+    const preset = draft.mapPresets[e.target.value];
+    if (!preset) return;
+    try {
+      applyMapPreset(draft.days[selected], preset);
+      markDirty(); render();
+      message(`已套用「${preset.name}」。可继续调整当前关卡的地图，保存后生效。`);
+    } catch (error) {
+      e.target.value = "";
+      message("无法套用地图预设：" + error.message, true);
+    }
+    return;
+  }
+  const gradePath = e.target.dataset.path;
+  if (gradePath?.startsWith("cards.") && [".rarity", ".role", ".statSource"].some(suffix => gradePath.endsWith(suffix))) {
+    const card = draft.cards[gradePath.split(".")[1]];
+    set(gradePath, e.target.value);
+    if (!gradePath.endsWith(".statSource")) card.statSource = "preset";
+    if (card.statSource === "preset") applyHeroStatPreset(card, draft.initial.heroStatPresets);
+    render(); return;
+  }
   if (e.target.dataset.mechanic) {
     const unit = get(e.target.dataset.unitPath), key = e.target.dataset.mechanic;
     unit.mechanics ??= {};
@@ -397,16 +441,14 @@ $("editor").addEventListener("change", async (e) => {
   }
   if (e.target.dataset.path?.endsWith(".combatBehavior")) {
     const unit = get(e.target.dataset.path.replace(/\.combatBehavior$/, ""));
-    if (unit.combatBehavior === "heal") { unit.healing ??= clone(healingDefaults); unit.range = Math.max(1, unit.range); }
+    if (unit.combatBehavior === "heal") selectAttackModule(unit, "heal");
+    else if (unit.attackModule === "heal") selectAttackModule(unit, "staff");
     render(); return;
   }
   if (e.target.dataset.path?.endsWith(".attackModule")) {
-    const module = attackModules[e.target.value];
-    if (module) {
-      set(e.target.dataset.path, e.target.value);
-      set(e.target.dataset.path.replace(/\.attackModule$/, ".weapon"), module.weapon);
-    }
-    return;
+    const unit = get(e.target.dataset.path.replace(/\.attackModule$/, ""));
+    selectAttackModule(unit, e.target.value);
+    markDirty(); render(); return;
   }
   if (e.target.dataset.path?.endsWith(".kind") && section === "waves") {
     const day = draft.days[selected];
@@ -441,6 +483,7 @@ $("editor").addEventListener("change", async (e) => {
     if (e.target.dataset.path.endsWith(".trigger.event")) {
       const rule = get(e.target.dataset.path.replace(/\.trigger\.event$/, ""));
       if (rule.trigger.event === "interval") rule.trigger.interval ??= 10;
+      if (rule.trigger.event === "cardPlayed") { rule.trigger.every ??= 1; rule.trigger.category ??= "all"; }
       if (rule.trigger.event === "towerBuilt") rule.target.kind = "eventTower";
       else if (rule.target.kind === "eventTower") rule.target.kind = "self";
     }
@@ -492,11 +535,14 @@ document.addEventListener("click", (e) => {
     if (Object.keys(draft.cards).length >= 100) { message("最多配置 100 张卡牌", true); return; }
     const id = freshId("hero_" + b.dataset.heroPreset, draft.cards);
     draft.cards[id] = createPresetCard(b.dataset.heroPreset);
+    draft.cards[id].statSource = "preset";
+    applyHeroStatPreset(draft.cards[id], draft.initial.heroStatPresets);
     selected = id;
     markDirty(); render(); return;
   }
   if (b.dataset.triggerTemplate) {
     const templates = {
+      ...cardPlayRules,
       victoryGold: { ...newTriggerRule(), name:"胜利奖金", trigger:{event:"victory",scope:"any",radius:-1}, effects:[{type:"victoryGold",value:2}] },
       ...workshopRules,
       preparation: { ...newTriggerRule(), name: "整备随从", trigger: { event: "preparation", scope: "any", radius: -1 }, effects: [{ type: "summonFollower", hpPercent: 50, atkPercent: 50, count: 1 }] },
@@ -548,6 +594,25 @@ document.addEventListener("click", (e) => {
   }
   const action = b.dataset.action;
   if (!action) return;
+  if (["add-map", "duplicate-map", "capture-map"].includes(action)) {
+    if (Object.keys(draft.mapPresets).length >= 100) { message("最多保存 100 个地图预设", true); return; }
+    const source = action === "capture-map" ? draft.days[selected] : action === "duplicate-map" ? draft.mapPresets[selected] : { obstacles: [], mines: [] };
+    const errors = mapLayoutErrors(source);
+    if (errors.length) { message(errors.join("；"), true); return; }
+    const id = freshId("map", draft.mapPresets);
+    draft.mapPresets[id] = { name: action === "add-map" ? "新地图" : String(source.name).slice(0, 75) + (action === "capture-map" ? " · 地图" : " 副本"), ...copyMapLayout(source) };
+    section = "maps"; selected = id;
+    markDirty(); render();
+    if (action === "capture-map") message("当前地图已存为预设草稿，可重命名后保存；其他关卡可直接选用。");
+    return;
+  }
+  if (action === "delete-map") {
+    delete draft.mapPresets[selected];
+    selected = Object.keys(draft.mapPresets)[0];
+    markDirty(); render();
+    message("已删除预设草稿；已经套用的关卡保留原地图。保存后生效。");
+    return;
+  }
   const card = draft.cards[selected],
     day = draft.days[selected],
     w = day?.waves[waveSelected],
@@ -572,6 +637,10 @@ document.addEventListener("click", (e) => {
             ),
       id = freshId(category, draft.cards);
     draft.cards[id] = clone(template);
+    if (action === "add-card" && category === "hero") {
+      draft.cards[id].statSource = "preset";
+      applyHeroStatPreset(draft.cards[id], draft.initial.heroStatPresets);
+    }
     draft.cards[id].name =
       action === "duplicate-card"
         ? template.name + " 副本"

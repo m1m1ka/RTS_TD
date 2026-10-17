@@ -1,7 +1,7 @@
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, existsSync } from "node:fs";
 import { DEFAULT_CONFIG } from "../src/config/defaults.js";
 const c = structuredClone(DEFAULT_CONFIG);
 c.days = c.days.slice(0, 4);
@@ -26,7 +26,7 @@ try {
     try { if ((await fetch("http://127.0.0.1:5177")).ok) break; } catch {}
     await new Promise(r => setTimeout(r, 200));
   }
-  browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true, args: ["--enable-unsafe-swiftshader"] });
+  browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"].find(existsSync), headless: true, args: ["--enable-unsafe-swiftshader"] });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   await context.addInitScript((config) => {
     if (!localStorage.getItem("friday-defense-config-v1")) localStorage.setItem("friday-defense-config-v1", JSON.stringify(config));
@@ -72,6 +72,8 @@ try {
   await finishDay();
   await game.waitForFunction(() => window.__game.snapshot().phase === "route");
   await game.locator("#route-dialog .route-node.available").first().waitFor({ state: "visible" });
+  assert.ok(await game.locator("#route-dialog").evaluate(el => { const r = el.getBoundingClientRect(); return r.x === 0 && r.y === 0 && r.width === innerWidth && r.height === innerHeight; }), "route screen fills viewport");
+  assert.equal(await game.locator("[data-route-depart]").isDisabled(), true);
   assert.equal(await game.locator("#route-dialog .route-node.available").count(), 2);
   assert.equal(await game.locator(`#route-dialog [data-route-node="${end.id}"]`).isDisabled(), true);
   const pausedAt = (await state()).time;
@@ -79,11 +81,22 @@ try {
   assert.equal((await state()).time, pausedAt);
   await game.keyboard.press("Escape");
   assert.equal(await game.locator("#route-dialog").isVisible(), true);
+  await game.locator(`#route-dialog [data-route-node="${b.id}"]`).click();
+  assert.equal(await game.locator("[data-route-choice]").textContent(), b.name);
+  await game.locator(`#route-dialog [data-route-node="${branch.id}"]`).click();
+  assert.equal((await state()).phase, "route", "changing preview leaves campaign unchanged");
   await game.screenshot({ path: "logs/routes-game.png" });
   await game.setViewportSize({ width: 390, height: 844 });
+  await game.waitForTimeout(150);
   await game.screenshot({ path: "logs/routes-mobile.png" });
+  const scrollLeft = await game.locator("#route-dialog .route-scroll").evaluate(el => el.scrollLeft);
+  await game.keyboard.press("ArrowLeft");
+  assert.ok(await game.locator("#route-dialog .route-scroll").evaluate((el, before) => el.scrollLeft < before, scrollLeft), "keyboard pans the full-screen map");
   assert.ok(await game.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await game.locator(`#route-dialog [data-route-node="${branch.id}"]`).click();
+  assert.equal(await game.locator("[data-route-choice]").textContent(), branch.name);
+  assert.equal((await state()).phase, "route", "preview does not enter a level");
+  await game.locator("[data-route-depart]").click();
   assert.equal((await state()).day, 2);
   assert.equal((await state()).dayId, branch.id);
   assert.equal((await state()).heroes.length, 1);
@@ -94,6 +107,7 @@ try {
   await game.setViewportSize({ width: 1440, height: 1000 });
   await finishDay();
   await game.locator(`#route-dialog [data-route-node="${end.id}"]`).click();
+  await game.locator("[data-route-depart]").click();
   await finishDay();
   assert.equal((await state()).phase, "won");
   assert.deepEqual((await state()).routeHistory, [a.id, branch.id, end.id]);

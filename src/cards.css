@@ -69,6 +69,31 @@
   --face: #a7b69a;
   --wash: #bbc4ac;
 }
+.hero.rarity-common {
+  --edge: #39724b;
+  --face: #91bd8c;
+  --wash: #c3dfb3;
+  --rarity-paper: #c5ddb4;
+}
+.hero.rarity-rare {
+  --edge: #396e9b;
+  --face: #89b6d6;
+  --wash: #c0dcec;
+  --rarity-paper: #bfd8ed;
+}
+.hero.rarity-epic {
+  --edge: #a27b2b;
+  --face: #d6b45b;
+  --wash: #f1d98a;
+  --rarity-paper: #ecd18d;
+}
+.hand-card.hero {
+  background:
+    radial-gradient(ellipse at 17% 29%, #ffffff50, transparent 48%),
+    repeating-linear-gradient(9deg, #4d432806 0 1px, transparent 1px 5px),
+    var(--rarity-paper, #c5ddb4);
+  border-color: var(--edge);
+}
 .resource {
   --edge: #8b8554;
   --face: #bdba8a;
@@ -171,30 +196,25 @@
 }
 .card-count {
   position: absolute;
-  left: -10px;
-  top: -8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: 2px solid #514831;
-  border-radius: 48% 52% 47% 50%;
-  background: #eee1b8;
-  box-shadow:
-    inset 0 0 0 2px #e2d2a8,
-    1px 2px #71644855;
+  left: 0;
+  top: -13px;
+  display: block;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   font:
-    bold 22px Georgia,
+    bold 17px Georgia,
     serif;
-  color: #3f3b2a;
+  line-height: 1;
+  color: #fff1c6;
+  text-shadow: 0 1px 2px #263923, 1px 0 1px #263923, -1px 0 1px #263923;
   z-index: 3;
-  transform: rotate(-4deg);
 }
-.card-count span {
-  font-size: 10px;
-  align-self: flex-end;
-  margin: 0 1px 5px -1px;
+.hero .card-title {
+  padding-left: 0;
 }
 .card-picture {
   position: relative;
@@ -273,6 +293,10 @@
   line-height: 16px;
   letter-spacing: 0.2px;
   color: #4d4a33;
+}
+#hand .hero .card-kind {
+  width: 100%;
+  letter-spacing: 0;
 }
 .card-description em {
   display: contents;
@@ -364,17 +388,15 @@
 #reward-dialog {
   width: min(800px, 94vw);
   padding: 20px 24px 28px;
-  background: radial-gradient(ellipse at top, #506342, #253f30 65%);
-  border: 3px solid #a3ac79;
-  border-radius: 13px;
-  box-shadow:
-    0 0 0 5px #152b21,
-    0 20px 80px #071c18;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   text-align: center;
 }
 #reward-dialog::backdrop {
-  background: #081c1ba6;
-  backdrop-filter: blur(3px);
+  background: radial-gradient(ellipse at 50% 45%, #1a3328c9, #061b17ed);
+  backdrop-filter: blur(5px);
 }
 .reward-crest {
   font-size: 36px;
@@ -437,15 +459,8 @@
     margin-top: 2px;
   }
   .card-count {
-    width: 27px;
-    height: 27px;
-    font-size: 20px;
-    left: -8px;
-    top: -7px;
-  }
-  .card-count span {
-    font-size: 9px;
-    margin-bottom: 4px;
+    font-size: 15px;
+    top: -12px;
   }
   .hand-arrow {
     flex-basis: 18px;
@@ -506,9 +521,7 @@
     line-height: 13px;
   }
   .card-count {
-    width: 26px;
-    height: 26px;
-    font-size: 19px;
+    font-size: 14px;
   }
   .map-hint {
     bottom: 204px !important;

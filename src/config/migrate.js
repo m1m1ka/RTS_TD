@@ -1,3 +1,5 @@
+import { migrateHeroGrades } from "../hero-grades.js";
+import { migrateMapPresets } from "../map-presets.js";
 import { migrateHeroRules } from "./trigger-rules.js";
 import { migrateHeroContent } from "./hero-content.js";
 import { migrateLevelGrowth } from "../level-stats.js";
@@ -8,10 +10,11 @@ import { migrateRewards } from "../rewards.js";
 import { migrateShops } from "../shop.js";
 import { migrateAttackModules } from "../attack-modules.js";
 import { migrateWorkshopContent } from "./workshop-content.js";
+const finalizeConfig = config => migrateMapPresets(migrateHeroGrades(config));
 // Version 1 stored each level as a wave. Preserve each level as a day.
 export function migrateConfig(value) {
   const c = migrateWorkshopContent(migrateShops(structuredClone(value)));
-  if (c?.version !== 1) return migrateAttackModules(migrateRewards(migrateResourceContent(migrateCritical(migrateTerrain(migrateLevelGrowth(migrateHeroContent(migrateHeroRules(c))))))));
+  if (c?.version !== 1) return finalizeConfig(migrateAttackModules(migrateRewards(migrateResourceContent(migrateCritical(migrateTerrain(migrateLevelGrowth(migrateHeroContent(migrateHeroRules(c)))))))));
   if (!Array.isArray(c.waves) || !c.initial) throw new Error("旧配置缺少关卡或初始规则");
   c.version = 2;
   c.initial.firstWaveDelay = 0.5;
@@ -37,7 +40,7 @@ export function migrateConfig(value) {
   delete c.waves;
   migrateShops(c);
   migrateWorkshopContent(c);
-  return migrateAttackModules(migrateRewards(migrateResourceContent(migrateCritical(migrateTerrain(migrateLevelGrowth(migrateHeroContent(migrateHeroRules(c))))))));
+  return finalizeConfig(migrateAttackModules(migrateRewards(migrateResourceContent(migrateCritical(migrateTerrain(migrateLevelGrowth(migrateHeroContent(migrateHeroRules(c)))))))));
 }
 export const waveCount = (wave) => (wave?.spawns || []).reduce(
   (sum, p) => sum + p.enemies.reduce((n, e) => n + e.count, 0), 0,

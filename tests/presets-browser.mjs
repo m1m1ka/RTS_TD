@@ -43,7 +43,7 @@ try {
     assert.equal(await editor.locator(`[data-icon-select="cards.${key}.icon"]`).inputValue(), p.id);
     assert.equal(await editor.locator(`[data-icon-select="cards.${key}.useIcon"]`).inputValue(), p.id);
     assert.equal(await editor.locator(`[data-path="cards.${key}.unit.attackModule"]`).inputValue(), p.weapon || p.melee || "claw");
-    assert.equal(await editor.locator(`[data-path="cards.${key}.unit.attackModule"] option`).count(), 7);
+    assert.equal(await editor.locator(`[data-path="cards.${key}.unit.attackModule"] option`).count(), 8);
     assert.equal(await editor.locator(`[data-path="cards.${key}.unit.type"]`).count(), 0);
   }
   await editor.locator("#save-config").click();

@@ -37,6 +37,7 @@ try{
   await page.waitForFunction(()=>window.__game.snapshot().phase==="route");
   const next=page.locator(`#route-dialog [data-route-node="${c.days[1].id}"]`);
   assert.match(await next.textContent(),/商店/);await next.click();
+  await page.locator('[data-route-depart]').click();
   await page.waitForFunction(()=>window.__game.snapshot().phase==="shop");await page.locator('#shop-dialog').waitFor({state:"visible"});
   assert.equal(await page.locator('[data-shop-hero]').count(),2);assert.equal(await page.locator('[data-shop-pack]').count(),2);
   assert.equal(await page.locator('#start').isVisible(),false);assert.equal(await page.locator('#wave-progress').isVisible(),false);
@@ -72,6 +73,7 @@ try{
   assert.equal(await page.locator('[data-shop-pack]').count(),0);
   const lastGold=(await state()).gold;await page.locator('[data-shop-leave]').click();
   await page.locator(`#route-dialog [data-route-node="${c.days[2].id}"]`).click();
+  await page.locator('[data-route-depart]').click();
   assert.equal((await state()).phase,"between");assert.equal((await state()).gold,lastGold);
   assert.equal((await state()).heroes[0].level,3,"hero level survives shop transit");
   assert.deepEqual([(await state()).heroes[0].x,(await state()).heroes[0].y],[7,3]);

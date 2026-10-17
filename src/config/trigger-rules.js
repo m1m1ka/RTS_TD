@@ -1,6 +1,7 @@
 import { generationDefaults } from "../card-generation.js";
 // Event, source filter, target selection and payload are independent registries.
 export const triggerEvents = {
+  cardPlayed: "每使用 X 张牌后",
   interval: "战斗中每隔 X 秒",
   towerBuilt: "建设炮台时",
   preparation: "整备（开战前上场）",
@@ -19,6 +20,8 @@ export const triggerTargets = {
   alliesWithFollowers: "范围内所有拥有随从的英雄",
 };
 export const triggerEffects = {
+  randomStat: { label: "随机一项永久强化", defaults: { maxHp: 20, atk: 2, lifeSteal: 1, critChance: 1, critDamage: 5 } },
+  refundCard: { label: "概率返还本次使用的牌", defaults: { chance: 20 } },
   victoryGold: { label: "胜利后额外获得金币", defaults: { value: 2 } },
   ownerLevel: { label: "按自身等级比例提升目标等级", defaults: { percent: 50 } },
   revive: { label: "复活", defaults: { maxRevives: 1, hpPercent: 50 } },
@@ -36,6 +39,13 @@ export const newTriggerRule = () => ({
   target: { kind: "self", radius: -1, count: 1 },
   effects: [{ type: "level", value: 1 }],
 });
+export const cardPlayCategories = { all: "任意牌", resourceBattle: "资源牌和战斗牌", hero: "英雄牌", resource: "资源牌", battle: "战斗牌", equipment: "装备牌" };
+export const randomStatLabels = { maxHp: "最大生命增加", atk: "攻击力增加", lifeSteal: "吸血增加（百分点）", critChance: "暴击率增加（百分点）", critDamage: "暴击伤害增加（百分点）" };
+export const cardPlayRules = {
+  fiveCards: { ...newTriggerRule(), name: "五牌馈赠", trigger: { event: "cardPlayed", scope: "any", radius: -1, every: 5, category: "all" }, effects: [{ type: "generateCard", ...generationDefaults, category: "all" }] },
+  cardGrowth: { ...newTriggerRule(), name: "用牌成长", trigger: { event: "cardPlayed", scope: "any", radius: -1, every: 1, category: "all" }, effects: [{ type: "randomStat", ...triggerEffects.randomStat.defaults }] },
+  cardRefund: { ...newTriggerRule(), name: "灵感返还", trigger: { event: "cardPlayed", scope: "any", radius: -1, every: 1, category: "resourceBattle" }, effects: [{ type: "refundCard", ...triggerEffects.refundCard.defaults }] },
+};
 export function defaultHeroRules(key) {
   const rule = newTriggerRule();
   if (key === "hero_blue") return [rule, {

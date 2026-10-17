@@ -1,10 +1,34 @@
 import { effectAmount } from "./effect-values.js";
 import { addVictoryBonus, deathCountsAsSacrifice } from "./hero-mechanics.js";
+import { randomStatLabels } from "./config/trigger-rules.js";
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const inRange = (a, b, radius) => radius < 0 || distance(a, b) <= radius;
 
 export class HeroTriggers {
   constructor(game) { this.game = game; this.activations = 0; this.activeSources = new Set(); this.timers = new Map(); }
+  cardListeners() {
+    return this.game.heroes.filter(h => h.hp > 0 && !h.destroyed && !h.isFollower)
+      .map(hero => ({ hero, rules: this.rules(hero, "cardPlayed") }));
+  }
+  cardPlayed(key, listeners) {
+    const category = this.game.config.cards[key]?.category;
+    const playedCard = { key, category, refunded: false };
+    for (const { hero, rules } of listeners) {
+      if (hero.hp <= 0 || hero.destroyed || this.game.isDormant(hero)) continue;
+      hero.cardPlayCounts ??= {};
+      const active = new Set(rules.map((rule, i) => `${i}:${JSON.stringify(rule)}`));
+      for (const counter of Object.keys(hero.cardPlayCounts)) if (!active.has(counter)) delete hero.cardPlayCounts[counter];
+      for (const [i, rule] of rules.entries()) {
+        const filter = rule.trigger.category || "all";
+        if (filter !== "all" && !(filter === "resourceBattle" ? ["resource", "battle"].includes(category) : filter === category)) continue;
+        const counter = `${i}:${JSON.stringify(rule)}`;
+        const count = (hero.cardPlayCounts[counter] || 0) + 1;
+        const every = rule.trigger.every ?? 1;
+        hero.cardPlayCounts[counter] = count % every;
+        if (count >= every) this.resolve(hero, "cardPlayed", { rules: [rule], playedCard });
+      }
+    }
+  }
   tick(dt) {
     const game = this.game;
     if (!["waiting", "battle"].includes(game.phase) || !(dt > 0)) return;
@@ -108,6 +132,7 @@ export class HeroTriggers {
     // Each root owns a shared, typed queue: cross-event echoes cannot recurse.
     // Natural preparation is separate from the one extra preparation allowance.
     const cascade = {
+      playedCard: options.playedCard,
       queued: new Set(event === "battleStart" ? [`${event}:${hero.id}`] : []),
       queue: [{ hero, event, extra: false, rules: options.rules, eventHero: options.eventHero }],
     };
@@ -121,7 +146,7 @@ export class HeroTriggers {
       if (currentEvent === "battleStart") this.activations++;
       for (const rule of rules) this.run(current, eventHero, rule, cascade, deathEvent);
       const eventType = { interval: "heroInterval", towerBuilt: "heroTowerBuilt", preparation: "heroPreparation", battleStart: "heroBattleStart", sacrifice: "heroSacrifice", victory: "heroVictory" }[currentEvent];
-      game.emit(eventType, { unit: current, extra });
+      game.emit(eventType || "heroCardPlayed", { unit: current, extra });
       const listenerEvent = currentEvent === "battleStart" ? "heroBattleStart" : deathEvent ? "heroSacrifice" : null;
       if (!listenerEvent) continue;
       // Listener effects share the queue and never implicitly emit an activation.
@@ -138,6 +163,16 @@ export class HeroTriggers {
   run(owner, eventHero, rule, cascade, deathEvent = false) {
     const game = this.game, targets = this.targets(owner, eventHero, rule.target, deathEvent);
     for (const effect of rule.effects) {
+      if (effect.type === "refundCard") {
+        const played = cascade.playedCard;
+        if (played && !played.refunded && ["resource", "battle"].includes(played.category)
+          && effect.chance > 0 && (effect.chance >= 100 || Math.random() * 100 < effect.chance)) {
+          played.refunded = true;
+          game.cards[played.key] = (game.cards[played.key] || 0) + 1;
+          game.emit("cardRefunded", { card: played.key, unit: owner });
+        }
+        continue;
+      }
       if (effect.type === "victoryGold") {
         if (game.phase === "victory" && game.settlement) addVictoryBonus(game.settlement,owner,effect.value);
         continue;
@@ -178,6 +213,16 @@ export class HeroTriggers {
           const amount = Math.min(target.maxHp - target.hp, effectAmount(effect, target));
           target.hp += amount;
           if (amount > 0) game.emit("heal", { unit: target, amount });
+        } else if (effect.type === "randomStat") {
+          const stats = Object.keys(randomStatLabels);
+          const stat = stats[Math.floor(Math.random() * stats.length)];
+          const value = effect[stat];
+          const amount = stat === "lifeSteal" ? value / 100 : value;
+          const stored = target.triggerPermanentEffects.at(-1);
+          if (stored?.randomGrowth && stored.stat === stat) stored.value += amount;
+          else target.triggerPermanentEffects.push({ type: "stat", stat, mode: "add", value: amount, duration: "permanent", randomGrowth: true });
+          game.rebuildHero(target, false);
+          game.emit("randomStatGained", { unit: target, stat, value });
         } else if (effect.type === "stat") {
           const bucket = effect.duration === "day" ? target.dayEffects : target.triggerPermanentEffects;
           bucket.push({ ...structuredClone(effect), ...(effect.whileSourceAlive ? { sourceHeroId: owner.id } : {}) });

@@ -1,3 +1,5 @@
+import { migrateHeroGrades } from "../hero-grades.js";
+import { migrateMapPresets } from "../map-presets.js";
 import { CATGIRL_CARD, HERO_CONTENT_VERSION } from "./hero-content.js";
 import { migrateLevelGrowth } from "../level-stats.js";
 import { migrateTerrain } from "../terrain.js";
@@ -1552,3 +1554,6 @@ migrateShops(DEFAULT_CONFIG);
 migrateAttackModules(DEFAULT_CONFIG);
 // Keep the new card available in fresh games and portable default exports.
 migrateWorkshopContent(DEFAULT_CONFIG);
+
+migrateHeroGrades(DEFAULT_CONFIG);
+migrateMapPresets(DEFAULT_CONFIG);

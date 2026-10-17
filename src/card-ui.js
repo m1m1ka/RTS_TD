@@ -1,3 +1,4 @@
+import { heroRarityClass, heroGradeLabel } from "./hero-grades.js";
 import { RewardUI } from "./reward-ui.js";
 import { cards, cardTypes } from "./cards.js";
 import { CardAim } from "./card-aim.js";
@@ -15,6 +16,7 @@ export class CardUI {
       canInteract,
     });
     this.activeKey = null;
+    this.activeSlot = null;
     this.signature = "";
     this.drag = null;
     this.aim = new CardAim();
@@ -39,6 +41,7 @@ export class CardUI {
       b.setPointerCapture(e.pointerId);
       this.drag = {
         key: b.dataset.card,
+        slot: b.dataset.handSlot,
         x: e.clientX,
         y: e.clientY,
         moved: false,
@@ -51,7 +54,7 @@ export class CardUI {
       if (!d) return;
       if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) {
         d.moved = true;
-        this.select(d.key);
+        this.select(d.key, d.slot);
         d.button.classList.add("aiming");
       }
       if (d.moved) {
@@ -72,7 +75,7 @@ export class CardUI {
           if (this.onDrop(d.key, e)) this.cancel();
         }
         this.onAim(null);
-      } else this.select(this.activeKey === d.key ? null : d.key);
+      } else this.select(this.activeSlot === d.slot ? null : d.key, d.slot);
       this.render();
     });
     this.hand.addEventListener("pointercancel", () => this.cancel());
@@ -89,7 +92,7 @@ export class CardUI {
       const b = e.target.closest("[data-card]");
       if (b && ["Enter", " "].includes(e.key)) {
         e.preventDefault();
-        this.select(b.dataset.card);
+        this.select(b.dataset.card, b.dataset.handSlot);
       }
     });
     this.rewardChoice = new RewardUI(game, () => { this.cancel(); this.render(); });
@@ -99,11 +102,13 @@ export class CardUI {
     const c = cards[key];
     return `<img src="${iconURL(c.icon, true)}" alt="" draggable="false">`;
   }
-  select(key) {
+  select(key, slot = null) {
     this.activeKey = key;
+    this.activeSlot = key ? slot || this.hand.querySelector(`[data-card="${key}"]`)?.dataset.handSlot : null;
     this.hand.querySelectorAll("[data-card]").forEach((b) => {
-      b.classList.toggle("selected", b.dataset.card === key);
-      b.setAttribute("aria-pressed", String(b.dataset.card === key));
+      const selected = b.dataset.handSlot === this.activeSlot;
+      b.classList.toggle("selected", selected);
+      b.setAttribute("aria-pressed", String(selected));
     });
     this.onSelect(key);
   }
@@ -138,14 +143,22 @@ export class CardUI {
         return;
       }
     }
-    const sig = getConfigRevision() + JSON.stringify([this.game.cards, this.game.heroReserve.map((h) => [h.cardId, h.level])]);
+    const sig = getConfigRevision() + JSON.stringify([this.game.cards, this.game.heroReserve.map((h) => [h.cardId, h.level]), this.game.heroes.map(h => [h.cardId, h.hp > 0, h.destroyed])]);
     if (sig !== this.signature) {
       this.signature = sig;
       this.hand.innerHTML =
         Object.entries(this.game.cards)
           .filter(([, n]) => n > 0)
-          .map(([k, n], i, hand) => {
+          .flatMap(([key, count]) => cards[key].category === "hero"
+            ? Array.from({ length: count }, (_, copy) => ({ key, count: 1, copy }))
+            : [{ key, count, copy: 0 }])
+          .map(({ key: k, count: n, copy }, i, hand) => {
             const c = cards[k];
+            const slot = `${k}:${copy}`;
+            const selected = this.activeSlot === slot;
+            const deployed = c.category === "hero" && this.game.heroes.find(h => h.cardId === k && !h.destroyed);
+            const reserve = this.game.heroReserve.filter(h => h.cardId === k)[copy];
+            const heroHint = deployed ? (deployed.hp > 0 ? "对同名英雄使用 · 等级 +3" : "等待英雄复活后升级 +3") : "部署英雄 · 重复牌可升级 +3";
             const spread =
               hand.length < 2 ? 0 : (i / (hand.length - 1) - 0.5) * 2;
             const label =
@@ -156,16 +169,13 @@ export class CardUI {
                 battle: "消耗",
                 equipment: "装备",
               }[c.category]);
-            const description = escapeHTML(c.text)
+            const description = escapeHTML(deployed ? heroHint : c.text)
               .replace(/ · /g, "<br>")
               .replace(/([+]?\d+(?:%)?)/g, "<em>$1</em>");
-            return `<button class="hand-card ${c.category} ${this.activeKey === k ? "selected" : ""}" style="--tilt:${spread * 4}deg;--arc:${Math.abs(spread) * 7}px" data-card="${k}" aria-label="${escapeHTML(c.name)}，${escapeHTML(c.text)}，持有${n}张" title="${escapeHTML(c.text)} · 持有 ${n} 张" aria-pressed="${this.activeKey === k}"><b class="card-count" aria-hidden="true"><span>×</span>${n}</b><strong class="card-title">${escapeHTML(c.name)}</strong><div class="card-picture">${this.art(k)}</div><span class="card-kind">${label}</span><small class="card-description">${description}</small><span class="card-flourish" aria-hidden="true">◆</span></button>`;
+            return `<button class="hand-card ${c.category} ${heroRarityClass(c)} ${selected ? "selected" : ""}" style="--tilt:${spread * 4}deg;--arc:${Math.abs(spread) * 7}px" data-card="${k}" data-hand-slot="${slot}" aria-label="${escapeHTML(c.name)}，${escapeHTML(c.category === "hero" ? heroHint : c.text)}，${c.category === "hero" ? `第${copy + 1}张` : `持有${n}张`}" title="${escapeHTML(c.text)} · ${c.category === "hero" ? heroHint : `持有 ${n} 张`}" aria-pressed="${selected}">${c.category === "hero" ? "" : `<b class="card-count" aria-hidden="true">×${n}</b>`}<strong class="card-title">${escapeHTML(c.name)}</strong><div class="card-picture">${this.art(k)}</div><span class="card-kind">${c.category === "hero" ? heroGradeLabel(c).replaceAll(" · ", "·") + (deployed ? " 升级+3" : " Lv." + (reserve?.level ?? 1)) + (c.temporary ? " 临时" : "") : label}</span><small class="card-description">${description}</small><span class="card-flourish" aria-hidden="true">◆</span></button>`;
           })
           .join("") || '<span class="empty-hand">暂无卡牌</span>';
     }
-    document.getElementById("cards-total").textContent = Object.values(
-      this.game.cards,
-    ).reduce((a, b) => a + b, 0);
     const overflow = this.hand.scrollWidth > this.hand.clientWidth + 2;
     this.hand.classList.toggle("overflowing", overflow);
     for (const id of ["hand-prev", "hand-next"])

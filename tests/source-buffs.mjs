@@ -64,10 +64,11 @@ const deploy = c => {
 {
   const c = config();
   c.cards.hero_blue.triggerRules = [rule([stat("rate", 2, { mode: "multiply", duration: "permanent" })])];
+  c.cards.hero_catgirl.triggerRules = structuredClone(c.cards.hero_blue.triggerRules);
   const g = deploy(c), [a, , d] = g.heroes, base = d.rate;
-  g.cards.hero_blue = 1; assert.ok(g.playCard("hero_blue", 6, 4));
+  g.cards.hero_catgirl = 1; assert.ok(g.playCard("hero_catgirl", 6, 4));
   const second = g.heroes.at(-1); g.startDay(); near(d.rate, base * 4);
-  g.hit(a, 100000, { side: "enemy" }); near(d.rate, base * 2, "source identity is a unit id, not card id");
+  g.hit(a, 100000, { side: "enemy" }); near(d.rate, base * 2, "independent heroes retain independent source effects");
   g.cards.legacy = 1; assert.ok(g.playCard("legacy", second.x, second.y));
   near(d.rate, base, "sacrificing a source revokes its effects immediately");
   a.hp = 1; g.tick(0); near(d.rate, base * 2);

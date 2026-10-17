@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { Game, attackKind } from "../src/game.js";
 import { DEFAULT_CONFIG } from "../src/config/defaults.js";
 import { assertConfig, validateConfig } from "../src/config/schema.js";
-import { attackModules, attackModuleId } from "../src/attack-modules.js";
+import { attackModules, attackModuleId, selectAttackModule } from "../src/attack-modules.js";
 import { heroPresets, createPresetCard } from "../src/hero-presets.js";
 const clone = () => structuredClone(DEFAULT_CONFIG);
-assert.equal(Object.keys(attackModules).length, 7);
+assert.equal(Object.keys(attackModules).length, 8);
 {
   const old = clone();
   for (const p of heroPresets) old.cards[`hero_${p.id}`] = createPresetCard(p.id);
@@ -33,6 +33,22 @@ for (const [module,spec] of Object.entries(attackModules)) {
   assert.equal(attackKind(hero),spec.kind,"skin does not dictate attack");
   assert.deepEqual([hero.maxHp,hero.atk,hero.rate,hero.range,hero.speed],before);
   const [f]=g.summonFollowers(hero,{count:1,hpPercent:50,atkPercent:50});
+  if (spec.heroOnly) {
+    assert.equal(hero.combatBehavior, "heal");
+    assert.equal(hero.healing.value, 30);
+    assert.equal(f.attackModule, "staff", "healer followers retain offensive spells");
+    assert.equal(attackKind(f), "orb");
+    for (const unit of [c.enemies.grunt, c.cards.tower.unit]) {
+      unit.attackModule = module;
+      assert.throws(() => assertConfig(c), /治疗模组仅适用于英雄/);
+      unit.attackModule = "claw";
+    }
+    selectAttackModule(c.cards.hero_blue.unit, "bow");
+    g.applyConfig(assertConfig(c));
+    assert.equal(hero.combatBehavior, "attack");
+    assert.equal(attackKind(hero), "arrow");
+    continue;
+  }
   assert.equal(f.attackModule,module);assert.equal(attackKind(f),spec.kind);
   g.enemies=[];g.config.enemies.grunt.attackModule=module;g.startDay();g.beginWave();
   const queue={x:7,y:0,spawned:0,types:["grunt"],levels:[1],interval:1};
@@ -51,4 +67,4 @@ for (const [module,spec] of Object.entries(attackModules)) {
   const invalid=clone();invalid.cards.hero_blue.unit.attackModule="hero_blue";
   assert.ok(validateConfig(invalid).length);assert.throws(()=>assertConfig(invalid));
 }
-console.log("PASS attack modules: 7 shared actions, all legacy presets migrated, icon independence, hero/enemy/tower/follower use, hot changes, equipment override and portable validation");
+console.log("PASS attack modules: 7 shared attacks and hero healing module, legacy migration, followers, live switching, equipment and validation");

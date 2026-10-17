@@ -39,9 +39,10 @@ const clear = g => { g.spawnQueues.forEach(q => q.spawned = q.types.length); g.e
 }
 {
   const { g, a, b } = setup();
-  g.cards.hero_blue = 1; g.playCard("hero_blue", 6, 4); const twin = g.heroes.at(-1);
+  g.config.cards.hero_catgirl.triggerRules = structuredClone(g.config.cards.hero_blue.triggerRules);
+  g.cards.hero_catgirl = 1; assert.ok(g.playCard("hero_catgirl", 6, 4)); const twin = g.heroes.at(-1);
   kill(g,a); kill(g,a); kill(g,a); kill(g,twin);
-  assert.equal(a.hp, 0); assert.equal(twin.reviveUsage.used, 1, "same-card heroes have independent allowances");
+  assert.equal(a.hp, 0); assert.equal(twin.reviveUsage.used, 1, "different heroes with the same revival rules have independent allowances");
   g.cards.legacy = 1; g.playCard("legacy", twin.x, twin.y);
   assert.ok(!g.heroes.includes(twin)); assert.equal(twin.hp, 0);
   assert.equal(twin.reviveUsage.used, 1, "permanent destruction does not spend a revival charge");

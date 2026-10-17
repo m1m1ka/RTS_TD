@@ -1,4 +1,7 @@
-// Stored in percentage points: 25 means a 25% chance. Damage is always 200%.
+// Both values use percentage points. Critical damage defaults to 200%.
+export function criticalDamage(unit) {
+  return Math.max(100, Number(unit?.critDamage) || 200);
+}
 export function criticalChance(unit) {
   return Math.max(0, Math.min(100, Number(unit.critChance) || 0));
 }

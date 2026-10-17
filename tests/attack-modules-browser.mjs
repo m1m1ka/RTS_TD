@@ -16,7 +16,7 @@ try {
   await game.goto(url);await game.waitForFunction(()=>window.__game?.snapshot().frames>3);
   await editor.goto(url+"/config.html");
   const selector='[data-path="cards.hero_blue.unit.attackModule"]';
-  assert.equal(await editor.locator(selector+' option').count(),7);
+  assert.equal(await editor.locator(selector+' option').count(),8);
   assert.equal(await editor.locator('[data-path="cards.hero_blue.unit.type"]').count(),0);
   assert.equal(await editor.locator('[data-path="cards.hero_blue.unit.weapon"]').count(),0);
   await game.locator('[data-card="hero_blue"]').click();await game.evaluate(()=>window.__game.clickCell(7,3));
@@ -47,5 +47,5 @@ try {
   mkdirSync("logs",{recursive:true});await editor.locator(selector).scrollIntoViewIfNeeded();
   await editor.screenshot({path:"logs/attack-modules-config.png"});
   assert.deepEqual(errors,[]);
-  console.log("PASS attack modules browser: 7 choices for heroes/enemies/towers, live switching of every rig, unchanged icons, persistence and enemy spawning");
+  console.log("PASS attack modules browser: 8 hero modules and 7 enemy/tower attacks, live switching, unchanged icons, persistence and enemy spawning");
 } finally {await browser?.close();server.kill();}

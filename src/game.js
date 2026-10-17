@@ -1,6 +1,6 @@
 import { obstacleKeys, reachableTerrain } from "./terrain.js";
 import { MINE_HP, victoryPayout } from "./gold.js";
-import { criticalChance } from "./critical.js";
+import { criticalChance, criticalDamage } from "./critical.js";
 import { attackModules, attackModuleId, attackProfile } from "./attack-modules.js";
 import { effectAmount } from "./effect-values.js";
 import { generationPool } from "./card-generation.js";
@@ -15,7 +15,7 @@ import { HeroTriggers } from "./hero-triggers.js";
 import { summonFollowers, removeFollowers, moveFollowers, followerMoveArea, setFollowerDestination } from "./followers.js";
 import { levelStats } from "./level-stats.js";
 import { gridDistance } from "./grid-distance.js";
-import { isHealer, tickHealer } from "./healing-behavior.js";
+import { isHealer, tickHealer, healingDefaults } from "./healing-behavior.js";
 import { isDormant, canMoveHero, syncHeroMechanics, knockback, finishVictoryBonuses } from "./hero-mechanics.js";
 import { startDayId, nextDayIds, campaignLayout } from "./campaign.js";
 export const W = 15,
@@ -36,7 +36,7 @@ const steps4 = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const steps8 = [...steps4, [1, -1], [1, 1], [-1, 1], [-1, -1]];
 export const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
 export const attackKind = (unit) =>
-  getWeaponSpec(unit)?.kind || attackModules[attackModuleId(unit)].kind;
+  isHealer(unit) ? "healing" : getWeaponSpec(unit)?.kind || attackModules[attackModuleId(unit)].kind;
 export function attackDuration(source, target) {
   const kind = attackKind(source);
   return kind === "slash"
@@ -317,6 +317,14 @@ export class Game {
       return { valid: false, reason: "现在不能出牌" };
     if (!inside(x, y)) return { valid: false, reason: "拖到战场内使用" };
     const hero = this.heroes.find((h) => h.hp > 0 && h.x === x && h.y === y);
+    if (card.category === "hero") {
+      const deployed = this.heroes.find(h => h.cardId === key && !h.destroyed);
+      if (deployed) {
+        if (deployed.hp <= 0) return { valid: false, reason: "该英雄已上场，等待复活后可使用重复牌升级" };
+        if (hero !== deployed) return { valid: false, reason: "不能重复上场，请对同名英雄使用：等级 +3" };
+        return { valid: true, hero: deployed, upgradeHero: true };
+      }
+    }
     if (card.target === "any") {
       return { valid: true };
     } else if (card.target === "ground") {
@@ -357,6 +365,19 @@ export class Game {
       return false;
     }
     const card = this.config.cards[key];
+    const cardListeners = this.heroTriggers.cardListeners();
+    if (check.upgradeHero) {
+      const hero = check.hero;
+      this.cards[key]--;
+      if (!this.cards[key]) delete this.cards[key];
+      hero.level += 3;
+      this.rebuildHero(hero);
+      this.heroTriggers.syncSourceEffects();
+      this.emit("upgrade", { unit: hero, levels: 3, useIcon: card.useIcon });
+      this.emit("cardPlayed", { card: key, x, y, upgradeHero: true });
+      this.heroTriggers.cardPlayed(key, cardListeners);
+      return true;
+    }
     const deploying =
       card.category === "hero" || card.effects.some((e) => e.type === "summon");
     let hero = check.hero;
@@ -469,6 +490,7 @@ export class Game {
     if (this.cards[key] === 0) delete this.cards[key];
     this.emit("cardPlayed", { card: key, x, y });
     if (card.category === "hero") this.heroTriggers.prepare([hero]);
+    this.heroTriggers.cardPlayed(key, cardListeners);
     return true;
   }
   summonFollowers(owner, effect) { return summonFollowers(this, owner, effect); }
@@ -501,6 +523,7 @@ export class Game {
             ? unit[effect.stat] * (1 + effect.value / 100)
             : unit[effect.stat] + effect.value;
     if (effect.type === "stat" && effect.stat === "critChance") unit.critChance = criticalChance(unit);
+    if (effect.type === "stat" && effect.stat === "critDamage") unit.critDamage = criticalDamage(unit);
     if (effect.type === "stat" && effect.stat === "lifeSteal") unit.lifeSteal = Math.min(0.95, Math.max(0, unit.lifeSteal));
     if (effect.type === "lifesteal")
       unit.lifeSteal = Math.min(0.95, (unit.lifeSteal || 0) + effect.value);
@@ -522,8 +545,8 @@ export class Game {
     const hp = unit.hp,
       ratio = hp / unit.maxHp;
     Object.assign(unit, card.unit, {
-      combatBehavior: card.unit.combatBehavior || "attack",
-      healing: card.unit.healing ? structuredClone(card.unit.healing) : undefined,
+      combatBehavior: isHealer(card.unit) ? "heal" : "attack",
+      healing: isHealer(card.unit) ? structuredClone(card.unit.healing || healingDefaults) : undefined,
       mechanics: structuredClone(card.unit.mechanics || {}),
       name: card.name,
       useIcon: card.useIcon,
@@ -532,6 +555,7 @@ export class Game {
       splash: undefined,
       splashRadius: 1,
       critChance: card.unit.critChance ?? 0,
+      critDamage: card.unit.critDamage ?? 200,
     });
     const growth = this.config.initial.levelGrowth;
     Object.assign(unit, attackProfile(card.unit));
@@ -853,7 +877,7 @@ export class Game {
       id: ++this.attackId,
       source,
       target,
-      damage: source.atk * (critical ? 2 : 1),
+      damage: source.atk * (critical ? criticalDamage(source) / 100 : 1),
       critical,
       splash: source.splash ?? getWeaponSpec(source)?.splash ?? 0,
       splashRadius: source.splashRadius ?? 1,

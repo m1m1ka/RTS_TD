@@ -48,7 +48,7 @@ try {
   await game.waitForFunction(()=>window.__game.snapshot().movableCells.length>0);
   const cells=await game.evaluate(()=>window.__game.snapshot().movableCells);
   assert.ok(cells.every(key=>{const [x,y]=key.split(',').map(Number);return Math.abs(x-h.x)<=1&&Math.abs(y-h.y)<=1;}));
-  assert.equal(await game.locator('#unit-move-hint').textContent(),"◇ 主人周围 3×3 格");
+  assert.equal(await game.locator('#unit-move-hint').count(),0);
   await game.evaluate(p=>window.__game.clickCell(p.x+3,p.y+2),h);
   assert.equal(await game.evaluate(()=>window.__game.snapshot().inspectedUnitId),f.id,"invalid destination keeps selection");
   await game.evaluate(p=>window.__game.clickCell(p.x,p.y),f);

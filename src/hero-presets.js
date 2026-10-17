@@ -1,3 +1,4 @@
+import { inferHeroRole } from "./hero-grades.js";
 // Looks and starting stat templates only; equipment and trigger rules remain editable.
 export const heroPresets = [
   { id: "gearengineer", name: "螺帽", role: "护目镜工程师", theme: "workshop", color: "#b7ab83", shade: "#7c876a", stats: [280, 34, 4, 1, 4.5, 10], growth: [40, 7], weapon: "coffeeCannon" },
@@ -42,7 +43,7 @@ export function createPresetCard(id) {
   if (!p) throw new Error("未知英雄预设");
   const [maxHp, atk, range, rate, speed, critChance] = p.stats;
   return {
-    name: p.name, category: "hero", target: "ground", icon: id, useIcon: id, visual: "fireball",
+    name: p.name, category: "hero", rarity: "common", role: inferHeroRole({ unit: { type: id, range } }), statSource: "custom", target: "ground", icon: id, useIcon: id, visual: "fireball",
     text: `${p.role} · 部署英雄`, effects: [], triggerRules: [],
     unit: { type: id, attackModule: p.weapon || p.melee || "claw", weapon: p.weapon, maxHp, atk, range, rate, speed, critChance, levelGrowth: { maxHp: p.growth[0], atk: p.growth[1] } },
   };

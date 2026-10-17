@@ -35,7 +35,8 @@ const create = (c = config()) => {
   assert.equal(events.filter(e=>e.type==="heroPreparation").length,1);
   assert.equal(g.followers.length,1);
   g.startDay(); g.startDay(); assert.equal(g.followers.length,1,"click start does not repeat preparation");
-  g.cards.hero_blue=1; g.playCard("hero_blue",5,5); assert.equal(g.followers.length,1,"waiting/battle deployment has no preparation");
+  g.config.cards.hero_green.triggerRules = structuredClone(g.config.cards.hero_blue.triggerRules);
+  g.cards.hero_green=1; assert.ok(g.playCard("hero_green",5,5)); assert.equal(g.followers.length,1,"waiting/battle deployment has no preparation");
   g.phase="route"; const next=g.nextDays()[0]; assert.ok(g.chooseDay(next));
   assert.equal(g.followers.length,2,"both retained heroes prepare for next battle node");
   assert.ok(!g.followers.includes(f)); assert.equal(events.filter(e=>e.type==="heroPreparation").length,3);

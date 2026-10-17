@@ -72,11 +72,13 @@ const claim = (g) => { g.phase = "reward"; g.rewardOptions = ["training", "coffe
 }
 {
   const c = fixture();
-  c.initial.cards.hero_blue = 3;
+  c.initial.cards.hero_blue = 2;
+  c.initial.cards.hero_green = 1;
   c.cards.hero_blue.effects.push({ type: "level", value: 1 });
+  c.cards.hero_green.effects.push({ type: "level", value: 1 });
   const g = new Game(() => {}, c);
   assert.ok(g.playCard("hero_blue", 4, 4));
-  assert.ok(g.playCard("hero_blue", 5, 4));
+  assert.ok(g.playCard("hero_green", 5, 4));
   const [low, high] = g.heroes;
   high.level = 8; g.rebuildHero(high);
   assert.ok(g.playCard("guard", high.x, high.y));
@@ -106,12 +108,14 @@ const claim = (g) => { g.phase = "reward"; g.rewardOptions = ["training", "coffe
   claim(g); g.chooseDay(g.nextDays()[0]);
   assert.equal(g.heroes.length, 2);
   assert.equal(g.cards.hero_blue, 1);
-  assert.ok(g.playCard("hero_blue", 6, 3));
-  assert.equal(g.heroes.at(-1).level, 2, "a new card still applies its initial effects once");
+  const previousLevel = low.level;
+  assert.equal(g.playCard("hero_blue", 6, 3), false);
+  assert.ok(g.playCard("hero_blue", low.x, low.y));
+  assert.equal(low.level, previousLevel + 3, "duplicates upgrade the retained hero without replaying initial effects");
   assert.equal(g.cards.hero_blue, undefined);
   g.reset();
   assert.equal(g.heroReserve.length, 0);
-  assert.equal(g.cards.hero_blue, 3);
+  assert.equal(g.cards.hero_blue, 2);
 }
 for (const change of [
   c => c.days[0].next.push("missing"),

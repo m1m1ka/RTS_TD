@@ -107,8 +107,8 @@ const clearWave = (g) => {
   g.heroes[1].hp = 0;
   g.startDay();
   assert.equal(g.heroes[0].level, 3, "heroes revive before receiving start effects and echoes");
-  g.cards.hero_blue = 1;
-  assert.ok(g.playCard("hero_blue", 6, 4));
+  g.cards.hero_catgirl = 1;
+  assert.ok(g.playCard("hero_catgirl", 6, 4));
   assert.equal(g.heroes.at(-1).level, 1, "late deployment waits for the next start click");
 }
 {

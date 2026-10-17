@@ -1,3 +1,4 @@
+import { heroRarityClass, heroGradeLabel } from "./hero-grades.js";
 import { iconURL } from "./config/icons.js";
 import { escapeHTML as esc } from "./config/schema.js";
 import { cardTypes } from "./cards.js";
@@ -28,7 +29,7 @@ export class ShopUI {
   }
   card(key, attributes, extra = "") {
     const card = this.game.config.cards[key];
-    return `<button class="hand-card reward-card ${card.category} ${extra}" ${attributes} aria-label="${esc(card.name)}：${esc(card.text)}"><strong class="card-title">${esc(card.name)}</strong><div class="card-picture"><img src="${iconURL(card.icon, true)}" alt="" draggable="false"></div><span class="card-kind">${cardTypes[card.category]}牌</span><small class="card-description">${esc(card.text)}</small><span class="reward-tick">✓</span><span class="card-flourish">◆</span></button>`;
+    return `<button class="hand-card reward-card ${card.category} ${heroRarityClass(card)} ${extra}" ${attributes} aria-label="${esc(card.name)}：${esc(card.text)}"><strong class="card-title">${esc(card.name)}</strong><div class="card-picture"><img src="${iconURL(card.icon, true)}" alt="" draggable="false"></div><span class="card-kind">${heroGradeLabel(card) || cardTypes[card.category] + "牌"}</span><small class="card-description">${esc(card.text)}</small><span class="reward-tick">✓</span><span class="card-flourish">◆</span></button>`;
   }
   update() {
     if (this.game.phase !== "shop") { if (this.dialog.open) this.reset(); return; }

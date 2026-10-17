@@ -8,6 +8,7 @@ import { Game, W, H, BASE, dist, inside } from "./game.js";
 import { gridDistance } from "./grid-distance.js";
 import { CombatVFX } from "./combat-vfx.js";
 import { HealthBar } from "./health-bar.js";
+import { combatNumber } from "./combat-numbers.js";
 import { WeaponRig } from "./weapon-rig.js";
 import { FOLLOWER_SCALE } from "./followers.js";
 import { CardUI } from "./card-ui.js";
@@ -18,6 +19,7 @@ import { iconURL } from "./config/icons.js";
 import { getWeaponSpec } from "./weapons.js";
 import { WaveProgress } from "./wave-progress.js";
 import { RouteMap } from "./route-map.js";
+import { heroRoles, inferHeroRole } from "./hero-grades.js";
 import { ShopUI } from "./shop-ui.js";
 import { SoundPlayer } from "./audio/player.js";
 import { getAudioConfig, subscribeAudioConfig } from "./audio/store.js";
@@ -200,18 +202,23 @@ const combatVFX = new CombatVFX(scene, (unit) =>
 );
 function textTexture(text, color = "#f3edc5", size = 24) {
   const c = document.createElement("canvas");
-  c.width = 256;
-  c.height = 64;
   const g = c.getContext("2d");
+  const font = `800 ${size}px "Noto Sans SC",sans-serif`;
+  g.font = font;
+  c.width = Math.max(256, Math.ceil(g.measureText(text).width) + 24);
+  c.height = 64;
   g.textAlign = "center";
   g.textBaseline = "middle";
-  g.font = `800 ${size}px "Noto Sans SC",sans-serif`;
-  g.strokeStyle = "#203c2c";
+  g.font = font;
+  g.strokeStyle = "#17251d";
+  g.lineJoin = "round";
   g.lineWidth = 6;
   g.strokeText(text, 128, 32);
   g.fillStyle = color;
   g.fillText(text, 128, 32);
-  return new THREE.CanvasTexture(c);
+  const texture = new THREE.CanvasTexture(c);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
 
 const baseGlow = plane(1.6, 1.6, "#d8d27c", 0.055);
@@ -357,12 +364,25 @@ function banner(text) {
 function tone(freq = 440, duration = 0.06, type = "sine", volume = 0.025) {
   gameAudio.tone(freq, duration, type, volume);
 }
-function floating(unit, text, color = "#fbefc3") {
-  const tex = textTexture(text, color, 29),
-    m = imagePlane(tex, 1.25, 0.32);
+function floating(unit, text, color = "#fbefc3", number = null) {
+  const tex = textTexture(text, color, number?.fontSize ?? 29),
+    scale = number ? 1.4 : 1,
+    m = imagePlane(tex, 1.25 * tex.image.width / 256 * scale, 0.32 * scale);
   m.position.copy(pos(unit.x, unit.y - 0.45, 4));
+  const overlapping = number ? effects.filter(e => e.number && e.unitId === unit.id && e.life > e.max - .2).length : 0;
+  if (overlapping) {
+    m.position.x += (overlapping % 2 ? -1 : 1) * .16 * Math.ceil(overlapping / 2);
+    m.position.y += Math.min(overlapping, 4) * .1;
+  }
+  m.renderOrder = 20;
+  m.material.depthTest = false;
   scene.add(m);
-  effects.push({ m, life: 0.8, max: 0.8, vy: 0.65, texture: tex });
+  const duration = number?.duration ?? .8;
+  effects.push({ m, baseScale: m.scale.clone(), life: duration, max: duration, vy: number ? .8 : .65, texture: tex, number, unitId: unit.id });
+}
+function floatingNumber(event) {
+  const number = combatNumber(event);
+  if (number) floating(event.unit, number.text, number.color, number);
 }
 function burst(unit, color) {
   for (let i = 0; i < 7; i++) {
@@ -444,9 +464,14 @@ function onEvent(e) {
     const names = Object.entries(e.cards).slice(0, 3).map(([key, count]) => `${cards[key]?.name || key} ×${count}`).join(" · ");
     toast(`获得 ${names}${Object.keys(e.cards).length > 3 ? ` 等 ${e.count} 张牌` : ""}`);
   }
+  if (e.type === "cardRefunded") toast(`返还 ${cards[e.card]?.name || e.card} ×1`);
+  if (e.type === "randomStatGained") {
+    const label = { maxHp: "生命上限", atk: "攻击力", lifeSteal: "吸血", critChance: "暴击率", critDamage: "暴击伤害" }[e.stat];
+    floating(e.unit, `${label} +${e.value}${["lifeSteal", "critChance", "critDamage"].includes(e.stat) ? "%" : ""}`, "#edcf78");
+  }
   if ((e.type === "hit" || e.type === "death") && e.unit.type === "mine") {
     goldVisuals.hit(e.unit);
-    if (e.type === "hit") floating(e.unit, `${e.critical ? "暴击 " : ""}−${e.damage}`, e.critical ? "#ffe08c" : "#e6c18c");
+    if (e.type === "hit") floatingNumber(e);
     else burst(e.unit, "#ae9766");
     return;
   }
@@ -484,11 +509,7 @@ function onEvent(e) {
     toast(`${e.unit.name}已复活`);
   }
   if (e.type === "hit") {
-    floating(
-      e.unit,
-      `${e.critical ? "暴击 " : ""}−${e.damage}`,
-      e.critical ? "#ffda72" : e.unit.side === "enemy" ? "#fff0ba" : "#ffa393",
-    );
+    floatingNumber(e);
     const v =
       e.unit === BASE
         ? baseMotion
@@ -531,10 +552,10 @@ function onEvent(e) {
   }
   if (e.type === "heal" || e.type === "upgrade") {
     if (e.type === "heal")
-      floating(e.unit, "+" + Math.ceil(e.amount), "#ccec9c");
-    else floating(e.unit, "等级提升", "#ffda72");
+      floatingNumber(e);
+    else floating(e.unit, e.levels ? `等级 +${e.levels}` : "等级提升", "#ffda72");
     if (e.type === "upgrade") combatVFX.upgrade(e.unit);
-    else if (!e.automatic) burst(e.unit, "#d6f4a0");
+    else if (!e.automatic && e.amount > 0) combatVFX.healTarget(e.unit);
     if (!audioHandled) tone(650, 0.2);
     if (e.useIcon) {
       const map = new THREE.TextureLoader().load(iconURL(e.useIcon));
@@ -550,8 +571,10 @@ function onEvent(e) {
     burst(e.unit, "#c7ace8");
     combatVFX.shield(e.unit);
   }
-  if (e.type === "lifeSteal")
-    floating(e.unit, "+" + Math.ceil(e.amount), "#bdd994");
+  if (e.type === "lifeSteal") {
+    floatingNumber(e);
+    if (e.amount > 0) combatVFX.healTarget(e.unit);
+  }
   if (e.type === "cardImpact") {
     combatVFX.castCard(e.visual, e.x, e.y, e.radius);
     const map = new THREE.TextureLoader().load(iconURL(e.useIcon));
@@ -623,10 +646,14 @@ function updateInspector() {
   const unit = inspectedUnit();
   $("unit-inspector").hidden = !unit;
   if (!unit) return;
-  const movable = game.canControl(unit);
   $("unit-inspector").dataset.side = unit.side;
   $("unit-side").textContent = unit.side === "enemy" ? "敌方" : unit.isFollower ? "我方随从" : game.heroes.includes(unit) ? (game.isDormant(unit) ? "我方英雄 · 沉睡" : unit.mechanics?.immobile ? "我方英雄 · 固守" : "我方英雄") : "我方建筑";
   $("unit-name").textContent = unit.name || "咖啡炮台";
+  const heroCard = game.heroes.includes(unit) ? game.config.cards[unit.cardId] : null;
+  $("unit-inspector").dataset.hasProfile = String(!!heroCard);
+  $("unit-profile").hidden = !heroCard;
+  $("unit-role").textContent = heroCard ? heroRoles[heroCard.role] || heroRoles[inferHeroRole(heroCard)] : "";
+  $("unit-description").textContent = heroCard?.text || "暂无英雄描述";
   const src = iconURL(unit.useIcon || unit.type, true);
   if ($("unit-icon").getAttribute("src") !== src) $("unit-icon").src = src;
   const healing = unit.combatBehavior === "heal";
@@ -639,8 +666,7 @@ function updateInspector() {
   $("unit-rate").textContent = unit.rate.toFixed(1);
   $("unit-range").textContent = Math.round(unit.range);
   $("unit-crit").textContent = `${Number((unit.critChance || 0).toFixed(1))}%`;
-  $("unit-move-hint").hidden = !movable || !!cardUI.activeKey;
-  $("unit-move-hint").textContent = unit.isFollower ? "◇ 主人周围 3×3 格" : "◇ 可移动格子";
+  $("unit-crit").title = `暴击伤害：${Number((unit.critDamage ?? 200).toFixed(1))}%`;
 }
 const routeMap = new RouteMap(game, () => {
   cardUI.cancel();
@@ -663,7 +689,6 @@ function updateUI() {
   updateTerrain();
   updateInspector();
   updateGates();
-  $("kills").textContent = game.kills;
   $("base-hp").textContent = Math.ceil(game.baseHp) + " / " + game.baseMaxHp;
   $("base-health").style.width = (game.baseHp / game.baseMaxHp) * 100 + "%";
   waveProgress.update(game);
@@ -680,7 +705,9 @@ function updateUI() {
       : c
         ? c.name +
           " · " +
-          (c.target === "hero"
+          (c.category === "hero"
+            ? (game.heroes.some(h => h.cardId === cardUI.activeKey && !h.destroyed) ? "对同名存活英雄使用 · 等级 +3" : "放置到空地 · 同名英雄限上场一名")
+            : c.target === "hero"
             ? "选择我方英雄"
             : c.target === "any"
               ? "拖到战场"
@@ -1228,7 +1255,12 @@ function animate(now) {
     e.m.position.y += (e.vy || 0) * dt;
     e.m.position.x += (e.vx || 0) * dt;
     e.m.material.transparent = true;
-    e.m.material.opacity = Math.max(0, e.life / e.max);
+    const progress = 1 - e.life / e.max;
+    e.m.material.opacity = e.number ? Math.max(0, Math.min(1, (1 - progress) / .4)) : Math.max(0, e.life / e.max);
+    if (e.number) {
+      const pop = progress < .12 ? .75 + progress / .12 * .4 : 1 + .15 * Math.max(0, 1 - (progress - .12) / .18);
+      e.m.scale.copy(e.baseScale).multiplyScalar(pop);
+    }
     if (e.life <= 0) {
       scene.remove(e.m);
       e.m.material.dispose();
@@ -1282,6 +1314,7 @@ if (import.meta.env.DEV)
       frames: frame,
       camera: { zoom: camera.zoom, x: camera.position.x, y: camera.position.y },
       combat: combatVFX.snapshot(),
+      combatNumbers: effects.filter(e => e.number).map(e => ({ ...e.number, unitId: e.unitId, life: e.life, aspect: e.m.scale.x / e.m.scale.y, textureAspect: e.texture.image.width / e.texture.image.height })),
       weapons: [...unitMeshes.entries()]
         .filter(([, v]) => v.weapon)
         .map(([id, v]) => ({ id, ...v.weapon.snapshot() })),

@@ -1,7 +1,7 @@
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, existsSync } from "node:fs";
 import { DEFAULT_CONFIG } from "../src/config/defaults.js";
 import { createPresetCard } from "../src/hero-presets.js";
 const url = "http://127.0.0.1:5190", c = structuredClone(DEFAULT_CONFIG);
@@ -11,12 +11,14 @@ for (const card of Object.values(c.cards)) if (card.category === "hero") {
 }
 c.initial.cards = {hero_blue:1,hero_green:1,hero_purple:1}; c.initial.firstWaveDelay=0;
 Object.assign(c.enemies.grunt,{maxHp:100000,atk:300,rate:1,range:1,speed:1,critChance:0});
+Object.assign(c.cards.hero_green.unit, { atk: 10, critChance: 100 });
 c.days[0].waves=[{id:"healing",name:"治疗",startDelay:0,hpScale:1,atkScale:1,spawns:[0,14].map(x=>({x,y:5,delay:0,interval:1,enemies:[{type:"grunt",count:1,level:1}]}))}];
 const server=spawn(process.execPath,["node_modules/vite/bin/vite.js","--host","127.0.0.1","--port","5190","--strictPort"],{stdio:"ignore",windowsHide:true,env:{...process.env,FRIDAY_CONFIG_SYNC:"0"}});
 let browser;
 try {
   for(let i=0;i<60;i++){try{if((await fetch(url)).ok)break;}catch{}await new Promise(r=>setTimeout(r,200));}
-  browser=await chromium.launch({executablePath:process.env.CHROME_PATH||"C:/Program Files/Google/Chrome/Application/chrome.exe",headless:true,args:["--enable-unsafe-swiftshader"]});
+  const executablePath = process.env.CHROME_PATH || ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"].find(existsSync);
+  browser=await chromium.launch({...(executablePath ? { executablePath } : {}),headless:true,args:["--enable-unsafe-swiftshader"]});
   const context=await browser.newContext({viewport:{width:1440,height:1000}});context.setDefaultTimeout(15000);
   const editor=await context.newPage(),errors=[];
   editor.on("pageerror",e=>errors.push(e.message));
@@ -25,13 +27,15 @@ try {
   const game=await context.newPage();game.on("pageerror",e=>errors.push(e.message));
   await game.goto(url);await game.waitForFunction(()=>window.__game?.snapshot().frames>3);
   await editor.bringToFront();
-  await editor.locator('[data-path="cards.hero_blue.unit.combatBehavior"]').selectOption("heal");
+  await editor.locator('[data-path="cards.hero_blue.unit.attackModule"]').selectOption("heal");
+  assert.equal(await editor.locator('[data-path="cards.hero_blue.unit.combatBehavior"]').inputValue(), "heal");
   await editor.locator('[data-path="cards.hero_blue.unit.healing.valueMode"]').selectOption("percent");
   await editor.locator('[data-path="cards.hero_blue.unit.healing.value"]').fill("1");
   await editor.locator('#save-config').click();
   await editor.waitForFunction(()=>JSON.parse(localStorage.getItem("friday-defense-config-v1")).cards.hero_blue.unit.healing?.value===1);
   await editor.reload();
   assert.equal(await editor.locator('[data-path="cards.hero_blue.unit.combatBehavior"]').inputValue(),"heal");
+  assert.equal(await editor.locator('[data-path="cards.hero_blue.unit.attackModule"]').inputValue(), "heal");
   assert.equal(await editor.locator('[data-path="cards.hero_blue.unit.healing.valueMode"]').inputValue(),"percent");
   mkdirSync("logs",{recursive:true});
   await editor.locator('.entity-form').screenshot({path:"logs/healing-config.png"});
@@ -46,6 +50,21 @@ try {
   assert.equal(state.heroes[0].combatBehavior,"heal");
   assert.ok(state.heroes[0].x>7,"healer crossed the map to the nearest injured ally");
   assert.equal(state.heroes[0].healingTargetId,state.heroes[1].id);
+  await game.waitForFunction(() => {
+    const state = window.__game.snapshot();
+    window.numberSamples ??= {};
+    for (const number of state.combatNumbers) window.numberSamples[number.kind] = number;
+    return Object.keys(window.numberSamples).length === 3 && state.combat.healingTargets.some(t => t.unitId === state.heroes[1].id);
+  });
+  const numbers = await game.evaluate(() => window.numberSamples);
+  assert.equal(numbers.damage.color, "#ffffff");
+  assert.equal(numbers.critical.color, "#ff4141");
+  assert.ok(numbers.critical.fontSize > numbers.damage.fontSize);
+  assert.equal(numbers.healing.color, "#57ef83");
+  assert.match(numbers.healing.text, /^\+/);
+  for (const number of Object.values(numbers)) assert.ok(Math.abs(number.aspect - number.textureAspect) < .1, "pop animation preserves text proportions");
+  mkdirSync("logs",{recursive:true});
+  await game.screenshot({path:"logs/combat-numbers.png"});
   await game.evaluate(h=>window.__game.clickCell(h.x,h.y),state.heroes[0]);
   assert.equal(await game.locator('#unit-power-label').innerText(),"治疗量");
   assert.match(await game.locator('#unit-atk').innerText(),/1%/);
@@ -76,6 +95,32 @@ try {
   await game.waitForFunction(()=>window.__game.snapshot().heroes[0].healing?.value===40);
   await game.evaluate(()=>window.__game.advance(.1));
   assert.equal(await game.evaluate(()=>window.__game.snapshot().heroes[0].healingTargetId),null);
+  const lifecycle = await game.evaluate(async () => {
+    const THREE = await import("/node_modules/three/build/three.module.js");
+    const { CombatVFX } = await import("/src/combat-vfx.js");
+    const scene = new THREE.Scene(), target = { id: 123, x: 1, y: 2 };
+    const vfx = new CombatVFX(scene, unit => new THREE.Vector3(unit.x, unit.y, 1));
+    vfx.healTarget(target);
+    vfx.healTarget(target);
+    const repeated = { effects: vfx.effects.length, meshes: scene.children.length };
+    target.x = 4; target.y = 5;
+    vfx.update(.2);
+    const moved = vfx.snapshot().healingTargets[0];
+    vfx.update(1);
+    const expired = scene.children.length;
+    vfx.healTarget(target);
+    vfx.reset();
+    const reset = scene.children.length;
+    Object.values(vfx.textures).forEach(texture => texture.dispose());
+    vfx.geometry.dispose();
+    return { repeated, moved, expired, reset };
+  });
+  assert.deepEqual(lifecycle.repeated, { effects: 1, meshes: 4 }, "repeated heals refresh the recipient effect");
+  assert.equal(lifecycle.moved.unitId, 123);
+  assert.equal(lifecycle.moved.x, 4);
+  assert.equal(lifecycle.moved.y, 4.7, "recipient glow follows the moving patient");
+  assert.equal(lifecycle.expired, 0);
+  assert.equal(lifecycle.reset, 0);
   assert.deepEqual(errors,[]);
-  console.log("PASS healing browser: editor persistence/live sync, percent/fixed targets, autonomous approach, manual retargeting, treatment HUD and green healing visuals");
+  console.log("PASS healing browser: module selection/persistence, live healing, targets, movement, HUD, recipient effects and white/red/green combat numbers");
 } finally {await browser?.close();server.kill();}

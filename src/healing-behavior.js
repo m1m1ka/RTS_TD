@@ -3,7 +3,7 @@ import { gridDistance } from "./grid-distance.js";
 export const combatBehaviors = { attack: "自动攻击", heal: "自动治疗" };
 export const healingTargets = { allies: "英雄、随从与炮台", heroes: "英雄与随从", towers: "仅炮台" };
 export const healingDefaults = { targets: "allies", valueMode: "fixed", value: 30 };
-export const isHealer = unit => unit?.combatBehavior === "heal";
+export const isHealer = unit => unit?.combatBehavior === "heal" || unit?.attackModule === "heal";
 
 export function injuredAllies(game, healer) {
   const kind = healer.healing?.targets || "allies";

@@ -33,7 +33,7 @@ export function summonFollowers(game, owner, effect) {
     const unit = {
       id: ++game.id, ownerId: owner.id, isFollower: true, side: "hero",
       name: `${owner.name}·随从`, type: owner.type, useIcon: owner.useIcon,
-      attackModule: owner.attackModule, weapon: owner.weapon, level: 0, equipment: [], ...cell,
+      attackModule: owner.attackModule === "heal" ? "staff" : owner.attackModule, weapon: owner.weapon, level: 0, equipment: [], ...cell,
       maxHp, hp: maxHp, atk: Math.max(0, Math.ceil(owner.atk * effect.atkPercent / 100)),
       rate: owner.rate, range: owner.range, speed: owner.speed, critChance: owner.critChance,
       cooldown: 0, moveCooldown: 0,

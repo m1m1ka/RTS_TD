@@ -78,10 +78,11 @@ function fixture() {
   c.cards.hero_blue.triggerRules[1].trigger.interval = 3;
   c.cards.hero_blue.triggerRules[1].effects[0].cards = ["training"];
   c.cards.hero_blue.triggerRules[1].effects[0].count = 2;
-  c.initial.cards.hero_blue = 2;
+  c.cards.hero_green.triggerRules = clone(c.cards.hero_blue.triggerRules);
+  c.initial.cards.hero_green = 1;
   const g = new Game(() => {}, assertConfig(c)), before = g.cards.training;
   g.playCard("hero_blue", 5, 5); g.startDay(); g.tick(1);
-  g.playCard("hero_blue", 6, 4); g.tick(1);
+  assert.ok(g.playCard("hero_green", 6, 4)); g.tick(1);
   assert.equal(g.cards.parts, 3);
   g.tick(1); assert.equal(g.cards.parts, 4); assert.equal(g.cards.training, before + 2);
 }

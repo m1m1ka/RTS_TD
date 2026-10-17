@@ -50,6 +50,18 @@ function line(g, points, color, width) {
 }
 function createTextures() {
   return {
+    healingTarget: texture(g => {
+      const glow = g.createRadialGradient(96, 96, 15, 96, 96, 90);
+      glow.addColorStop(0, "#66f59b60");
+      glow.addColorStop(.65, "#58e68d40");
+      glow.addColorStop(1, "#58e68d00");
+      circle(g, 96, 96, 90, glow);
+      circle(g, 96, 96, 68, null, "#6dffa4", 8);
+      circle(g, 96, 96, 78, null, "#bcffd566", 3);
+    }),
+    healingCross: texture(g => {
+      path(g, [[79,40],[113,40],[113,79],[152,79],[152,113],[113,113],[113,152],[79,152],[79,113],[40,113],[40,79],[79,79]], "#74ffa4", "#24553c", 6);
+    }),
     healing: texture(g => {
       circle(g, 96, 96, 68, "#719b75", "#284a39", 9);
       path(g, [[81,49],[111,49],[111,81],[143,81],[143,111],[111,111],[111,143],[81,143],[81,111],[49,111],[49,81],[81,81]], "#e2edb7", "#355641", 5);
@@ -606,6 +618,7 @@ export class CombatVFX {
       upgrades: 0,
       impacts: 0,
       heals: 0,
+      healTargets: 0,
       bloodHits: 0,
       bloodDeaths: 0,
     };
@@ -651,11 +664,33 @@ export class CombatVFX {
       f.mesh.material.opacity = Math.min(1, (1 - t) * 4);
       f.mesh.scale.setScalar(.32 + .16 * Math.sin(t * Math.PI));
     });
-    this.effect("ring", to, .8, .6, (f, t) => {
-      f.mesh.scale.setScalar(.55 + t * .7);
-      f.mesh.material.opacity = (1 - t) * .65;
-      f.mesh.material.color.set("#b2d797");
+    this.healTarget(target);
+  }
+  healTarget(target) {
+    this.counts.healTargets++;
+    const existing = this.effects.find(f => f.kind === "healingTarget" && f.unit === target);
+    if (existing) {
+      existing.age = 0;
+      existing.animate(existing, 0);
+      return;
+    }
+    const crosses = [-1, 0, 1].map(side => ({ mesh: this.mesh("healingCross", .28), side }));
+    const effect = this.effect("healingTarget", this.positionOf(target), 1, .8, (f, t) => {
+      const point = this.positionOf(target);
+      const fade = Math.min(1, (1 - t) * 3);
+      f.mesh.position.set(point.x, point.y - .3, 2.8);
+      f.mesh.scale.set(1 + t * .5, .48 + t * .24, 1);
+      f.mesh.material.opacity = fade * .85;
+      for (const { mesh, side } of crosses) {
+        const phase = Math.max(0, Math.min(1, (t - Math.abs(side) * .09) / .82));
+        mesh.position.set(point.x + side * (.3 + phase * .12), point.y - .1 + phase * .85, 3.4);
+        mesh.scale.setScalar(.25 + Math.sin(phase * Math.PI) * .12);
+        mesh.material.opacity = Math.sin(phase * Math.PI) * .95;
+      }
     });
+    effect.unit = target;
+    effect.cleanup = () => crosses.forEach(({ mesh }) => this.dispose(mesh));
+    effect.animate(effect, 0);
   }
   upgrade(unit) {
     this.counts.upgrades++;
@@ -1063,6 +1098,7 @@ export class CombatVFX {
       bloodStains: this.stains.size,
       stainCells: [...this.stains.values()].map(({ x, y }) => ({ x, y })),
       lastDeathSpray: this.lastDeathSpray,
+      healingTargets: this.effects.filter(f => f.kind === "healingTarget").map(f => ({ unitId: f.unit.id, x: f.mesh.position.x, y: f.mesh.position.y })),
       activeKinds: [
         ...new Set(
           [...this.flights.values(), ...this.effects].map((f) => f.kind),

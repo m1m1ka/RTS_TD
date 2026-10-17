@@ -3,6 +3,7 @@ import { Game } from "../src/game.js";
 import { DEFAULT_CONFIG } from "../src/config/defaults.js";
 import { assertConfig } from "../src/config/schema.js";
 import { healingDefaults, injuredAllies, healingRoute } from "../src/healing-behavior.js";
+import { selectAttackModule } from "../src/attack-modules.js";
 const clone = structuredClone;
 function fixture() {
   const c = clone(DEFAULT_CONFIG);
@@ -83,7 +84,7 @@ const advance = (g, seconds) => { for (let t = 0; t < seconds - 1e-9; t += .025)
   for(const phase of ["ready","waiting","between"]) {
     g.phase=phase; g.waveWait=100; const hp=near.hp; advance(g,.5); assert.equal(near.hp,hp,phase+" does not automatically heal");
   }
-  const c=clone(g.config); c.cards.hero_blue.unit.combatBehavior="attack"; delete c.cards.hero_blue.unit.healing;
+  const c=clone(g.config); selectAttackModule(c.cards.hero_blue.unit, "slash"); delete c.cards.hero_blue.unit.healing;
   g.applyConfig(c); assert.equal(healer.combatBehavior,"attack"); assert.equal(healer.healing,undefined);
   g.phase="battle"; healer.cooldown=0; advance(g,.5); assert.ok(g.enemies[0].hp<1000,"live switch restores attacks");
 }

@@ -39,7 +39,7 @@ export class ShopUI {
     const signature = JSON.stringify([shop, gold, prices, config.days[day].name, keys.map(k => config.cards[k])]);
     if (signature === this.signature && this.dialog.open) return;
     this.signature = signature; this.selected = -1;
-    const header = `<header class="shop-heading"><div class="shop-sign"><span>✦ 林间行商 ✦</span><h2>${esc(config.days[day].name)}</h2></div><b class="shop-purse" aria-label="持有金币">◉ ${gold}</b></header>`;
+    const header = `<header class="shop-heading"><div class="shop-sign"><span>${esc(config.days[day].name)}</span><h2>商店</h2></div><b class="shop-purse" aria-label="持有金币">◉ ${gold}</b></header>`;
     if (shop.opening) {
       this.dialog.innerHTML = header + `<div class="pack-reveal"><h3>${packNames[shop.opening.category]}</h3><p>三选一</p><div class="reward-draft pack-choices">${shop.opening.options.map((key,i) => `<div class="reward-deal" style="--deal:${i}">${this.card(key, `data-pack-choice="${i}" aria-pressed="false"`)}</div>`).join("")}</div><button class="shop-action" data-pack-claim disabled>收下这张</button></div>`;
     } else {

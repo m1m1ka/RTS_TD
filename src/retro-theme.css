@@ -1,0 +1,61 @@
+/* Shared cabinet palette. All typography is local, including on offline builds. */
+html:root {
+  --retro-ink: #101018;
+  --retro-cream: #fff0b5;
+  --retro-paper: #e9dba1;
+  --retro-red: #92535b;
+  --retro-red-dark: #633a45;
+  --retro-blue: #525d89;
+  --retro-green: #507d58;
+  --retro-muted: #c2b991;
+  --retro-font: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+  --retro-display: var(--retro-font);
+  --retro-number: "Consolas", "Courier New", monospace;
+  --retro-pattern: repeating-linear-gradient(135deg, #c2b99108 0 12px, transparent 12px 58px);
+  --retro-pattern-size: 420px 320px;
+  --retro-frame: 0 0 0 3px var(--retro-ink), 0 8px 0 3px var(--retro-ink);
+  font-family: var(--retro-font);
+  font-synthesis: none;
+  color: var(--retro-cream);
+  background: var(--retro-ink);
+  font-weight: 700;
+}
+html body { background-color: var(--retro-ink); color: var(--retro-cream); }
+button, input, select, textarea { font-family: inherit; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid #a7dcaa;
+  outline-offset: 5px;
+}
+::selection { color: var(--retro-ink); background: var(--retro-cream); }
+/* DOM and WebGL share the same fixed phosphor lines. No flicker, no pointer interception.
+   Dialogs live in the browser top layer, so each also carries the screen treatment. */
+body::after, dialog[open]::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  pointer-events: none;
+  border: 7px solid #08080ed9;
+  border-radius: 20px;
+  background:
+    repeating-linear-gradient(0deg, #06071123 0, #06071123 1px, transparent 1px, transparent 3px),
+    repeating-linear-gradient(90deg, #ffb69604 0, #ffb69604 1px, #82d7df04 1px, #82d7df04 2px, transparent 2px, transparent 3px);
+  box-shadow: inset 0 0 8px 3px #0008, inset 0 0 100px 15px #05050e27;
+}
+body:has(dialog[open])::after { visibility: hidden; }
+dialog::backdrop {
+  background: #101018df;
+  background-image: var(--retro-pattern);
+  background-size: var(--retro-pattern-size);
+  backdrop-filter: brightness(.4) saturate(.6);
+}
+/* Editors keep the palette but use a gentler screen texture for dense forms. */
+body:has(.editor-shell)::after, body:has(.audio-workspace)::after,
+body:has(.workspace)::after { opacity: .4; }
+@media (max-width: 700px) {
+  body::after, dialog[open]::after { border-width: 4px; border-radius: 12px; box-shadow: inset 0 0 6px #0008; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}

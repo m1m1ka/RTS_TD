@@ -20,7 +20,7 @@ export class GoldVisuals {
     this.confetti = Array.from({ length: 100 }, (_, i) => ({
       side: i % 2, y: .45 + Math.random() * .35, vx: 140 + Math.random() * 430,
       vy: -220 - Math.random() * 300, spin: Math.random() * 12,
-      color: ["#e8c36e", "#ce8877", "#9fc99a", "#b9a4cc", "#e9dfb0"][i % 5],
+      color: ["#fff0b5", "#b46c74", "#88a370", "#7580ae", "#e9dba1"][i % 5],
     }));
   }
   hit(unit) { const v = this.mines.get(unit.id); if (v) { v.hit = .3; v.bar.hit(); } }
@@ -75,9 +75,13 @@ export class GoldVisuals {
       g.save(); g.translate(w / 2, h * .42); g.scale(scale, scale);
       g.globalAlpha = Math.min(1, age * 6, (2.3 - t) * 4);
       g.textAlign = "center"; g.textBaseline = "middle";
-      g.font = `900 ${Math.min(88, w * .17)}px "Noto Sans SC", sans-serif`;
-      g.lineJoin = "round"; g.lineWidth = 12; g.strokeStyle = "#20392b"; g.strokeText("胜利", 0, 0);
-      g.shadowColor = "#edc36877"; g.shadowBlur = 25; g.fillStyle = "#f4dc98"; g.fillText("胜利", 0, 0);
+      const signW = Math.min(360, w * .67), signH = Math.min(118, w * .25);
+      g.fillStyle = "#101018"; g.beginPath(); g.roundRect(-signW / 2 - 6, -signH / 2 + 3, signW + 12, signH + 14, 10); g.fill();
+      g.fillStyle = "#92535b"; g.strokeStyle = "#fff0b5"; g.lineWidth = 6;
+      g.beginPath(); g.roundRect(-signW / 2, -signH / 2, signW, signH, 6); g.fill(); g.stroke();
+      g.font = `900 ${Math.min(72, w * .14)}px "Microsoft YaHei", "PingFang SC", sans-serif`;
+      g.lineJoin = "round"; g.lineWidth = 4; g.strokeStyle = "#633a45"; g.strokeText("胜利", 0, -2);
+      g.fillStyle = "#fff0b5"; g.fillText("胜利", 0, -2);
       g.restore();
     }
     for (const coin of game.settlement.coins) {

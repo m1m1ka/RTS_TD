@@ -1,22 +1,7 @@
-﻿.start-rune {
-  margin-top: 8px;
-  padding: 5px 16px;
-  border: 2px solid #263923;
-  border-radius: 8px;
-  background: linear-gradient(#bbaa68, #807844);
-  box-shadow:
-    inset 0 2px #e1d5a2,
-    0 3px #142719;
-  color: #fff2b9;
-  font-size: 12px;
-  text-shadow: 0 2px #564b2b;
-}
-.start-rune:disabled {
-  opacity: 0.5;
-}
+/* Cream cabinet frames around the original card illustrations. */
 #card-hud {
-  --card-width: 112px;
-  --card-height: 174px;
+  --card-width: 118px;
+  --card-height: 180px;
   position: absolute;
   bottom: 0;
   left: 50%;
@@ -25,528 +10,210 @@
   pointer-events: auto;
   user-select: none;
 }
-
-.hand-tray {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background: radial-gradient(ellipse at bottom, #142e21ad, transparent 70%);
-}
+.hand-tray { display: flex; align-items: center; gap: 4px; background: linear-gradient(transparent 28%, #101018a6 85%, #101018d9); }
 #hand {
   display: flex;
   flex: 1;
   min-width: 0;
-  gap: 0;
+  gap: 5px;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 25px 18px 17px;
   scrollbar-width: none;
   align-items: flex-end;
-  min-height: 216px;
+  min-height: 222px;
   isolation: isolate;
 }
-#hand::-webkit-scrollbar {
-  display: none;
-}
-#hand:not(.overflowing) {
-  justify-content: center;
-}
+#hand::-webkit-scrollbar { display: none; }
+#hand:not(.overflowing) { justify-content: center; }
 .hand-arrow {
-  flex: 0 0 23px;
-  height: 39px;
-  border: 1px solid #a9ad82;
-  border-radius: 45% 45% 4px 4px;
-  background: #294434e6;
-  color: #e2d3a2;
-  font:
-    25px Georgia,
-    serif;
-  box-shadow: inset 0 0 0 2px #193626;
-  line-height: 28px;
+  flex: 0 0 27px;
+  height: 42px;
+  padding: 0;
+  border: 3px solid var(--retro-cream, #fff0b5);
+  border-radius: 5px;
+  background: var(--retro-red, #92535b);
+  color: var(--retro-cream, #fff0b5);
+  box-shadow: 0 0 0 3px var(--retro-ink, #101018), 0 5px 0 3px var(--retro-ink, #101018);
+  font: 900 29px/1 var(--retro-font, sans-serif);
 }
-.hero {
-  --edge: #617f6e;
-  --face: #a7b69a;
-  --wash: #bbc4ac;
-}
-.hero.rarity-common {
-  --edge: #39724b;
-  --face: #91bd8c;
-  --wash: #c3dfb3;
-  --rarity-paper: #c5ddb4;
-}
-.hero.rarity-rare {
-  --edge: #396e9b;
-  --face: #89b6d6;
-  --wash: #c0dcec;
-  --rarity-paper: #bfd8ed;
-}
-.hero.rarity-epic {
-  --edge: #a27b2b;
-  --face: #d6b45b;
-  --wash: #f1d98a;
-  --rarity-paper: #ecd18d;
-}
-.hand-card.hero {
-  background:
-    radial-gradient(ellipse at 17% 29%, #ffffff50, transparent 48%),
-    repeating-linear-gradient(9deg, #4d432806 0 1px, transparent 1px 5px),
-    var(--rarity-paper, #c5ddb4);
-  border-color: var(--edge);
-}
-.resource {
-  --edge: #8b8554;
-  --face: #bdba8a;
-  --wash: #cecea5;
-}
-.battle {
-  --edge: #a2694f;
-  --face: #c19678;
-  --wash: #cfb390;
-}
-.equipment {
-  --edge: #85788a;
-  --face: #aaa893;
-  --wash: #c2bfad;
-}
+.hero { --edge: #4a755c; --face: #537d64; --wash: #718e76; }
+.hero.rarity-common { --edge: #4a755c; --face: #537d64; --wash: #718e76; }
+.hero.rarity-rare { --edge: #4a5f87; --face: #53638b; --wash: #7885a5; }
+.hero.rarity-epic { --edge: #92713b; --face: #a08348; --wash: #bba469; }
+.resource { --edge: #4c7658; --face: #5d815d; --wash: #869570; }
+.battle { --edge: #8a4c56; --face: #9a5c61; --wash: #b27979; }
+.equipment { --edge: #505c86; --face: #626991; --wash: #8c8daa; }
 .hand-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   flex: 0 0 var(--card-width);
   height: var(--card-height);
-  margin: 0 -3px;
-  border: 2px solid #443e2d;
-  border-radius: 7px 6px 8px 5px;
-  outline: 1px solid #dcca9d;
-  outline-offset: -5px;
-  padding: 5px 6px 9px;
-  background:
-    radial-gradient(ellipse at 17% 29%, #fff1c040, transparent 48%),
-    radial-gradient(ellipse at 92% 89%, #8c773722, transparent 60%),
-    repeating-linear-gradient(9deg, #4d432804 0 1px, transparent 1px 5px),
-    #ded0a4;
-  box-shadow:
-    inset 0 0 0 2px #bbaa7c,
-    0 3px 0 #192e21,
-    1px 5px 7px #10281c70;
-  touch-action: none;
-  text-align: center;
-  color: #443d2b;
+  margin: 0;
+  padding: 4px 5px 8px;
+  border: 3px solid var(--retro-ink, #101018);
+  border-radius: 7px;
+  outline: 0;
+  background: var(--retro-cream, #fff0b5);
+  box-shadow: inset 0 0 0 1px #fff8d6, 0 5px 0 var(--retro-ink, #101018);
+  color: var(--retro-ink, #101018);
   text-shadow: none;
-  font-family: "STKaiti", "KaiTi", "Kaiti SC", "Songti SC", "SimSun", serif;
-  font-weight: 500;
+  font-family: var(--retro-font, sans-serif);
+  font-weight: 700;
+  text-align: center;
+  touch-action: none;
   transform: translateY(var(--arc, 0px)) rotate(var(--tilt, 0deg));
   transform-origin: 50% 110%;
-  transition:
-    transform 0.17s ease,
-    box-shadow 0.17s ease;
+  transition: transform .18s cubic-bezier(.2,.85,.3,1.3), box-shadow .18s, filter .18s;
   overflow: visible;
 }
-.hand-card::before {
-  content: "";
-  position: absolute;
-  inset: 5px;
-  border: 1px solid #776747;
-  border-radius: 2px 3px 4px 2px;
-  pointer-events: none;
-}
-.hand-card::after {
-  content: "";
-  position: absolute;
-  left: calc(50% - 3px);
-  top: -3px;
-  width: 6px;
-  height: 6px;
-  border: 1px solid #5a533b;
-  background: #b5b58e;
-  transform: rotate(45deg);
-  pointer-events: none;
-}
-.hand-card:hover,
-.hand-card:focus-visible {
-  z-index: 3;
-  transform: translateY(-10px) rotate(0deg);
-  box-shadow:
-    inset 0 0 0 2px #c7b788,
-    0 9px 12px #10281c90;
-}
-.hand-card.selected {
-  z-index: 4;
-  transform: translateY(-12px) rotate(0deg);
-  outline: 2px solid #ece1ad;
-  outline-offset: 1px;
-  box-shadow:
-    0 0 14px #d2da9350,
-    inset 0 0 0 2px #c9b783,
-    0 9px 12px #10281c99;
-}
+.hand-card::before { content: ""; position: absolute; inset: 2px; border: 1px solid #c5b780; border-radius: 3px; pointer-events: none; }
+.hand-card:hover, .hand-card:focus-visible { z-index: 3; transform: translateY(-10px) rotate(0deg); box-shadow: 0 0 0 2px var(--retro-cream, #fff0b5), 0 8px 0 2px var(--retro-ink, #101018); }
+.hand-card.selected, .hand-card.aiming { z-index: 4; transform: translateY(-12px) rotate(0deg); outline: 3px solid #99c382; outline-offset: 1px; box-shadow: 0 8px 0 4px var(--retro-ink, #101018); }
+.hand-card.aiming { transition: none; }
 .card-title {
   overflow: hidden;
   display: flex;
+  flex: 0 0 24px;
   align-items: center;
   justify-content: center;
-  height: 23px;
-  padding-left: 7px;
+  min-width: 0;
+  margin: 0 0 3px;
+  padding: 0 2px;
   font-size: 14px;
   font-weight: 900;
-  letter-spacing: 1px;
+  letter-spacing: .04em;
   white-space: nowrap;
-  line-height: 1;
-  border-bottom: 1px solid #84744e;
-  margin: -1px -1px 3px;
+  line-height: 1.15;
+  color: var(--retro-ink, #101018);
 }
-.card-count {
-  position: absolute;
-  left: 0;
-  top: -13px;
-  display: block;
-  width: auto;
-  height: auto;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  font:
-    bold 17px Georgia,
-    serif;
-  line-height: 1;
-  color: #fff1c6;
-  text-shadow: 0 1px 2px #263923, 1px 0 1px #263923, -1px 0 1px #263923;
-  z-index: 3;
-}
-.hero .card-title {
-  padding-left: 0;
-}
+.card-count { position: absolute; left: -7px; top: -12px; z-index: 3; min-width: 28px; padding: 2px 5px; border: 2px solid var(--retro-ink, #101018); border-radius: 4px; background: var(--retro-blue, #525d89); color: var(--retro-cream, #fff0b5); font: 900 15px/1.1 var(--retro-number, monospace); box-shadow: 0 3px var(--retro-ink, #101018); }
 .card-picture {
   position: relative;
-  height: 83px;
   display: flex;
+  flex: 0 0 75px;
   align-items: center;
   justify-content: center;
   isolation: isolate;
-  background:
-    radial-gradient(ellipse at 50% 38%, var(--wash), transparent 76%),
-    var(--face);
-  border: 1px solid #827651;
-  box-shadow: inset 0 0 10px #675d2b13;
+  background: var(--face);
+  border: 2px solid var(--retro-ink, #101018);
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 2px #ffffff18;
   overflow: hidden;
 }
-.card-picture::before {
-  content: "";
-  position: absolute;
-  inset: 8px 12px;
-  border: 1px solid #595b3520;
-  border-radius: 50%;
-  transform: rotate(-17deg);
-  box-shadow: 0 0 0 5px #ddddbb0c;
-  z-index: -1;
-}
-.card-picture::after {
-  content: "";
-  position: absolute;
-  inset: 7px;
-  background:
-    linear-gradient(35deg, transparent 48%, #5b583538 49% 53%, transparent 54%)
-      6% 25%/6px 6px no-repeat,
-    linear-gradient(115deg, transparent 48%, #5b583536 49% 53%, transparent 54%)
-      92% 13%/7px 9px no-repeat,
-    linear-gradient(155deg, transparent 45%, #5b583530 46% 52%, transparent 53%)
-      88% 88%/8px 5px no-repeat;
-  pointer-events: none;
-}
-.card-picture img {
-  width: 82px;
-  height: 82px;
-  object-fit: contain;
-  filter: saturate(0.77) sepia(0.08);
-  transform: rotate(-3deg);
-}
-.hero .card-picture img {
-  width: 88px;
-  height: 88px;
-  transform: translateY(2px) rotate(-3deg);
-}
-.card-kind {
-  display: block;
-  position: relative;
-  z-index: 1;
-  width: 89%;
-  margin: -7px auto 0;
-  padding: 2px 0 1px;
-  border: 1px solid #756747;
-  background: #e7d8ae;
-  box-shadow: 0 1px #6b60392b;
-  transform: rotate(-2deg);
-  font-size: 9px;
-  letter-spacing: 1px;
-  line-height: 11px;
-  white-space: nowrap;
-  color: #4e4a32;
-}
-.card-description {
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  display: block;
-  height: 37px;
-  margin-top: 3px;
-  padding-top: 3px;
-  font-size: 11px;
-  line-height: 16px;
-  letter-spacing: 0.2px;
-  color: #4d4a33;
-}
-#hand .hero .card-kind {
-  width: 100%;
-  letter-spacing: 0;
-}
-.card-description em {
-  display: contents;
-  color: #954b32;
-  font-style: normal;
-  font-weight: 900;
-}
-.card-description br {
-  display: initial;
-}
-.card-flourish {
-  position: absolute;
-  bottom: 5px;
-  left: 0;
-  width: 100%;
-  font-size: 7px;
-  color: #8f895e;
-  line-height: 7px;
-}
-.card-flourish::before,
-.card-flourish::after {
-  content: "";
-  display: inline-block;
-  vertical-align: middle;
-  width: 18px;
-  border-top: 1px solid #9a91684a;
-  margin: 0 5px;
-}
-.card-glyph {
-  font-size: 42px;
-  color: #76683d;
-  line-height: 1;
-}
-.empty-hand {
-  color: #adc19b;
-  margin: auto;
-  font-size: 12px;
-}
-.card-aim {
-  --aim-color: #94d58d;
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 25;
-  pointer-events: none;
-  overflow: hidden;
-  filter: drop-shadow(0 2px 2px #102a2180);
-}
-.card-aim[hidden] {
-  display: none;
-}
-.card-aim[data-valid="false"] {
-  --aim-color: #c77f6b;
-}
-.aim-outline,
-.aim-line {
-  fill: none;
-  stroke-linecap: round;
-  stroke-dasharray: 9 15;
-}
-.aim-outline {
-  stroke: #283e2e;
-  stroke-width: 9px;
-  opacity: 0.9;
-}
-.aim-line {
-  stroke: var(--aim-color);
-  stroke-width: 4px;
-}
-.aim-arrow,
-.aim-origin {
-  fill: var(--aim-color);
-  stroke: #344330;
-  stroke-width: 2.5px;
-  stroke-linejoin: round;
-}
-.aim-target {
-  fill: none;
-  stroke: var(--aim-color);
-  stroke-width: 1.5px;
-  stroke-dasharray: 3 5;
-  opacity: 0.7;
-}
-.hand-card.aiming {
-  transform: translateY(-12px) rotate(0deg);
-  transition: none;
-}
+.card-picture::before { content: ""; position: absolute; inset: 0; z-index: -1; background: repeating-linear-gradient(135deg, transparent 0 15px, #fff0b50b 15px 19px); }
+.card-picture img { width: 78px; height: 78px; object-fit: contain; filter: drop-shadow(0 3px 0 #10101838); }
+.hero .card-picture img { width: 85px; height: 85px; }
+.card-kind { display: block; position: relative; z-index: 1; flex: 0 0 auto; width: 100%; margin: 3px auto 0; padding: 2px 1px; border: 0; border-radius: 2px; background: var(--edge); color: var(--retro-cream, #fff0b5); font-size: 9px; font-weight: 800; letter-spacing: .02em; line-height: 13px; white-space: nowrap; text-shadow: 0 1px #10101855; }
+.card-description { overflow: hidden; overflow-wrap: anywhere; display: block; flex: 1 1 auto; min-height: 0; margin: 4px 0 0; padding: 0 1px; color: #493940; font-size: 10px; font-weight: 700; line-height: 1.5; letter-spacing: 0; text-wrap: pretty; }
+.card-description em { color: #884350; font-style: normal; font-weight: 900; }
+.card-description br { display: initial; }
+.card-flourish { display: none; }
+.card-glyph { font-size: 42px; color: var(--retro-cream, #fff0b5); line-height: 1; }
+.empty-hand { color: var(--retro-paper, #e9dba1); margin: auto; font-size: 12px; }
+
+/* Dashed aiming retains explicit valid/invalid colors. */
+.card-aim { --aim-color: #94d58d; position: fixed; inset: 0; width: 100%; height: 100%; z-index: 25; pointer-events: none; overflow: hidden; filter: drop-shadow(0 2px 2px #10101880); }
+.card-aim[hidden] { display: none; }
+.card-aim[data-valid="false"] { --aim-color: #c77f6b; }
+.aim-outline, .aim-line { fill: none; stroke-linecap: round; stroke-dasharray: 9 15; }
+.aim-outline { stroke: #101018; stroke-width: 9px; opacity: .9; }
+.aim-line { stroke: var(--aim-color); stroke-width: 4px; }
+.aim-arrow, .aim-origin { fill: var(--aim-color); stroke: #101018; stroke-width: 2.5px; stroke-linejoin: round; }
+.aim-target { fill: none; stroke: var(--aim-color); stroke-width: 1.5px; stroke-dasharray: 3 5; opacity: .7; }
+
+/* Reward draft uses the same large header plaque and inset panel as the shop. */
 #reward-dialog {
-  width: min(800px, 94vw);
-  padding: 20px 24px 28px;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+  width: min(1080px, calc(100vw - 48px));
+  max-width: none;
+  max-height: 92dvh;
+  padding: 23px 26px 30px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 6px solid var(--retro-cream, #fff0b5);
+  border-radius: 15px;
+  background: var(--retro-red, #92535b);
+  box-shadow: 0 0 0 5px var(--retro-ink, #101018), 0 11px 0 5px var(--retro-ink, #101018), inset 0 0 0 2px #c48a86;
+  color: var(--retro-cream, #fff0b5);
   text-align: center;
+  font-family: var(--retro-font, sans-serif);
+  text-shadow: 0 2px #633a45;
 }
-#reward-dialog::backdrop {
-  background: radial-gradient(ellipse at 50% 45%, #1a3328c9, #061b17ed);
-  backdrop-filter: blur(5px);
+#reward-dialog::backdrop { background-color: #101018f5; background-image: var(--retro-pattern, none); background-size: var(--retro-pattern-size, 420px 320px); backdrop-filter: blur(3px) saturate(.5); }
+.reward-heading { display: flex; flex-direction: column; align-items: center; margin: -3px 0 0; }
+#reward-dialog .reward-heading h2 {
+  min-width: min(380px, 90%);
+  margin: 0 0 16px;
+  padding: 10px 36px 13px;
+  border: 5px solid var(--retro-cream, #fff0b5);
+  border-radius: 8px;
+  background: var(--retro-red-dark, #633a45);
+  box-shadow: 0 0 0 4px var(--retro-ink, #101018), 0 7px 0 4px var(--retro-ink, #101018);
+  font: 900 clamp(28px, 3.5vw, 42px)/1.2 var(--retro-display, sans-serif);
+  letter-spacing: .12em;
+  text-indent: .12em;
+  color: var(--retro-cream, #fff0b5);
 }
-.reward-crest {
-  font-size: 36px;
-  color: #e2cd88;
-  line-height: 1;
-}
-#reward-dialog h2 {
-  font-size: 25px;
-  margin: 8px 0;
-}
-#reward-dialog > p {
-  font-size: 12px;
-  color: #cbd0ac;
-  margin: 0 0 22px;
-}
-.map-hint {
-  bottom: 239px !important;
-}
-.map-hint.paused {
-  bottom: auto !important;
-}
+.reward-heading p { margin: 6px 0 0; font-size: 15px; font-weight: 900; letter-spacing: .15em; }
+.reward-draft { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px; padding: 33px 5px 31px; perspective: 1000px; }
+.reward-deal { min-width: 0; animation: reward-deal-in .65s cubic-bezier(.16,1.3,.4,1) both; animation-delay: calc(var(--deal) * 95ms); }
+.reward-draft .reward-card { --card-width: 100%; --card-height: 264px; width: 100%; height: 264px; margin: 0; padding: 6px 7px 10px; border-width: 4px; transform: none; }
+.reward-card:hover { transform: translateY(-7px) !important; }
+.reward-card.picked { transform: translateY(-12px) scale(1.025) !important; box-shadow: 0 0 0 4px #9bc78a, 0 9px 0 5px var(--retro-ink, #101018); }
+.reward-card.dimmed { filter: saturate(.4) brightness(.7); }
+.reward-card .reward-tick { position: absolute; right: -9px; top: -14px; z-index: 4; display: grid; place-items: center; width: 31px; height: 31px; border-radius: 5px; background: var(--retro-green, #507d58); border: 3px solid var(--retro-cream, #fff0b5); box-shadow: 0 0 0 3px var(--retro-ink, #101018), 0 3px 0 3px var(--retro-ink, #101018); color: var(--retro-cream, #fff0b5); font-size: 23px; font-weight: 900; opacity: 0; transform: scale(.1) rotate(-45deg); transition: .25s cubic-bezier(.2,1.8,.4,1); }
+.reward-card.picked .reward-tick { opacity: 1; transform: scale(1) rotate(0); }
+.reward-draft .card-title { flex-basis: 30px; font-size: 17px; }
+.reward-draft .card-picture { flex: 0 0 112px; }
+.reward-draft .card-picture img { width: 108px; height: 108px; }
+.reward-draft .card-kind { padding-block: 3px; font-size: 10px; }
+.reward-draft .card-description { margin-top: 8px; font-size: 12px; line-height: 1.55; }
+[data-reward-confirm] { min-width: 230px; padding: 11px 32px 13px; border: 5px solid var(--retro-cream, #fff0b5); border-radius: 7px; background: var(--retro-green, #507d58); color: var(--retro-cream, #fff0b5); box-shadow: 0 0 0 4px var(--retro-ink, #101018), 0 7px 0 4px var(--retro-ink, #101018), inset 0 0 0 2px #81a479; font: 900 23px/1.2 var(--retro-font, sans-serif); text-shadow: 0 2px #294c37; transition: transform .15s, filter .2s; }
+[data-reward-confirm]:disabled { filter: saturate(.25); opacity: .65; }
+[data-reward-confirm]:not(:disabled):hover { transform: translateY(-3px); filter: brightness(1.1); }
+[data-reward-confirm]:not(:disabled):active { transform: translateY(3px); }
+.map-hint { bottom: 239px !important; }
+.map-hint.paused { bottom: auto !important; }
+@keyframes reward-deal-in { from { opacity: 0; transform: translateY(90px) rotateY(65deg) rotate(-12deg) scale(.55); } 75% { opacity: 1; transform: translateY(-8px) rotateY(0) rotate(2deg) scale(1.03); } to { opacity: 1; transform: none; } }
 @media (max-width: 700px) {
-  #card-hud {
-    --card-width: 101px;
-    --card-height: 154px;
-    width: 100%;
-  }
-
-  #hand {
-    min-height: 190px;
-    padding: 21px 15px 14px;
-  }
-  .hand-card {
-    margin: 0 -2px;
-  }
-  .card-title {
-    font-size: 12px;
-    height: 21px;
-  }
-  .card-picture {
-    height: 70px;
-  }
-  .card-picture img {
-    width: 68px;
-    height: 68px;
-  }
-  .hero .card-picture img {
-    width: 77px;
-    height: 77px;
-  }
-  .card-kind {
-    font-size: 8px;
-    letter-spacing: 0;
-    line-height: 10px;
-  }
-  .card-description {
-    height: 32px;
-    font-size: 10px;
-    line-height: 14px;
-    margin-top: 2px;
-  }
-  .card-count {
-    font-size: 15px;
-    top: -12px;
-  }
-  .hand-arrow {
-    flex-basis: 18px;
-    padding: 0;
-    font-size: 23px;
-    height: 34px;
-  }
-  .hand-tray {
-    gap: 0;
-  }
-  .map-hint {
-    bottom: 213px !important;
-    font-size: 10px;
-  }
-  .start-rune {
-    font-size: 10px;
-    padding: 4px 9px;
-    margin-top: 5px;
-  }
-  #reward-dialog {
-    padding: 17px 10px;
-  }
-
+  #card-hud { --card-width: 104px; --card-height: 158px; width: 100%; }
+  #hand { min-height: 194px; gap: 3px; padding: 21px 13px 14px; }
+  .hand-card { padding: 3px 4px 6px; }
+  .card-title { font-size: 12px; flex-basis: 21px; margin-bottom: 2px; }
+  .card-picture { flex-basis: 63px; }
+  .card-picture img { width: 66px; height: 66px; }
+  .hero .card-picture img { width: 74px; height: 74px; }
+  .card-kind { font-size: 8px; line-height: 11px; letter-spacing: 0; padding: 2px 0; }
+  .card-description { font-size: 9px; line-height: 1.4; margin-top: 3px; }
+  .card-count { font-size: 13px; top: -10px; }
+  .hand-arrow { flex-basis: 20px; font-size: 24px; height: 35px; border-width: 2px; }
+  .hand-tray { gap: 0; }
+  .map-hint { bottom: 213px !important; font-size: 10px; }
+  #reward-dialog { width: calc(100vw - 28px); max-height: 92dvh; padding: 14px 13px 24px; border-width: 4px; }
+  #reward-dialog .reward-heading h2 { min-width: 0; width: 80%; padding: 9px 15px; border-width: 3px; font-size: 27px; }
+  .reward-heading p { font-size: 12px; }
+  .reward-draft { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 9px; padding: 25px 0 24px; }
+  .reward-draft .reward-card { height: 190px; padding: 4px 4px 7px; border-width: 3px; }
+  .reward-draft .card-title { flex-basis: 24px; font-size: 12px; }
+  .reward-draft .card-picture { flex-basis: 72px; }
+  .reward-draft .card-picture img { width: 72px; height: 72px; }
+  .reward-draft .card-kind { font-size: 8px; padding-block: 2px; }
+  .reward-draft .card-description { font-size: 10px; line-height: 1.4; margin-top: 5px; }
+  .reward-card.picked { transform: translateY(-6px) scale(1.015) !important; }
+  .reward-card .reward-tick { width: 25px; height: 25px; top: -10px; right: -5px; font-size: 17px; border-width: 2px; }
+  [data-reward-confirm] { min-width: 200px; font-size: 20px; border-width: 4px; }
 }
 @media (max-height: 540px) and (min-width: 701px) {
-  #card-hud {
-    --card-width: 96px;
-    --card-height: 144px;
-    max-width: 1090px;
-  }
-  #hand {
-    min-height: 178px;
-    padding-top: 20px;
-    padding-bottom: 14px;
-  }
-  .card-title {
-    font-size: 12px;
-    height: 19px;
-  }
-  .card-picture {
-    height: 61px;
-  }
-  .card-picture img {
-    height: 62px;
-    width: 62px;
-  }
-  .hero .card-picture img {
-    height: 68px;
-    width: 68px;
-  }
-  .card-kind {
-    font-size: 8px;
-    letter-spacing: 0;
-  }
-  .card-description {
-    height: 29px;
-    font-size: 10px;
-    line-height: 13px;
-  }
-  .card-count {
-    font-size: 14px;
-  }
-  .map-hint {
-    bottom: 204px !important;
-  }
+  #card-hud { --card-width: 99px; --card-height: 145px; max-width: 1090px; }
+  #hand { min-height: 178px; padding-top: 20px; padding-bottom: 14px; }
+  .card-title { font-size: 12px; flex-basis: 19px; }
+  .card-picture { flex-basis: 53px; }
+  .card-picture img { height: 58px; width: 58px; }
+  .hero .card-picture img { height: 65px; width: 65px; }
+  .card-kind { font-size: 8px; padding-block: 1px; letter-spacing: 0; }
+  .card-description { font-size: 9px; line-height: 1.35; }
+  .card-count { font-size: 13px; }
+  .map-hint { bottom: 204px !important; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .hand-card {
-    transition: none;
-  }
-}
-#reward-dialog { width: min(1040px, 96vw); max-height: 94dvh; overflow-y: auto; overflow-x: hidden; }
-.reward-draft { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px; padding: 25px 8px 35px; perspective: 1000px; }
-.reward-deal { min-width: 0; animation: reward-deal-in .65s cubic-bezier(.16,1.3,.4,1) both; animation-delay: calc(var(--deal) * 95ms); }
-.reward-draft .reward-card { --card-width: 100%; --card-height: 254px; width: 100%; height: 254px; margin: 0; transform: none; position: relative; transition: transform .22s cubic-bezier(.2,1.5,.4,1), filter .2s, box-shadow .2s; }
-.reward-card:hover { transform: translateY(-10px) rotate(-1deg) !important; }
-.reward-card.picked { transform: translateY(-18px) scale(1.035) !important; box-shadow: 0 0 0 3px #d7df9d, 0 0 28px #d9d47a66, 0 16px 20px #10261788; }
-.reward-card.dimmed { filter: saturate(.5) brightness(.75); }
-.reward-card .reward-tick { position: absolute; right: -8px; top: -14px; width: 28px; height: 28px; border-radius: 50%; background: #a9bd77; border: 2px solid #273d2b; color: #263d2c; font-size: 19px; opacity: 0; transform: scale(.1) rotate(-45deg); transition: .25s cubic-bezier(.2,1.8,.4,1); }
-.reward-card.picked .reward-tick { opacity: 1; transform: scale(1) rotate(0); }
-.reward-card.picked::after { pointer-events: none; }
-.reward-draft .card-picture { flex: 1; min-height: 80px; }
-.reward-draft .card-description { min-height: 52px; font-size: 12px; }
-[data-reward-confirm] { padding: 10px 32px; background: #a7b478; border: 3px solid #243d2a; box-shadow: inset 0 2px #e1dca7, 0 4px #142a1d; color: #233b29; border-radius: 7px; font-weight: 900; transition: transform .15s, filter .2s; }
-[data-reward-confirm]:disabled { filter: saturate(.2); opacity: .6; }
-[data-reward-confirm]:not(:disabled):hover { transform: translateY(-3px); }
-@keyframes reward-deal-in { from { opacity: 0; transform: translateY(90px) rotateY(65deg) rotate(-12deg) scale(.55); } 75% { opacity: 1; transform: translateY(-8px) rotateY(0) rotate(2deg) scale(1.03); } to { opacity: 1; transform: none; } }
-@media (max-width: 700px) { .reward-draft { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; padding: 22px 0; } .reward-draft .reward-card { height: 188px; } .reward-draft .card-title { font-size: 13px; } .reward-draft .card-description { font-size: 10px; min-height: 47px; } .reward-draft .card-picture { min-height: 45px; } #reward-dialog { padding: 12px; } }
-@media (prefers-reduced-motion: reduce) { .reward-deal { animation: none; } .reward-card, .reward-tick { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .hand-card, .reward-card, .reward-tick { transition: none !important; } .reward-deal { animation: none; } }

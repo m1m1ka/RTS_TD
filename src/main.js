@@ -23,6 +23,9 @@ import { heroRoles, inferHeroRole } from "./hero-grades.js";
 import { ShopUI } from "./shop-ui.js";
 import { SoundPlayer } from "./audio/player.js";
 import { getAudioConfig, subscribeAudioConfig } from "./audio/store.js";
+import { RetroRenderer, installCabinetPattern } from "./retro-renderer.js";
+import "./retro-theme.css";
+import "./retro-hud.css";
 
 const audioStats = { counts: {}, last: null };
 const gameAudio = new SoundPlayer(getAudioConfig(), {
@@ -37,7 +40,7 @@ const $ = (id) => document.getElementById(id),
   arena = $("arena");
 const waveProgress = new WaveProgress($("wave-progress"));
 const scene = new THREE.Scene();
-scene.background = new THREE.Color("#284b34");
+scene.background = new THREE.Color("#101018");
 const camera = new THREE.OrthographicCamera(-8, 8, 6, -6, 0.1, 100);
 camera.position.z = 20;
 const MIN_ZOOM = 1,
@@ -47,6 +50,7 @@ camera.zoom = innerWidth <= 700 ? 1.65 : 1.28;
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+const retroRenderer = new RetroRenderer(renderer);
 arena.prepend(renderer.domElement);
 renderer.domElement.setAttribute(
   "aria-label",
@@ -85,6 +89,7 @@ for (const type of [
 const artUrls = Object.fromEntries(
   Object.entries(arts).map(([key, value]) => [key, value.toDataURL()]),
 );
+installCabinetPattern(arts);
 const geometry = new THREE.PlaneGeometry(1, 1);
 function plane(w, h, color, opacity = 1) {
   const m = new THREE.Mesh(
@@ -117,6 +122,7 @@ function pos(x, y, z = 1) {
 const mapTexture = new THREE.CanvasTexture(mapArt());
 mapTexture.colorSpace = THREE.SRGBColorSpace;
 const board = imagePlane(mapTexture, 15, 11);
+board.material.color.set("#d5c79b");
 board.position.z = 0;
 scene.add(board);
 const forestTexture = new THREE.CanvasTexture(forestArt());
@@ -124,6 +130,7 @@ forestTexture.colorSpace = THREE.SRGBColorSpace;
 forestTexture.wrapS = forestTexture.wrapT = THREE.RepeatWrapping;
 forestTexture.repeat.set(3, 3);
 const forest = imagePlane(forestTexture, 90, 60);
+forest.material.color.set("#756a64");
 forest.position.z = -0.1;
 scene.add(forest);
 const selection = plane(0.97, 0.97, "#d7efa2", 0.15);
@@ -203,19 +210,19 @@ const combatVFX = new CombatVFX(scene, (unit) =>
 function textTexture(text, color = "#f3edc5", size = 24) {
   const c = document.createElement("canvas");
   const g = c.getContext("2d");
-  const font = `800 ${size}px "Noto Sans SC",sans-serif`;
+  const font = `900 ${size}px "Microsoft YaHei", "PingFang SC", sans-serif`;
   g.font = font;
   c.width = Math.max(256, Math.ceil(g.measureText(text).width) + 24);
   c.height = 64;
   g.textAlign = "center";
   g.textBaseline = "middle";
   g.font = font;
-  g.strokeStyle = "#17251d";
+  g.strokeStyle = "#101018";
   g.lineJoin = "round";
   g.lineWidth = 6;
-  g.strokeText(text, 128, 32);
+  g.strokeText(text, c.width / 2, 32);
   g.fillStyle = color;
-  g.fillText(text, 128, 32);
+  g.fillText(text, c.width / 2, 32);
   const texture = new THREE.CanvasTexture(c);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
@@ -306,6 +313,7 @@ function resize() {
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
   renderer.setSize(w, h, false);
+  retroRenderer.resize(w, h);
 }
 new ResizeObserver(resize).observe(arena);
 function constrainCamera() {
@@ -1279,7 +1287,7 @@ function animate(now) {
     updateUI();
   }
   frame++;
-  renderer.render(scene, camera);
+  retroRenderer.render(scene, camera);
 }
 subscribeConfig((config, mode) => {
   cardUI.cancel();

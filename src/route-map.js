@@ -31,7 +31,7 @@ export function routeGraph(config, { selected, available = [], completed = [], h
   return `<div class="route-scroll" tabindex="0" aria-label="横向关卡路线"><div class="route-canvas" style="width:${layout.width}px;height:${layout.height}px">${adventure ? mapScenery(layout) : ""}<svg class="route-lines" width="${layout.width}" height="${layout.height}" aria-hidden="true">${paths.join("")}</svg>${layout.nodes.map(({ day, depth, x, y }) => {
     const done = completed.includes(day.id), active = available.includes(day.id), current = day.id === selected;
     const end = !nextDayIds(config, day.id).length;
-    return `<button type="button" data-route-node="${esc(day.id)}" class="route-node ${done ? "done" : ""} ${active ? "available" : ""} ${current ? "current" : ""} ${day.id === chosen ? "chosen" : ""} ${editor ? "editable" : ""}" style="left:${x}px;top:${y}px" ${!editor && !active ? "disabled" : ""} ${adventure ? `aria-pressed="${day.id === chosen}"` : ""} aria-label="第 ${depth + 1} 天 ${esc(day.name)}${done ? " 已通过" : active ? " 可选择" : ""}"><span class="route-day">${adventure && current ? "目前所在 · " : ""}第 ${depth + 1} 天</span><span class="route-medal">${done ? "✓" : day.kind === "shop" ? stall : end ? "⚑" : sword}</span><strong>${esc(day.name)}</strong><small>${day.kind === "shop" ? "商店" : `${day.waves.length} 波`}${end ? " · 终点" : ""}</small></button>`;
+    return `<button type="button" data-route-node="${esc(day.id)}" class="route-node ${done ? "done" : ""} ${active ? "available" : ""} ${current ? "current" : ""} ${day.id === chosen ? "chosen" : ""} ${editor ? "editable" : ""}" style="left:${x}px;top:${y}px" ${!editor && !active ? "disabled" : ""} ${adventure ? `aria-pressed="${day.id === chosen}"` : ""} aria-label="第 ${depth + 1} 天 ${esc(day.name)}${done ? " 已通过" : active ? " 可选择" : ""}"><span class="route-day">${adventure && current ? "当前 · " : ""}第 ${depth + 1} 天</span><span class="route-medal">${done ? "✓" : day.kind === "shop" ? stall : end ? "⚑" : sword}</span><strong>${esc(day.name)}</strong><small>${day.kind === "shop" ? "商店" : `${day.waves.length} 波敌袭`}${end ? " · 终点" : ""}</small></button>`;
   }).join("")}</div></div>`;
 }
 
@@ -92,10 +92,10 @@ export class RouteMap {
       node.classList.toggle("chosen", chosen); node.setAttribute("aria-pressed", String(chosen));
     }
     const title = this.dialog.querySelector("[data-route-choice]"), subtitle = this.dialog.querySelector("[data-route-detail]");
-    if (title) title.textContent = day?.name || "下一站，去往何处？";
-    if (subtitle) subtitle.textContent = day ? day.kind === "shop" ? "林间商店 · 补充行囊，整装再出发" : `${day.waves.length} 波敌袭 · 守住核心，赢取战利品` : "选择闪光的路标，继续你的远征";
+    if (title) title.textContent = day?.name || "选择下一天";
+    if (subtitle) subtitle.textContent = day ? day.kind === "shop" ? "商店 · 招募英雄，购买卡包" : `${day.waves.length} 波敌袭 · 守住打卡机` : "点击亮起的关卡";
     const button = this.dialog.querySelector("[data-route-depart]");
-    if (button) { button.disabled = !day; button.textContent = day?.kind === "shop" ? "前往商店 →" : "踏上征途 →"; }
+    if (button) { button.disabled = !day; button.textContent = day?.kind === "shop" ? "进入商店！" : "下一天！"; }
   }
   show() {
     this.signature = "";
@@ -111,7 +111,7 @@ export class RouteMap {
     const signature = JSON.stringify([game.config.days.map((d) => [d.id, d.name, d.next, d.waves.length, d.kind]), selected, available, game.completedDays, game.routeHistory]);
     if (this.signature === signature) return;
     this.signature = signature;
-    this.dialog.innerHTML = `<div class="expedition-screen"><header class="expedition-heading"><div><span class="expedition-eyebrow">THE FOREST CAMPAIGN · 森林远征</span><h2>${game.phase === "route" ? "前路未尽" : "远征舆图"}</h2><p>${game.phase === "route" ? "循着林间的路标，选择下一段旅程。" : "每一步，都离归途更近。"}</p></div><div class="expedition-progress"><span>已通过</span><strong>${game.completedDays.length}</strong><span>处营地</span></div>${game.phase === "route" ? "" : '<button type="button" class="expedition-close" data-route-close aria-label="返回战场">返回战场 ×</button>'}</header><div class="expedition-map"><div class="map-compass" aria-hidden="true"><span>N</span>✥</div>${routeGraph(game.config, { selected, available, completed: game.completedDays, history: game.routeHistory, adventure: true, chosen: this.chosen })}<div class="map-legend"><span>● 已踏足</span><span>◉ 可前往</span><span>◇ 未探索</span></div></div><footer class="expedition-footer">${game.phase === "route" ? '<div class="expedition-destination"><span>下一站</span><h3 data-route-choice></h3><p data-route-detail></p></div><button type="button" data-route-depart disabled>踏上征途 →</button>' : '<p class="expedition-overview">守住今天，再启程去往远方。</p>'}<span class="map-pan-hint">拖动地图探索 · 方向键移动视野</span></footer></div>`;
+    this.dialog.innerHTML = `<div class="expedition-screen"><header class="expedition-heading"><div class="expedition-title"><span class="expedition-eyebrow">周五保卫战 · 关卡路线</span><h2>${game.phase === "route" ? "选择路线" : "远征地图"}</h2><p>${game.phase === "route" ? "下一天，由你决定。" : "守住今天，继续前进。"}</p></div><div class="expedition-progress"><span>已通关</span><strong>${game.completedDays.length}</strong><span>天</span></div>${game.phase === "route" ? "" : '<button type="button" class="expedition-close" data-route-close aria-label="返回战场">返回战场 ×</button>'}</header><div class="expedition-map">${routeGraph(game.config, { selected, available, completed: game.completedDays, history: game.routeHistory, adventure: true, chosen: this.chosen })}<div class="map-legend"><span>✓ 已通关</span><span>■ 可前往</span><span>□ 未解锁</span></div></div><footer class="expedition-footer">${game.phase === "route" ? '<div class="expedition-destination"><span>下一关</span><h3 data-route-choice></h3><p data-route-detail></p></div><button type="button" data-route-depart disabled>下一天！</button>' : '<p class="expedition-overview">完成当前关卡后，选择下一条路线。</p>'}<span class="map-pan-hint">拖动地图 / 方向键移动</span></footer></div>`;
     this.updateChoice();
   }
   update() {

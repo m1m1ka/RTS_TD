@@ -1,3 +1,4 @@
+import "../retro-theme.css";
 import { heroRarityClass, heroGradeLabel, heroRarities, heroRoles, heroStatFields, applyHeroStatPreset, syncHeroStatPresets } from "../hero-grades.js";
 import { copyMapLayout, mapLayoutErrors, applyMapPreset } from "../map-presets.js";
 import "./editor.css";

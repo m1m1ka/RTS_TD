@@ -1,3 +1,4 @@
+import "../retro-theme.css";
 import "../config/editor.css";
 import "./editor.css";
 import { escapeHTML as esc } from "../config/schema.js";

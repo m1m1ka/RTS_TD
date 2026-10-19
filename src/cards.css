@@ -123,24 +123,28 @@
 .aim-arrow, .aim-origin { fill: var(--aim-color); stroke: #101018; stroke-width: 2.5px; stroke-linejoin: round; }
 .aim-target { fill: none; stroke: var(--aim-color); stroke-width: 1.5px; stroke-dasharray: 3 5; opacity: .7; }
 
-/* Reward draft uses the same large header plaque and inset panel as the shop. */
+/* Reward cards float over the current battlefield. */
 #reward-dialog {
-  width: min(1080px, calc(100vw - 48px));
+  width: 100%;
+  height: 100dvh;
+  margin: 0;
+  inset: 0;
   max-width: none;
-  max-height: 92dvh;
-  padding: 23px 26px 30px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  border: 6px solid var(--retro-cream, #fff0b5);
-  border-radius: 15px;
-  background: var(--retro-red, #92535b);
-  box-shadow: 0 0 0 5px var(--retro-ink, #101018), 0 11px 0 5px var(--retro-ink, #101018), inset 0 0 0 2px #c48a86;
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   color: var(--retro-cream, #fff0b5);
   text-align: center;
   font-family: var(--retro-font, sans-serif);
   text-shadow: 0 2px #633a45;
 }
-#reward-dialog::backdrop { background-color: #101018f5; background-image: var(--retro-pattern, none); background-size: var(--retro-pattern-size, 420px 320px); backdrop-filter: blur(3px) saturate(.5); }
+#reward-dialog[open] { display: flex; align-items: center; justify-content: center; }
+.reward-content { flex: none; box-sizing: border-box; width: min(720px, calc(100vw - 48px)); padding: 23px 26px 30px; transform-origin: center; }
+#reward-dialog::backdrop { background: transparent; backdrop-filter: none; }
 .reward-heading { display: flex; flex-direction: column; align-items: center; margin: -3px 0 0; }
 #reward-dialog .reward-heading h2 {
   min-width: min(380px, 90%);
@@ -155,8 +159,8 @@
   text-indent: .12em;
   color: var(--retro-cream, #fff0b5);
 }
-.reward-heading p { margin: 6px 0 0; font-size: 15px; font-weight: 900; letter-spacing: .15em; }
-.reward-draft { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px; padding: 33px 5px 31px; perspective: 1000px; }
+.reward-heading p { margin: 6px 0 0; font-size: 15px; font-weight: 900; letter-spacing: .15em; color: #203c30; text-shadow: 0 1px 2px #fff0b5, 0 -1px 2px #fff0b5; }
+.reward-draft { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding: 33px 5px 31px; perspective: 1000px; }
 .reward-deal { min-width: 0; animation: reward-deal-in .65s cubic-bezier(.16,1.3,.4,1) both; animation-delay: calc(var(--deal) * 95ms); }
 .reward-draft .reward-card { --card-width: 100%; --card-height: 264px; width: 100%; height: 264px; margin: 0; padding: 6px 7px 10px; border-width: 4px; transform: none; }
 .reward-card:hover { transform: translateY(-7px) !important; }
@@ -190,7 +194,7 @@
   .hand-arrow { flex-basis: 20px; font-size: 24px; height: 35px; border-width: 2px; }
   .hand-tray { gap: 0; }
   .map-hint { bottom: 213px !important; font-size: 10px; }
-  #reward-dialog { width: calc(100vw - 28px); max-height: 92dvh; padding: 14px 13px 24px; border-width: 4px; }
+  .reward-content { width: calc(100vw - 28px); padding: 14px 13px 24px; }
   #reward-dialog .reward-heading h2 { min-width: 0; width: 80%; padding: 9px 15px; border-width: 3px; font-size: 27px; }
   .reward-heading p { font-size: 12px; }
   .reward-draft { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 9px; padding: 25px 0 24px; }
@@ -217,3 +221,9 @@
   .map-hint { bottom: 204px !important; }
 }
 @media (prefers-reduced-motion: reduce) { .hand-card, .reward-card, .reward-tick { transition: none !important; } .reward-deal { animation: none; } }
+.hand-card.battle.cooling { cursor: wait; }
+.hand-card.battle.cooling .card-picture { filter: saturate(.35); }
+.skill-cooldown { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff3c3; text-shadow: 2px 2px #171d29; background: linear-gradient(to top, #172237bb var(--cooldown-progress), #17223733 var(--cooldown-progress)); pointer-events: none; border-radius: inherit; }
+.skill-cooldown[hidden] { display: none; }
+.skill-cooldown b { font: 900 30px/1.2 var(--retro-number, monospace); }
+.skill-cooldown small { font-size: 12px; }

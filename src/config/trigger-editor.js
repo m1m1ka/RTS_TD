@@ -19,7 +19,7 @@ export function triggerRulesEditor(card, path, field, cards = {}) {
         + '<p class="hint">提升等级 = 触发此规则的英雄当前等级 × 比例，向下取整。例如 10 级、50% 提升 5 级；不足 1 级时不提升。炮台生命与攻击按照其自身等级成长公式计算。</p>';
       if (effect.type === "revive") controls += field("每位目标每天最多复活次数", ep + ".maxRevives", { type: "number", min: 1, max: 99, step: 1 })
         + field("复活生命（最大生命的 %）", ep + ".hpPercent", { type: "number", min: 1, max: 100, step: "any" })
-        + '<p class="hint">牺牲时选择「自身」即可原地复活。其他目标选项会筛选阵亡英雄；格子被占时安置到最近空格。每位英雄的复活效果共用次数，换天重置，换波、保存配置和普通波后复活不重置、不消耗此次数。已存活或被永久销毁的英雄不会复活。</p>';
+        + '<p class="hint">牺牲时选择「自身」即可原地复活。其他目标选项会筛选阵亡英雄；格子被占时安置到最近空格。每位英雄的复活效果共用次数，换天重置，换波和保存配置不重置、不消耗此次数；波后不再自动复活。已存活或被永久销毁的英雄不会复活。</p>';
       if (effect.type === "generateCard") controls += cardGenerationEditor(effect, ep, cards, field);
       if (effect.type === "summonFollower") controls += field("生命比例（%）", ep + ".hpPercent", { type: "number", min: 1, max: 500, step: "any" })
         + field("攻击比例（%）", ep + ".atkPercent", { type: "number", min: 1, max: 500, step: "any" })
@@ -51,7 +51,7 @@ export function triggerRulesEditor(card, path, field, cards = {}) {
       ${target === "alliesWithFollowers" ? '<p class="hint">触发时选择范围内至少拥有一个存活随从的存活英雄，包含符合条件的自身。效果作用于英雄本人；随后随从死亡或移动不会重新筛选已施加的效果。</p>' : ""}
       ${rule.trigger.event === "heroSacrifice" ? '<p class="hint">某位英雄执行完本次已启用的「牺牲」规则后，存活的监听英雄响应一次；多条牺牲规则不会重复通知。若场上存在「所有英雄死亡视为牺牲触发」机制，没有启用牺牲规则的英雄死亡也会通知；随从死亡不通知。监听距离按牺牲发生的位置判断；「仅自身」需要先通过牺牲效果复活。「触发事件的英雄」指牺牲者，可配合复活效果救回尚未复活的英雄。</p>' : ""}
       ${rule.trigger.event === "sacrifice" ? '<p class="hint">自身每次死亡时触发一次，资源牌销毁英雄也会触发；随从死亡不触发主人规则。以死亡位置选择附近存活英雄。可给自身保留等级或属性效果，但治疗、升级附带回血不会复活自身；勾选「英雄在场时生效」的加成在来源死亡期间不生效。</p>' : ""}
-      ${rule.trigger.event === "victory" ? '<p class="hint">仅本天最后一波获胜时触发一次，且自身必须在胜利瞬间存活。先触发胜利效果，再进行波后复活与当天增益清理；中途换波、失败、商店不会触发。跨天成长请选择永久属性加成或提升等级。</p>' : ""}
+      ${rule.trigger.event === "victory" ? '<p class="hint">仅本天最后一波获胜时触发一次，且自身必须在胜利瞬间存活。胜利结算保留当前状态；进入下一天时才复活、回血并清理当天增益；中途换波、失败、商店不会触发。跨天成长请选择永久属性加成或提升等级。</p>' : ""}
       <div class="trigger-payloads">${effects}</div><div class="add-row"><select data-trigger-effect-choice="${rp}" aria-label="添加哪种效果">${Object.entries(triggerEffects).map(([key, spec]) => `<option value="${key}">${esc(spec.label)}</option>`).join("")}</select><button data-action="add-trigger-effect" data-index="${i}">＋ 添加后续效果</button></div></div>`;
   }).join("");
   return `<p class="hint">整备：开战前部署英雄时触发；跨天保留的英雄进入下一战斗关卡时各触发一次。开战后上场不触发整备，移动、复活和保存配置不会重复触发。</p><p class="hint">点击「迎战」触发一次；自动切换波次不会再次开战。距离按格子计算，同距离按英雄入场顺序选择。监听开战时，额外触发也会被计入；升级永久保留，属性加成按持续时间结算。</p>${rows || '<p class="hint">还没有触发规则。</p>'}<button data-action="add-trigger">＋ 新增触发规则</button><div class="trigger-presets"><span>快速添加</span><button data-trigger-template="fiveCards">每 5 张牌获得随机牌</button><button data-trigger-template="cardGrowth">用牌随机永久强化</button><button data-trigger-template="cardRefund">资源／战斗牌概率返还</button><button data-trigger-template="victoryGold">胜利奖金</button><button data-trigger-template="parts">定时生产零件</button><button data-trigger-template="engineering">建造炮台升级</button><button data-trigger-template="preparation">整备召唤随从</button><button data-trigger-template="growth">开战升级</button><button data-trigger-template="rally">自身与近邻加攻速</button><button data-trigger-template="echo">额外触发近邻</button><button data-trigger-template="momentum">响应开战加移速</button></div>`;

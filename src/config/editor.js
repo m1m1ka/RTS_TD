@@ -1,10 +1,12 @@
+import { defaultSkillTiers, skillEffectText } from "../skill-cards.js";
+import { DEFAULT_HERO_RANK_LEVELS, isRankValuePath } from "../hero-ranks.js";
 import "../retro-theme.css";
 import { heroRarityClass, heroGradeLabel, heroRarities, heroRoles, heroStatFields, applyHeroStatPreset, syncHeroStatPresets } from "../hero-grades.js";
 import { copyMapLayout, mapLayoutErrors, applyMapPreset } from "../map-presets.js";
 import "./editor.css";
 import "../cards.css";
 import { workshopRules } from "./workshop-content.js";
-import { mechanicsEditor } from "./mechanics-editor.js";
+import { mechanicsEditor, enemyMechanicsEditor } from "./mechanics-editor.js";
 import { combatBehaviors, healingTargets } from "../healing-behavior.js";
 import {
   getConfig,
@@ -34,8 +36,10 @@ import { triggerRulesEditor } from "./trigger-editor.js";
 import { newTriggerRule, defaultHeroRules, triggerEffects, cardPlayRules } from "./trigger-rules.js";
 import { levelStats } from "../level-stats.js";
 import { heroPresets, lookLabel, createPresetCard, presetById } from "../hero-presets.js";
+import { pirateLooks, piratePresets } from "../marine-content.js";
 import { valueModes, statModes } from "../effect-values.js";
 import { cardGenerationEditor } from "./card-generation-editor.js";
+import { setGenerationCandidates, pruneGenerationCandidates } from "../card-generation.js";
 import { SHOP_DEFAULTS } from "../shop.js";
 import { RESOURCE_CARDS } from "../resource-effects.js";
 
@@ -98,14 +102,24 @@ function field(
     : type === "textarea"
       ? `<textarea data-path="${path}" rows="2" maxlength="180">${esc(value)}</textarea>`
       : `<input data-path="${path}" type="${type}" value="${esc(value)}" ${disabled ? "disabled" : ""} ${type === "number" ? `min="${min}" max="${max}" step="${step}"` : 'maxlength="80"'}>`;
-  return `<label class="field ${wide ? "wide" : ""}"><span>${esc(label)}</span>${input}</label>`;
+  const parts = path.split("."), card = parts[0] === "cards" && draft.cards[parts[1]];
+  const ranked = type === "number" && card?.category === "hero" && isRankValuePath(parts.slice(2).join("."));
+  const base = `<label class="field ${wide ? "wide" : ""}"><span>${esc(label)}${ranked ? " · 0 阶" : ""}</span>${input}</label>`;
+  if (!ranked) return base;
+  const key = parts.pop(), owner = get(parts.join("."));
+  return `<div class="rank-field ${wide ? "wide" : ""}">${base}<details class="rank-values" open><summary>1～3 阶数值</summary><div>${[1, 2, 3].map(rank =>
+    `<label class="field"><span>${rank} 阶</span><input type="number" data-rank-value="${path}" data-rank-index="${rank}" aria-label="${esc(label)} ${rank} 阶" value="${owner?.rankValues?.[rank]?.[key] ?? ""}" placeholder="${value}" title="留空沿用 0 阶数值" min="${min}" max="${max}" step="${step}"></label>`).join("")}</div></details></div>`;
+}
+function heroRankEditor(card) {
+  card.rankLevels ??= [...DEFAULT_HERO_RANK_LEVELS];
+  return panel("英雄升阶 · 0 → 3 阶", `<p class="hint">初始为 0 阶，等级达到下方门槛自动升阶，最高 3 阶。门槛须递增；阶数随当前等级计算，交换或失去等级后也会重新计算。</p><div class="fields">${[1, 2, 3].map(rank => field(`达到 ${rank} 阶所需等级`, `cards.${selected}.rankLevels.${rank - 1}`, { type: "number", min: 2, max: 9999, step: 1 })).join("")}</div><p class="hint">在下方效果、触发机制、治疗及特殊机制的数字旁分别填写 1～3 阶数值；留空沿用 0 阶。各阶填写最终值，互不叠加。常驻效果升阶后立即更新；已触发的永久／当天增益保留原值，下次触发使用新阶数。升阶不会额外触发整备、开战或补发奖励。</p>`);
 }
 function unitFields(path) {
   const hero = path.startsWith("cards.") && draft.cards[path.split(".")[1]]?.category === "hero";
   const preset = hero && draft.cards[path.split(".")[1]].statSource === "preset";
   const healing = hero && get(path + ".combatBehavior") === "heal";
   const behavior = hero ? `<div class="fields">${field("战斗行为", path + ".combatBehavior", { options: combatBehaviors })}${healing ? field("治疗对象", path + ".healing.targets", { options: healingTargets }) + field("治疗量类型", path + ".healing.valueMode", { options: { fixed: "固定生命值", percent: "目标最大生命值百分比" } }) + field(get(path + ".healing.valueMode") === "percent" ? "每次治疗（最大生命的 %）" : "每次治疗生命值", path + ".healing.value", { type: "number", min: get(path + ".healing.valueMode") === "percent" ? .01 : 1, max: get(path + ".healing.valueMode") === "percent" ? 100 : 100000, step: "any" }) : ""}</div>${healing ? '<p class="hint">战斗中全图寻找最近的受伤队友，走入治疗距离后自动治疗。斜角为 1 格；不治疗自身、阵亡单位、核心或金矿，不攻击敌人。治疗不暴击，最多回到满血。手动移动优先，到达后重新选择目标。治疗速度、距离使用原攻速和射程属性，增益与装备仍有效。</p>' : ""}` : "";
-  return `${behavior}${hero ? mechanicsEditor(get(path),path,field) : ""}<p class="hint">攻击模组决定攻击动作、武器与弹道；选择治疗模组会自动治疗受伤友军，目标显示绿色光环与十字特效。外观由「实际使用 icon」配置，装备可覆盖武器。</p><div class="fields">${field("攻击模组", path + ".attackModule", { options: hero ? attackModuleOptions : damagingModuleOptions })}${Object.entries(
+  return `${behavior}${hero ? mechanicsEditor(get(path),path,field) : path.startsWith("enemies.") ? enemyMechanicsEditor(get(path),path,field) : ""}<p class="hint">攻击模组决定攻击动作、武器与弹道；选择治疗模组会自动治疗受伤友军，目标显示绿色光环与十字特效。外观由「实际使用 icon」配置，装备可覆盖武器。</p><div class="fields">${field("攻击模组", path + ".attackModule", { options: hero ? attackModuleOptions : damagingModuleOptions })}${Object.entries(
     statLabels,
   )
     .map(([k, t]) =>
@@ -224,20 +238,30 @@ function effectsEditor(card, path) {
           )
           .join(
             "",
-          )}</select><button class="icon-button" data-action="effect-up" data-index="${i}" ${i === 0 ? "disabled" : ""} title="上移效果">↑</button><button class="icon-button" data-action="remove-effect" data-index="${i}" title="移除效果">×</button></div><div class="fields">${controls || '<p class="hint">使用下方的炮台属性放置一个单位。</p>'}</div></div>`;
+          )}</select><button class="icon-button" data-action="effect-up" data-effect-owner="${path}" data-index="${i}" ${i === 0 ? "disabled" : ""} title="上移效果">↑</button><button class="icon-button" data-action="remove-effect" data-effect-owner="${path}" data-index="${i}" title="移除效果">×</button></div><div class="fields">${controls || '<p class="hint">使用下方的炮台属性放置一个单位。</p>'}</div></div>`;
       })
       .join("") || '<p class="hint">英雄基础属性之外，可叠加额外效果。</p>'
-  }</div><div class="add-row"><select id="new-effect">${Object.entries(
+  }</div><div class="add-row"><select id="${path.includes(".skillTiers.") ? "new-effect-" + path : "new-effect"}" data-effect-choice="${path}">${Object.entries(
     effectTypes,
   )
     .filter(([, spec]) => spec.categories.includes(card.category))
     .map(([k, spec]) => `<option value="${k}">${spec.label}</option>`)
     .join(
       "",
-    )}</select><button data-action="add-effect">＋ 叠加效果</button></div>`;
+    )}</select><button data-action="add-effect" data-effect-owner="${path}">＋ 叠加效果</button></div>`;
+}
+function skillEditor(card) {
+  const path = "cards." + selected;
+  return panel("技能冷却与合成", '<p class="hint">每张战斗牌独立冷却，不会消耗。商店中 3 张同名同阶牌合成下一阶；所有阶级的数值独立设置。合成保留材料最长的剩余冷却。</p>' +
+    field("1 阶冷却（秒）", path + ".cooldown", { type: "number", min: .1, max: 3600, step: .1 }) +
+    card.skillTiers.map((tier, i) => {
+      const tp = path + ".skillTiers." + i;
+      return panel(`${i + 2} 阶技能`, field("冷却（秒）", tp + ".cooldown", { type: "number", min: .1, max: 3600, step: .1 }) +
+        effectsEditor({ ...card, effects: tier.effects }, tp) + `<p class="hint">预览：${esc(skillEffectText(tier))}</p>`);
+    }).join("") + `<div class="add-row"><button data-action="add-skill-tier" ${card.skillTiers.length >= 9 ? "disabled" : ""}>＋ 新增阶级</button><button data-action="remove-skill-tier" ${!card.skillTiers.length ? "disabled" : ""}>移除最高阶</button></div>`);
 }
 function preview(card) {
-  return `<div class="preview-sticky"><div class="nav-caption">卡面预览</div><div class="hand-card ${card.category} ${heroRarityClass(card)} config-preview">${card.category === "hero" ? "" : '<b class="card-count">×1</b>'}<strong class="card-title">${esc(card.name)}</strong><div class="card-picture"><img src="${iconURL(card.icon, true)}" alt=""></div><span class="card-kind">${heroGradeLabel(card) || types[card.category]}${card.temporary ? " · 临时" : ""}</span><small class="card-description">${esc(card.text).replace(/ · /g, "<br>")}</small><span class="card-flourish">◆</span></div><small>属性效果按列表顺序叠加，等级成长先计入基础属性。描述为独立展示文本。</small><div class="actual-preview"><img src="${iconURL(card.useIcon)}" alt="使用图标"><span>实际使用图标</span></div></div>`;
+  return `<div class="preview-sticky"><div class="nav-caption">卡面预览</div><div class="hand-card ${card.category} ${heroRarityClass(card)} config-preview">${["hero", "battle"].includes(card.category) ? "" : '<b class="card-count">×1</b>'}<strong class="card-title">${esc(card.name)}</strong><div class="card-picture"><img src="${iconURL(card.icon, true)}" alt=""></div><span class="card-kind">${heroGradeLabel(card) || types[card.category]}${card.temporary ? " · 临时" : ""}</span><small class="card-description">${esc(card.text).replace(/ · /g, "<br>")}</small><span class="card-flourish">◆</span></div><small>属性效果按列表顺序叠加，等级成长先计入基础属性。描述为独立展示文本。</small><div class="actual-preview"><img src="${iconURL(card.useIcon)}" alt="使用图标"><span>实际使用图标</span></div></div>`;
 }
 function entityList(items, kind) {
   const depths = kind === "day" ? new Map(campaignLayout(draft).nodes.map((node) => [node.day.id, node.depth + 1])) : null;
@@ -256,7 +280,7 @@ function renderCards() {
     )
     .join(
       "",
-    )}</div><div class="editor-columns">${entityList(items, "card")}${card ? `<div class="entity-form"><div class="entity-title"><h2>${esc(card.name)}</h2><div><button data-action="duplicate-card">复制</button><button data-action="delete-card" class="danger">删除</button></div></div>${panel("基本信息", `<div class="fields">${field("名字", "cards." + selected + ".name")}${field("使用目标", "cards." + selected + ".target", { options: { hero: { ground: "空地" }, resource: { any: "\u6218\u573a\u4efb\u610f\u4f4d\u7f6e", hero: "我方英雄", ground: "空地（放置炮台）" }, battle: { area: "范围位置", enemy: "敌方单位" }, equipment: { hero: "我方英雄" } }[category] })}${field("描述", "cards." + selected + ".text", { type: "textarea", wide: true })}<label class="trigger-enable"><input type="checkbox" data-path="cards.${selected}.temporary" ${card.temporary ? "checked" : ""}>临时牌（本场战斗结束清除）</label></div><div class="icon-pair">${iconEditor("卡牌 icon", "cards." + selected + ".icon", "显示在手牌与奖励牌上")}${iconEditor("实际使用 icon", "cards." + selected + ".useIcon", "单位外观 / 装备标记 / 施放图标")}</div>`)}${category === "hero" ? heroGradeEditor(card) + panel("英雄属性", unitFields("cards." + selected + ".unit")) : ""}${category === "battle" ? panel("战斗表现", field("施法特效", "cards." + selected + ".visual", { options: { fireball: "火球爆环", lightning: "落雷", frost: "寒霜" } })) : ""}${panel("组合效果", effectsEditor(card, "cards." + selected))}${card.effects.some((e) => e.type === "summon") ? panel("炮台属性", unitFields("cards." + selected + ".unit")) : ""}</div><aside id="card-preview">${preview(card)}</aside>` : '<div class="empty-editor">该分类暂无卡牌，点击新增开始配置。</div>'}</div>`;
+    )}</div><div class="editor-columns">${entityList(items, "card")}${card ? `<div class="entity-form"><div class="entity-title"><h2>${esc(card.name)}</h2><div><button data-action="duplicate-card">复制</button><button data-action="delete-card" class="danger">删除</button></div></div>${panel("基本信息", `<div class="fields">${field("名字", "cards." + selected + ".name")}${field("使用目标", "cards." + selected + ".target", { options: { hero: { ground: "空地" }, resource: { any: "\u6218\u573a\u4efb\u610f\u4f4d\u7f6e", hero: "我方英雄", ground: "空地（放置炮台）" }, battle: { area: "范围位置", enemy: "敌方单位" }, equipment: { hero: "我方英雄" } }[category] })}${field("描述", "cards." + selected + ".text", { type: "textarea", wide: true })}<label class="trigger-enable"><input type="checkbox" data-path="cards.${selected}.temporary" ${card.temporary ? "checked" : ""}>临时牌（本场战斗结束清除）</label></div><div class="icon-pair">${iconEditor("卡牌 icon", "cards." + selected + ".icon", "显示在手牌与奖励牌上")}${iconEditor("实际使用 icon", "cards." + selected + ".useIcon", "单位外观 / 装备标记 / 施放图标")}</div>`)}${category === "hero" ? heroGradeEditor(card) + heroRankEditor(card) + panel("英雄属性", unitFields("cards." + selected + ".unit")) : ""}${category === "battle" ? panel("战斗表现", field("施法特效", "cards." + selected + ".visual", { options: { fireball: "火球爆环", lightning: "落雷", frost: "寒霜" } })) : ""}${panel(category === "battle" ? "1 阶效果" : "组合效果", effectsEditor(card, "cards." + selected))}${category === "battle" ? skillEditor(card) : ""}${card.effects.some((e) => e.type === "summon") ? panel("炮台属性", unitFields("cards." + selected + ".unit")) : ""}</div><aside id="card-preview">${preview(card)}</aside>` : '<div class="empty-editor">该分类暂无卡牌，点击新增开始配置。</div>'}</div>`;
 }
 function heroGradeEditor(card) {
   const path = "cards." + selected;
@@ -266,7 +290,7 @@ function heroPresetsEditor() {
   return panel("英雄基础数值预设", `<p class="hint">按品质与定位设置 1 级基础属性和每级成长。修改后会同步到所有选择「跟随品质与定位预设」的英雄，保存后生效；单独配置的英雄不受影响。</p><div class="hero-stat-presets">${Object.entries(heroRarities).map(([rarity, label]) => `<details class="hero-stat-tier rarity-${rarity}" ${rarity === "common" ? "open" : ""}><summary>${label}<small>5 种定位</small></summary>${Object.entries(heroRoles).map(([role, title]) => `<section class="hero-role-preset"><h4>${label} · ${title}</h4><div class="fields">${Object.entries(heroStatFields).map(([key, spec]) => field(spec.label, `initial.heroStatPresets.${rarity}.${role}.${key}`, { type: "number", ...spec })).join("")}</div></section>`).join("")}</details>`).join("")}</div>`);
 }
 function renderInitial() {
-  return `<div class="entity-title"><h2>初始默认配置</h2><span class="hint">每次开局的规则</span></div><div class="initial-layout"><div>${panel("核心与波后恢复", `<div class="fields">${field("每天第一波开始等待（秒）", "initial.firstWaveDelay", { type: "number", max: 3600 })}${field("核心初始生命", "initial.baseHp", { type: "number", min: 1 })}${field("波后治疗比例", "initial.waveHeal", { type: "number", max: 1 })}${field("阵亡英雄复活血量比例", "initial.reviveHp", { type: "number", min: 0.01, max: 1 })}</div>`)}${panel(
+  return `<div class="entity-title"><h2>初始默认配置</h2><span class="hint">每次开局的规则</span></div><div class="initial-layout"><div>${panel("核心与换天恢复", `<div class="fields">${field("每天第一波开始等待（秒）", "initial.firstWaveDelay", { type: "number", max: 3600 })}${field("核心初始生命", "initial.baseHp", { type: "number", min: 1 })}${field("返场英雄复活血量比例", "initial.reviveHp", { type: "number", min: 0.01, max: 1 })}</div><p class="hint">每波结束不会自动复活、回血或清除当天状态；进入下一天时英雄复活并恢复满血、清除当天临时加成。治疗与复活技能照常生效。</p>`)}${panel("海盗乘船登岸", `<div class="fields">${field("船航行速度（格 / 秒）", "initial.boatSpeed", { type: "number", min: .1, max: 20, step: .1 })}${field("登岸击退距离（格）", "initial.landingKnockback", { type: "number", min: 0, max: 10, step: 1 })}</div><p class="hint">每个出生点的一批敌人同乘一艘船，船宽 1 格、长 4 格，沿航向设 4 个站位；超过 4 人时在站位上站肩叠起。出生延迟控制启航时间，逐个出兵间隔控制登岸间隔。船上可按格子距离交战；可从正前方及沿岸两侧各一格登岸，优先正前方，有英雄时先击退；正前方无法使用时再尝试两侧空位或击退挡路英雄，遇障碍停止；三格都无法登陆时留船交战。0 格关闭击退；内陆出生点投影到最近的可达海岸。保存后立即生效。</p>`)}${panel(
     "通用升级规则",
     `<div class="fields">${Object.entries({
       heal: "升级恢复生命",
@@ -279,7 +303,8 @@ function renderEnemies() {
   const items = Object.entries(draft.enemies);
   if (!draft.enemies[selected]) selected = items[0]?.[0];
   const enemy = draft.enemies[selected];
-  return `<div class="editor-columns two">${entityList(items, "enemy")}<div class="entity-form"><div class="entity-title"><h2>${esc(enemy.name)}</h2><div><button data-action="duplicate-enemy">复制</button><button data-action="delete-enemy" class="danger">删除</button></div></div>${panel("敌方单位", field("名字", "enemies." + selected + ".name") + iconEditor("单位 icon", "enemies." + selected + ".useIcon", "战场中的实际外观") + unitFields("enemies." + selected))}<p class="hint">波次中的生命与攻击倍率会叠加到这里的基础数值上。</p></div></div>`;
+  const library = `<details class="hero-preset-library"><summary>海盗形象图鉴 <small>6 种预设 · 点击创建敌方单位</small></summary><div class="hero-preset-grid">${Object.entries(pirateLooks).map(([id, name]) => `<button type="button" data-enemy-preset="${id}"><img src="${iconURL(id, true)}" alt="${name}" draggable="false"><strong>${name}</strong><small>创建可编辑预设</small></button>`).join("")}</div></details>`;
+  return `${library}<div class="editor-columns two">${entityList(items, "enemy")}<div class="entity-form"><div class="entity-title"><h2>${esc(enemy.name)}</h2><div><button data-action="duplicate-enemy">复制</button><button data-action="delete-enemy" class="danger">删除</button></div></div>${panel("敌方单位", field("名字", "enemies." + selected + ".name") + iconEditor("单位 icon", "enemies." + selected + ".useIcon", "战场中的实际外观") + unitFields("enemies." + selected))}<p class="hint">波次中的生命与攻击倍率会叠加到这里的基础数值上。</p></div></div>`;
 }
 function spawnGrid(w) {
   const obstacles = obstacleKeys(draft.days[selected]);
@@ -337,12 +362,12 @@ function shopSettings(path) {
   return panel("旅行商店", '<p class="hint">进入节点直接购物，不触发战斗或胜利奖励。英雄区随机两张，可反复付费刷新；卡包区随机两个卡包，每包限购一次，不参与刷新，拆包三选一。商品从对应类型的卡牌中等概率抽取，种类不足时允许重复。</p><div class="fields">' + Object.entries(labels).map(([key,label]) => field(label + "（金币）", path + ".shop." + key, { type: "number", min: 0, max: 999, step: 1 })).join("") + '</div>');
 }
 function rewardSettings(path) {
-  return panel("当天胜利奖励 · 五选二", field("奖励池", path + ".rewardPool", { options: Object.fromEntries(Object.entries(draft.rewardPools).map(([key, pool]) => [key, pool.name])) }) + '<p class="hint">在「奖励池」页面编辑卡牌与权重；本关胜利后展示五张，选择两张收入手牌。</p>');
+  return panel("当天胜利奖励 · 三选一", field("奖励池", path + ".rewardPool", { options: Object.fromEntries(Object.entries(draft.rewardPools).map(([key, pool]) => [key, pool.name])) }) + '<p class="hint">在「奖励池」页面编辑卡牌与权重；本关胜利后展示三张，选择一张收入手牌。</p>');
 }
 function renderPools() {
   if (!draft.rewardPools[selected]) selected = Object.keys(draft.rewardPools)[0];
   const pool = draft.rewardPools[selected];
-  return `<div class="editor-columns two">${entityList(Object.entries(draft.rewardPools).map(([key,p]) => [key,{...p,icon:"training"}]),"pool")}<div class="entity-form"><div class="entity-title"><h2>${esc(pool.name)}</h2><div><button data-action="duplicate-pool">复制</button><button data-action="delete-pool" class="danger">删除</button></div></div>${panel("卡牌奖励池", field("名称", `rewardPools.${selected}.name`) + '<p class="hint">下方数字是抽取权重，越大越容易出现；0 表示停用。每次五选二，同次优先不重复，池中不足五种时才允许重复补足。</p>' + inventory(`rewardPools.${selected}.cards`))}</div></div>`;
+  return `<div class="editor-columns two">${entityList(Object.entries(draft.rewardPools).map(([key,p]) => [key,{...p,icon:"training"}]),"pool")}<div class="entity-form"><div class="entity-title"><h2>${esc(pool.name)}</h2><div><button data-action="duplicate-pool">复制</button><button data-action="delete-pool" class="danger">删除</button></div></div>${panel("卡牌奖励池", field("名称", `rewardPools.${selected}.name`) + '<p class="hint">下方数字是抽取权重，越大越容易出现；0 表示停用。每次三选一，同次优先不重复，池中不足三种时才允许重复补足。</p>' + inventory(`rewardPools.${selected}.cards`))}</div></div>`;
 }
 function render() {
   $("sections").innerHTML = Object.entries({
@@ -385,6 +410,22 @@ function ensureSummon(card) {
     card.target = "hero";
 }
 $("editor").addEventListener("input", (e) => {
+  if (e.target.dataset.rankValue) {
+    const parts = e.target.dataset.rankValue.split("."), key = parts.pop(), owner = get(parts.join("."));
+    const rank = e.target.dataset.rankIndex;
+    if (e.target.value === "") {
+      if (owner.rankValues?.[rank]) {
+        delete owner.rankValues[rank][key];
+        if (!Object.keys(owner.rankValues[rank]).length) delete owner.rankValues[rank];
+        if (!Object.keys(owner.rankValues).length) delete owner.rankValues;
+      }
+    } else {
+      owner.rankValues ??= {};
+      owner.rankValues[rank] ??= {};
+      owner.rankValues[rank][key] = Number(e.target.value);
+    }
+    markDirty(); return;
+  }
   const path = e.target.dataset.path;
   if (!path) return;
   set(
@@ -392,6 +433,8 @@ $("editor").addEventListener("input", (e) => {
     e.target.type === "checkbox" ? e.target.checked : e.target.type === "number" ? Number(e.target.value) : e.target.value,
   );
   if (path.startsWith("initial.heroStatPresets.")) syncHeroStatPresets(draft);
+  for (const input of document.querySelectorAll("[data-rank-value]"))
+    if (input.dataset.rankValue === path) input.placeholder = e.target.value;
   for (const element of document.querySelectorAll("[data-growth-preview]"))
     element.innerHTML = growthPreview(element.dataset.growthPreview);
   if (section === "cards" && $("card-preview"))
@@ -435,7 +478,7 @@ $("editor").addEventListener("change", async (e) => {
   if (e.target.dataset.mechanic) {
     const unit = get(e.target.dataset.unitPath), key = e.target.dataset.mechanic;
     unit.mechanics ??= {};
-    if (e.target.checked) unit.mechanics[key] = key === "knockback" ? {distance:1} : key === "arrowReduction" ? {mode:"percent",value:50} : true;
+    if (e.target.checked) unit.mechanics[key] = key === "knockback" ? {distance:1} : ["arrowReduction", "rangedReduction"].includes(key) ? {mode:"percent",value:50} : true;
     else delete unit.mechanics[key];
     if (!Object.keys(unit.mechanics).length) delete unit.mechanics;
     markDirty(); render(); return;
@@ -461,9 +504,14 @@ $("editor").addEventListener("change", async (e) => {
     render(); return;
   }
   if (e.target.dataset.generationCard) {
-    const effect = get(e.target.dataset.generationPath), key = e.target.dataset.generationCard;
-    effect.cards = e.target.checked ? [...new Set([...effect.cards, key])] : effect.cards.filter(id => id !== key);
+    const path = e.target.dataset.generationPath, effect = get(path);
+    const checked = [...document.querySelectorAll(`[data-generation-path="${path}"]:checked`)].map(input => input.dataset.generationCard);
+    setGenerationCandidates(effect, checked, draft.cards);
     markDirty(); return;
+  }
+  if (e.target.dataset.path?.endsWith(".pool")) {
+    const effect = get(e.target.dataset.path.slice(0, -5));
+    if (effect?.type === "generateCard") setGenerationCandidates(effect, effect.cards || [], draft.cards);
   }
   if (e.target.dataset.nextDay) {
     materializeRoutes(draft);
@@ -532,6 +580,13 @@ $("editor").addEventListener("change", async (e) => {
 document.addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
+  if (b.dataset.enemyPreset && piratePresets[b.dataset.enemyPreset]) {
+    if (Object.keys(draft.enemies).length >= 50) { message("最多配置 50 种敌人", true); return; }
+    const id = freshId(b.dataset.enemyPreset, draft.enemies);
+    draft.enemies[id] = clone(piratePresets[b.dataset.enemyPreset]);
+    selected = id;
+    markDirty(); render(); return;
+  }
   if (b.dataset.heroPreset && presetById[b.dataset.heroPreset]) {
     if (Object.keys(draft.cards).length >= 100) { message("最多配置 100 张卡牌", true); return; }
     const id = freshId("hero_" + b.dataset.heroPreset, draft.cards);
@@ -653,11 +708,13 @@ document.addEventListener("click", (e) => {
     delete draft.cards[selected];
     delete draft.initial.cards[selected];
     for (const pool of Object.values(draft.rewardPools)) delete pool.cards[selected];
+    pruneGenerationCandidates(draft);
     selected = "";
   }
   if (action === "add-effect") {
-    const type = $("new-effect").value;
-    card.effects.push({ type, ...clone(effectTypes[type].defaults) });
+    const owner = get(b.dataset.effectOwner);
+    const type = document.querySelector(`[data-effect-choice="${b.dataset.effectOwner}"]`).value;
+    owner.effects.push({ type, ...clone(effectTypes[type].defaults) });
     ensureSummon(card);
   }
   if (action === "add-pool" || action === "duplicate-pool") {
@@ -672,14 +729,18 @@ document.addEventListener("click", (e) => {
     delete draft.rewardPools[selected]; selected = Object.keys(draft.rewardPools)[0];
   }
   if (action === "remove-effect") {
-    card.effects.splice(i, 1);
+    get(b.dataset.effectOwner).effects.splice(i, 1);
     ensureSummon(card);
   }
-  if (action === "effect-up" && i > 0)
-    [card.effects[i - 1], card.effects[i]] = [
-      card.effects[i],
-      card.effects[i - 1],
-    ];
+  if (action === "effect-up" && i > 0) {
+    const effects = get(b.dataset.effectOwner).effects;
+    [effects[i - 1], effects[i]] = [effects[i], effects[i - 1]];
+  }
+  if (action === "add-skill-tier" && card.skillTiers.length < 9) {
+    const previous = card.skillTiers.at(-1) || card;
+    card.skillTiers.push(defaultSkillTiers(previous)[0]);
+  }
+  if (action === "remove-skill-tier") card.skillTiers.pop();
   if (action === "add-inventory") {
     const path = b.dataset.pathValue,
       key = document.querySelector(`[data-inventory-choice="${path}"]`).value;

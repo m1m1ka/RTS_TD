@@ -1,4 +1,5 @@
 import { effectAmount } from "./effect-values.js";
+import { heroRank, resolveRankValues } from "./hero-ranks.js";
 import { addVictoryBonus, deathCountsAsSacrifice } from "./hero-mechanics.js";
 import { randomStatLabels } from "./config/trigger-rules.js";
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
@@ -6,13 +7,14 @@ const inRange = (a, b, radius) => radius < 0 || distance(a, b) <= radius;
 
 export class HeroTriggers {
   constructor(game) { this.game = game; this.activations = 0; this.activeSources = new Set(); this.timers = new Map(); }
+  rankedRule(hero, rule) { return resolveRankValues(rule, heroRank(this.game.config.cards[hero.cardId], hero.level)); }
   cardListeners() {
     return this.game.heroes.filter(h => h.hp > 0 && !h.destroyed && !h.isFollower)
       .map(hero => ({ hero, rules: this.rules(hero, "cardPlayed") }));
   }
-  cardPlayed(key, listeners) {
+  cardPlayed(key, listeners, copy = null) {
     const category = this.game.config.cards[key]?.category;
-    const playedCard = { key, category, refunded: false };
+    const playedCard = { key, category, copy, refunded: false };
     for (const { hero, rules } of listeners) {
       if (hero.hp <= 0 || hero.destroyed || this.game.isDormant(hero)) continue;
       hero.cardPlayCounts ??= {};
@@ -23,7 +25,7 @@ export class HeroTriggers {
         if (filter !== "all" && !(filter === "resourceBattle" ? ["resource", "battle"].includes(category) : filter === category)) continue;
         const counter = `${i}:${JSON.stringify(rule)}`;
         const count = (hero.cardPlayCounts[counter] || 0) + 1;
-        const every = rule.trigger.every ?? 1;
+        const every = this.rankedRule(hero, rule).trigger.every ?? 1;
         hero.cardPlayCounts[counter] = count % every;
         if (count >= every) this.resolve(hero, "cardPlayed", { rules: [rule], playedCard });
       }
@@ -39,11 +41,12 @@ export class HeroTriggers {
         const key = `${hero.id}:${i}:${JSON.stringify(rule)}`;
         active.add(key);
         let elapsed = (this.timers.get(key) || 0) + dt;
-        const interval = rule.trigger.interval;
+        let interval = this.rankedRule(hero, rule).trigger.interval;
         if (!(interval >= .1)) continue;
         while (elapsed + 1e-9 >= interval && hero.hp > 0 && !hero.destroyed) {
           elapsed = Math.max(0, elapsed - interval);
           this.resolve(hero, "interval", { rules: [rule] });
+          interval = this.rankedRule(hero, rule).trigger.interval;
         }
         this.timers.set(key, elapsed);
       }
@@ -53,7 +56,7 @@ export class HeroTriggers {
   towerBuilt(tower) {
     for (const hero of [...this.game.heroes]) {
       if (hero.hp <= 0 || hero.destroyed || hero.isFollower) continue;
-      const rules = this.rules(hero, "towerBuilt").filter(rule => inRange(hero, tower, rule.trigger.radius));
+      const rules = this.rules(hero, "towerBuilt").filter(rule => inRange(hero, tower, this.rankedRule(hero, rule).trigger.radius));
       if (rules.length) this.resolve(hero, "towerBuilt", { rules, eventHero: tower });
     }
   }
@@ -119,7 +122,7 @@ export class HeroTriggers {
     }
   }
   victory() {
-    // Snapshot before end-of-wave revival: only actual survivors can respond.
+    // Snapshot the actual survivors; automatic revival only happens on the next day.
     const survivors = this.game.heroes.filter(h => h.hp > 0 && !h.destroyed);
     for (const hero of survivors) this.resolve(hero, "victory");
   }
@@ -152,7 +155,7 @@ export class HeroTriggers {
       // Listener effects share the queue and never implicitly emit an activation.
       for (const listener of game.heroes.filter(h => h.hp > 0 && !h.destroyed))
         for (const rule of this.rules(listener, listenerEvent)) {
-          const filter = rule.trigger;
+          const filter = this.rankedRule(listener, rule).trigger;
           if (filter.scope === "self" && listener !== current) continue;
           if (filter.scope === "others" && listener === current) continue;
           if (!inRange(listener, deathEvent ? eventPosition : current, filter.radius)) continue;
@@ -161,6 +164,7 @@ export class HeroTriggers {
     }
   }
   run(owner, eventHero, rule, cascade, deathEvent = false) {
+    rule = this.rankedRule(owner, rule);
     const game = this.game, targets = this.targets(owner, eventHero, rule.target, deathEvent);
     for (const effect of rule.effects) {
       if (effect.type === "refundCard") {
@@ -168,7 +172,8 @@ export class HeroTriggers {
         if (played && !played.refunded && ["resource", "battle"].includes(played.category)
           && effect.chance > 0 && (effect.chance >= 100 || Math.random() * 100 < effect.chance)) {
           played.refunded = true;
-          game.cards[played.key] = (game.cards[played.key] || 0) + 1;
+          if (played.copy) played.copy.readyAt = game.time;
+          else game.cards[played.key] = (game.cards[played.key] || 0) + 1;
           game.emit("cardRefunded", { card: played.key, unit: owner });
         }
         continue;

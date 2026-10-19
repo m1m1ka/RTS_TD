@@ -3,7 +3,7 @@ import { Game } from "../src/game.js";
 import { DEFAULT_CONFIG } from "../src/config/defaults.js";
 import { assertConfig } from "../src/config/schema.js";
 import { newTriggerRule } from "../src/config/trigger-rules.js";
-import { generationDefaults, generationPool } from "../src/card-generation.js";
+import { generationDefaults, generationPool, setGenerationCandidates, pruneGenerationCandidates } from "../src/card-generation.js";
 const effect = (extra = {}) => ({ type: "generateCard", ...structuredClone(generationDefaults), ...extra });
 const fixture = () => {
   const c = structuredClone(DEFAULT_CONFIG);
@@ -63,4 +63,21 @@ const fixture = () => {
 for (const extra of [{count:0},{count:100},{count:1.5},{pool:"unknown"},{category:"unknown"},{pool:"selected",cards:[]},{pool:"selected",cards:["missing"]},{pool:"selected",cards:["coffee","coffee"]}]) {
   const c=fixture(); c.cards.hero_blue.triggerRules=[{...newTriggerRule(),effects:[effect(extra)]}]; assert.throws(()=>assertConfig(c));
 }
-console.log("PASS generation: category/custom pools, random/fixed quantities, single rule/cast activation, card usage, no auto-play/recursion, hot save, redeployment and validation");
+{
+  const c=fixture(),e=effect({pool:"category",cards:["deleted_tower","training","coffee"]});
+  c.cards.hero_blue.triggerRules=[{...newTriggerRule(),effects:[e]}];
+  // Inactive selections in old configs are allowed, but must not survive a
+  // switch to explicit candidates or contaminate a newly checked existing card.
+  assertConfig(c);e.pool="selected";setGenerationCandidates(e,e.cards,c.cards);
+  assert.deepEqual(e.cards,["training","coffee"]);assertConfig(c);
+  setGenerationCandidates(e,["coffee","coffee","missing"],c.cards);
+  assert.deepEqual(e.cards,["coffee"]);
+  c.cards.fireball.effects.push(structuredClone(e));
+  c.cards.fireball.skillTiers[0].effects.push(structuredClone(e));
+  delete c.cards.coffee;pruneGenerationCandidates(c);
+  assert.deepEqual(e.cards,[]);assert.deepEqual(c.cards.fireball.effects.at(-1).cards,[]);
+  assert.deepEqual(c.cards.fireball.skillTiers[0].effects.at(-1).cards,[]);
+  const invalid=fixture();invalid.cards.hero_blue.triggerRules=[{...newTriggerRule(),effects:[effect({pool:"selected",cards:["deleted_tower"]})]}];
+  assert.throws(()=>assertConfig(invalid),/候选卡牌不存在：deleted_tower/);
+}
+console.log("PASS generation: category/custom pools, random/fixed quantities, single rule/cast activation, card usage, no auto-play/recursion, hot save, stale candidate cleanup and validation");

@@ -1,42 +1,160 @@
 {
   "version": 1,
   "masterVolume": 0.8,
-  "assets": [],
+  "assets": [
+    {
+      "id": "project:enemy_hit.wav",
+      "name": "enemy_hit.wav",
+      "path": "enemy_hit.wav",
+      "source": "project",
+      "url": "/audio/enemy_hit.wav",
+      "size": 36676,
+      "modified": 1792309047477.6887
+    },
+    {
+      "id": "project:enemy_death.flac",
+      "name": "enemy_death.flac",
+      "path": "enemy_death.flac",
+      "source": "project",
+      "url": "/audio/enemy_death.flac",
+      "size": 37217,
+      "modified": 1792309704773.8782
+    },
+    {
+      "id": "project:arrow-shot.wav",
+      "name": "arrow-shot.wav",
+      "path": "arrow-shot.wav",
+      "source": "project",
+      "url": "/audio/arrow-shot.wav",
+      "size": 217772,
+      "modified": 1792309887013.1628
+    },
+    {
+      "id": "project:arrow_hit.wav",
+      "name": "arrow_hit.wav",
+      "path": "arrow_hit.wav",
+      "source": "project",
+      "url": "/audio/arrow_hit.wav",
+      "size": 52008,
+      "modified": 1792310000185.245
+    },
+    {
+      "id": "project:arrow_shot.wav",
+      "name": "arrow_shot.wav",
+      "path": "arrow_shot.wav",
+      "source": "project",
+      "url": "/audio/arrow_shot.wav",
+      "size": 217772,
+      "modified": 1792309887013.1628
+    },
+    {
+      "id": "project:sword_hit.wav",
+      "name": "sword_hit.wav",
+      "path": "sword_hit.wav",
+      "source": "project",
+      "url": "/audio/sword_hit.wav",
+      "size": 35324,
+      "modified": 1792310841636.9507
+    },
+    {
+      "id": "project:sword_swoosh.mp3",
+      "name": "sword_swoosh.mp3",
+      "path": "sword_swoosh.mp3",
+      "source": "project",
+      "url": "/audio/sword_swoosh.mp3",
+      "size": 11577,
+      "modified": 1792310806851.3198
+    },
+    {
+      "id": "project:216675__hitrison__stick-swoosh-whoosh.flac",
+      "name": "216675__hitrison__stick-swoosh-whoosh.flac",
+      "path": "216675__hitrison__stick-swoosh-whoosh.flac",
+      "source": "project",
+      "url": "/audio/216675__hitrison__stick-swoosh-whoosh.flac",
+      "size": 22212,
+      "modified": 1792310971061.6965
+    },
+    {
+      "id": "project:sword_swoosh.flac",
+      "name": "sword_swoosh.flac",
+      "path": "sword_swoosh.flac",
+      "source": "project",
+      "url": "/audio/sword_swoosh.flac",
+      "size": 22212,
+      "modified": 1792310971061.6965
+    },
+    {
+      "id": "project:set.wav",
+      "name": "set.wav",
+      "path": "set.wav",
+      "source": "project",
+      "url": "/audio/set.wav",
+      "size": 98458,
+      "modified": 1792312472926.3535
+    },
+    {
+      "id": "project:win.wav",
+      "name": "win.wav",
+      "path": "win.wav",
+      "source": "project",
+      "url": "/audio/win.wav",
+      "size": 694540,
+      "modified": 1792313552294.3674
+    },
+    {
+      "id": "project:215773__otisjames__win.wav",
+      "name": "215773__otisjames__win.wav",
+      "path": "215773__otisjames__win.wav",
+      "source": "project",
+      "url": "/audio/215773__otisjames__win.wav",
+      "size": 229348,
+      "modified": 1792313672873.905
+    },
+    {
+      "id": "project:levelUp.wav",
+      "name": "levelUp.wav",
+      "path": "levelUp.wav",
+      "source": "project",
+      "url": "/audio/levelUp.wav",
+      "size": 153288,
+      "modified": 1792335471623.6223
+    }
+  ],
   "events": {
     "enemyHit": {
-      "sound": "",
+      "sound": "project:enemy_hit.wav",
       "enabled": true,
-      "volume": 1,
+      "volume": 0.25,
       "cooldown": 60
     },
     "enemyDeath": {
-      "sound": "",
+      "sound": "project:enemy_death.flac",
       "enabled": true,
       "volume": 1,
       "cooldown": 60
     },
     "bowDraw": {
-      "sound": "",
+      "sound": "project:arrow_shot.wav",
       "enabled": true,
-      "volume": 1,
+      "volume": 0.15,
       "cooldown": 60
     },
     "arrowHit": {
-      "sound": "",
-      "enabled": true,
-      "volume": 1,
+      "sound": "project:arrow_hit.wav",
+      "enabled": false,
+      "volume": 0.15,
       "cooldown": 60
     },
     "swordSwing": {
-      "sound": "",
+      "sound": "project:sword_swoosh.flac",
       "enabled": true,
-      "volume": 1,
+      "volume": 0.28,
       "cooldown": 60
     },
     "swordHit": {
-      "sound": "",
+      "sound": "project:sword_hit.wav",
       "enabled": true,
-      "volume": 1,
+      "volume": 0.58,
       "cooldown": 60
     },
     "magicHit": {
@@ -58,19 +176,19 @@
       "cooldown": 80
     },
     "heroUpgrade": {
-      "sound": "",
+      "sound": "project:levelUp.wav",
       "enabled": true,
       "volume": 1,
       "cooldown": 80
     },
     "heroDeploy": {
-      "sound": "",
+      "sound": "project:set.wav",
       "enabled": true,
       "volume": 1,
       "cooldown": 30
     },
     "victory": {
-      "sound": "",
+      "sound": "project:win.wav",
       "enabled": true,
       "volume": 1,
       "cooldown": 0

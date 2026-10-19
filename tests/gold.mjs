@@ -24,7 +24,7 @@ const victory = (g) => {
   victory(g);
   assert.equal(g.settlement.total, 6);
   assert.equal(g.gold, 0);
-  assert.equal(g.chooseReward([0, 1]), false);
+  assert.equal(g.chooseReward([0]), false);
   assert.equal(g.playCard("hero_green", 4, 4), false);
   g.tick(2.29); assert.equal(g.gold, 0);
   g.tick(.02); assert.equal(g.gold, 1);
@@ -33,7 +33,7 @@ const victory = (g) => {
   assert.equal(events.filter(e => e.type === "gold").at(-1).x, 5);
   g.tick(2); assert.equal(g.phase, "reward"); assert.equal(g.gold, 6);
   g.tick(100); assert.equal(g.gold, 6, "no duplicate reward");
-  g.chooseReward([0, 1]); g.chooseDay(g.nextDays()[0]);
+  g.chooseReward([0]); g.chooseDay(g.nextDays()[0]);
   assert.equal(g.gold, 6, "coins persist between days");
   assert.equal(g.mines.length, 0, "mines belong to their day");
   victory(g); g.tick(6); assert.equal(g.gold, 10);

@@ -356,8 +356,8 @@ try {
   await drop("lightning", enemy.x, enemy.y);
   assert.equal(
     (await state()).cards.lightning,
-    undefined,
-    "battle card consumed",
+    1,
+    "battle card retained during cooldown",
   );
   assert.ok((await state()).combat.counts.cardCasts > 0);
   assert.ok(Number(await page.locator("#wave-progress").getAttribute("aria-valuenow")) > 0, "kills advance the wave progress bar");
@@ -388,9 +388,8 @@ try {
   await page.screenshot({ path: "logs/cards-rewards.png" });
   const rewardState = await state();
   const training = rewardState.cards.training || 0;
-  const trainingReward = rewardState.rewardOptions.slice(0, 2).filter(k => k === "training").length;
+  const trainingReward = rewardState.rewardOptions.slice(0, 1).filter(k => k === "training").length;
   await page.locator('[data-reward="0"]').click();
-  await page.locator('[data-reward="1"]').click();
   await page.locator("[data-reward-confirm]").click();
   await page.waitForFunction(() => window.__game.snapshot().phase === "route");
   assert.equal((await state()).phase, "route");

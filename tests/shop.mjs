@@ -13,7 +13,7 @@ const fixture = () => {
   assert.ok(g.playCard("hero_blue",7,3)); g.playCard("training",7,3);
   const hero=g.heroes[0]; g.playCard("guard",7,3);
   g.phase="reward";g.rewardOptions=["training","coffee","guard","tower","fireball"];
-  g.chooseReward([0,1]);g.gold=30;
+  g.chooseReward([0]);g.gold=30;
   assert.ok(g.chooseDay(c.days[1].id));assert.equal(g.phase,"shop");assert.equal(g.heroes.length,1);
   assert.equal(g.heroes[0],hero);assert.equal(hero.level,2);
   const hot = structuredClone(c);

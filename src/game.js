@@ -1,3 +1,4 @@
+import { syncSkillCards, skillCopy, skillDefinition, fuseSkillCards } from "./skill-cards.js";
 import { obstacleKeys, reachableTerrain } from "./terrain.js";
 import { MINE_HP, victoryPayout } from "./gold.js";
 import { criticalChance, criticalDamage } from "./critical.js";
@@ -16,8 +17,11 @@ import { summonFollowers, removeFollowers, moveFollowers, followerMoveArea, setF
 import { levelStats } from "./level-stats.js";
 import { gridDistance } from "./grid-distance.js";
 import { isHealer, tickHealer, healingDefaults } from "./healing-behavior.js";
+import { rememberAttacker, tickRetaliation } from "./retaliation-behavior.js";
+import { heroRank, rankedHeroCard } from "./hero-ranks.js";
 import { isDormant, canMoveHero, syncHeroMechanics, knockback, finishVictoryBonuses } from "./hero-mechanics.js";
 import { startDayId, nextDayIds, campaignLayout } from "./campaign.js";
+import { launchBoat, tickBoats, landingGate } from "./sea-arrivals.js";
 export const W = 15,
   H = 11,
   BASE = { x: 7, y: 5 };
@@ -67,6 +71,9 @@ export class Game {
     this.mines = [];
     this.time = 0;
     this.cards = { ...this.config.initial.cards };
+    this.skillCards = [];
+    this.skillCardId = 0;
+    syncSkillCards(this);
     this.rewardOptions = [];
     this.shop = null;
     this.kills = 0;
@@ -79,6 +86,7 @@ export class Game {
     this.waveElapsed = 0;
     this.waveWait = 0;
     this.spawnQueues = [];
+    this.boats = [];
     this.phase = "ready";
     this.baseMaxHp = this.config.initial.baseHp;
     this.baseHp = this.baseMaxHp;
@@ -111,11 +119,12 @@ export class Game {
     const next = obstacleKeys(this.config.days[this.day]);
     const blocked = new Set([...next, ...this.mines.filter((m) => m.hp > 0).map((m) => `${m.x},${m.y}`)]);
     const gates = new Set([...this.config.days[this.day].waves, ...(this.dayPlan?.waves || [])].flatMap((w) => w.spawns).map((p) => `${p.x},${p.y}`));
+    for (const boat of this.boats) gates.add(`${boat.gate.x},${boat.gate.y}`);
     const towerCells = this.towers.filter((u) => u.hp > 0).map((u) => `${u.x},${u.y}`);
     const previousRoutes = reachableTerrain(new Set([...blocked, ...towerCells]));
     if (!force && next.size === this.obstacles.size && [...next].every((key) => this.obstacles.has(key)) && [...gates].every((key) => previousRoutes.has(key))) return;
     const reachable = reachableTerrain(blocked);
-    const units = [...this.heroes, ...this.followers, ...this.towers, ...this.enemies].filter((u) => u.hp > 0);
+    const units = [...this.heroes, ...this.followers, ...this.towers, ...this.enemies].filter((u) => u.hp > 0 && !u.boatId);
     const affected = units.filter((u) => next.has(`${u.x},${u.y}`) || !reachable.has(`${u.x},${u.y}`) || (force && u.side === "hero" && gates.has(`${u.x},${u.y}`)));
     const occupied = new Set(units.filter((u) => !affected.includes(u)).map((u) => `${u.x},${u.y}`));
     if ([...gates].some((key) => !reachable.has(key) || next.has(key))) {
@@ -290,6 +299,7 @@ export class Game {
     if (!p) return this.emit("toast", { text: "道路被挡住了，试试另一条路" });
     h.path = p;
     h.healingTargetId = null;
+    h.retaliationTargetId = null;
     if (h.isFollower) setFollowerDestination(this, h, { x, y });
     this.emit("move", { unit: h });
   }
@@ -309,12 +319,23 @@ export class Game {
     this.emit("select");
   }
   clearSelection() { this.selected = -1; this.selectedFollowerId = null; }
-  cardTarget(key, x, y) {
+  syncSkillCards() { return syncSkillCards(this); }
+  cardDefinition(key, instanceId) {
     const card = this.config.cards[key];
+    return skillDefinition(card, card?.category === "battle" ? skillCopy(this, key, instanceId)?.tier : 1);
+  }
+  fuseSkillCards(key, tier) { return fuseSkillCards(this, key, tier); }
+  cardTarget(key, x, y, instanceId) {
+    const card = this.cardDefinition(key, instanceId);
     if (!card || !(this.cards[key] > 0))
       return { valid: false, reason: "没有这张牌了" };
     if (!["ready", "waiting", "battle", "between"].includes(this.phase))
       return { valid: false, reason: "现在不能出牌" };
+    if (card.category === "battle") {
+      const copy = skillCopy(this, key, instanceId);
+      if (!copy) return { valid: false, reason: "没有这张技能牌了" };
+      if (copy.readyAt > this.time + 1e-9) return { valid: false, reason: `技能冷却中 · ${Math.ceil(copy.readyAt - this.time)} 秒` };
+    }
     if (!inside(x, y)) return { valid: false, reason: "拖到战场内使用" };
     const hero = this.heroes.find((h) => h.hp > 0 && h.x === x && h.y === y);
     if (card.category === "hero") {
@@ -358,13 +379,14 @@ export class Game {
     }
     return { valid: true, hero };
   }
-  playCard(key, x, y) {
-    const check = this.cardTarget(key, x, y);
+  playCard(key, x, y, instanceId) {
+    const check = this.cardTarget(key, x, y, instanceId);
     if (!check.valid) {
       this.emit("toast", { text: check.reason });
       return false;
     }
-    const card = this.config.cards[key];
+    const card = this.cardDefinition(key, instanceId);
+    const copy = card.category === "battle" ? skillCopy(this, key, instanceId) : null;
     const cardListeners = this.heroTriggers.cardListeners();
     if (check.upgradeHero) {
       const hero = check.hero;
@@ -404,7 +426,7 @@ export class Game {
         dayEffects: [],
         triggerPermanentEffects: [],
       };
-      Object.assign(unit, { x, y, home: { x, y }, cooldown: 0, moveCooldown: 0, path: [], dayEffects: [] });
+      Object.assign(unit, { x, y, home: { x, y }, cooldown: 0, moveCooldown: 0, path: [], retaliationTargetId: null, dayEffects: [] });
       hero = unit;
       this.rebuildHero(unit, returning);
       if (!returning) unit.hp = unit.maxHp;
@@ -418,6 +440,8 @@ export class Game {
       } else {
         this.towers.push(unit);
         if (
+          !landingGate(this, BASE) ||
+          this.boats.some(b => !this.path(b.gate, BASE, { adjacent: true })) ||
           this.currentDay().waves
             .flatMap((w) => w.spawns)
             .some((g) => !this.path(g, BASE, { adjacent: true }))
@@ -486,11 +510,16 @@ export class Game {
     if (!returning) for (const effect of card.effects)
       if (effect.type === "generateCard") this.generateCards(effect);
       else if (effect.type === "gold") { this.gold += effect.value; this.emit("goldGranted", { amount: effect.value }); }
-    this.cards[key]--;
-    if (this.cards[key] === 0) delete this.cards[key];
+    if (copy) {
+      copy.cooldown = card.cooldown;
+      copy.readyAt = this.time + card.cooldown;
+    } else {
+      this.cards[key]--;
+      if (this.cards[key] === 0) delete this.cards[key];
+    }
     this.emit("cardPlayed", { card: key, x, y });
     if (card.category === "hero") this.heroTriggers.prepare([hero]);
-    this.heroTriggers.cardPlayed(key, cardListeners);
+    this.heroTriggers.cardPlayed(key, cardListeners, copy);
     return true;
   }
   summonFollowers(owner, effect) { return summonFollowers(this, owner, effect); }
@@ -500,6 +529,7 @@ export class Game {
       removed[key] = count;
       delete this.cards[key];
     }
+    syncSkillCards(this);
     if (Object.keys(removed).length) this.emit("temporaryCardsExpired", { cards: removed });
   }
   removeFollowers(ownerId) { removeFollowers(this, ownerId); }
@@ -540,8 +570,11 @@ export class Game {
     }
   }
   rebuildHero(unit, preserveRatio = true) {
-    const card = this.config.cards[unit.cardId];
+    const baseCard = this.config.cards[unit.cardId];
+    const card = rankedHeroCard(baseCard, unit.level);
     if (!card?.unit) return;
+    const previousRank = unit.rank;
+    if (card.category === "hero") unit.rank = heroRank(baseCard, unit.level);
     const hp = unit.hp,
       ratio = hp / unit.maxHp;
     Object.assign(unit, card.unit, {
@@ -584,6 +617,9 @@ export class Game {
             preserveRatio ? Math.max(1, ratio * unit.maxHp) : hp,
           );
     if (!canMoveHero(this,unit)) { unit.path = []; unit.healingTargetId = null; }
+    if (!canMoveHero(this,unit) || isHealer(unit)) unit.retaliationTargetId = null;
+    if (card.category === "hero" && previousRank !== undefined && unit.rank > previousRank)
+      this.emit("rankUp", { unit, from: previousRank, rank: unit.rank });
   }
   applyConfig(config) {
     const previous = this.config,
@@ -598,6 +634,7 @@ export class Game {
     if (untouched) this.cards = { ...config.initial.cards };
     for (const key of Object.keys(this.cards))
       if (!config.cards[key]) delete this.cards[key];
+    syncSkillCards(this);
     const mappedDay = config.days.findIndex((d) => d.id === oldDay?.id);
     if (mappedDay < 0) {
       this.reset();
@@ -633,6 +670,7 @@ export class Game {
       const stats = levelStats(spec, e.level || 1);
       Object.assign(e, spec, {
         ...attackProfile(spec),
+        mechanics: structuredClone(spec.mechanics || {}),
         maxHp: Math.max(1, Math.round(stats.maxHp * w.hpScale)),
         atk: Math.round(stats.atk * w.atkScale),
       });
@@ -651,7 +689,7 @@ export class Game {
   chooseReward(indices) {
     if (
       this.phase !== "reward" ||
-      !Array.isArray(indices) || indices.length !== 2 || new Set(indices).size !== 2 ||
+      !Array.isArray(indices) || indices.length !== 1 ||
       indices.some(i => !Number.isInteger(i) || !this.config.cards[this.rewardOptions[i]])
     )
       return false;
@@ -694,6 +732,7 @@ export class Game {
     for (const hero of [...this.heroes, ...this.towers]) {
       hero.dayEffects = [];
       hero.path = [];
+      hero.retaliationTargetId = null;
       this.rebuildHero(hero, false);
       hero.cooldown = hero.moveCooldown = 0;
     }
@@ -709,14 +748,16 @@ export class Game {
     this.phase = "between";
     this.shop = null;
     this.settlement = null;
+    const revived = this.heroes.filter(hero => hero.hp <= 0);
+    for (const hero of this.heroes) hero.hp = hero.maxHp;
+    this.heroTriggers.syncSourceEffects();
+    for (const hero of this.heroes) hero.hp = hero.maxHp;
     if (this.config.days[this.day].kind === "shop") enterShop(this);
     else {
-      for (const hero of this.heroes) hero.hp = hero.maxHp;
-      this.heroTriggers.syncSourceEffects();
-      for (const hero of this.heroes) hero.hp = hero.maxHp;
       this.syncMines();
       this.syncTerrain(true);
     }
+    for (const hero of revived) this.emit("revive", { unit: hero });
     this.emit("daySelected", { id });
     this.heroTriggers.prepare();
     return true;
@@ -774,8 +815,8 @@ export class Game {
     }));
     this.emit("wave", { day: this.dayNumber(), wave: this.wave + 1 });
   }
-  spawn(queue) {
-    if (!queue || queue.spawned >= queue.types.length || this.blocked(queue.x, queue.y, null, true)) return false;
+  spawn(queue, voyage = null) {
+    if (!queue || queue.spawned >= queue.types.length || (!voyage && this.blocked(queue.x, queue.y, null, true))) return false;
     const data = this.activeWave, enemyId = queue.types[queue.spawned];
     const spec = this.config.enemies[enemyId],
       scale = data.hpScale;
@@ -795,6 +836,7 @@ export class Game {
       side: "enemy",
       cooldown: 0.5,
       moveCooldown: 0,
+      ...voyage,
     };
     e.hp = e.maxHp;
     this.enemies.push(e);
@@ -819,7 +861,7 @@ export class Game {
       cell = options[0];
     }
     hero.reviveUsage = { dayId, used: used + 1 };
-    Object.assign(hero, cell, { hp: 1, path: [], moveCooldown: 0 });
+    Object.assign(hero, cell, { hp: 1, path: [], moveCooldown: 0, retaliationTargetId: null });
     // Restore source-bound max-health bonuses before calculating revival health.
     this.rebuildHero(hero, false);
     this.heroTriggers.syncSourceEffects();
@@ -828,7 +870,7 @@ export class Game {
     this.emit("revive", { unit: hero, source, fromEffect: true, used: used + 1, limit: effect.maxRevives });
     return true;
   }
-  hit(target, damage, source, critical = false, kind = null) {
+  hit(target, damage, source, critical = false, kind = null, heroAttack = this.heroes.includes(source)) {
     if (damage <= 0) return;
     if (target === BASE) {
       this.baseHp = Math.max(0, this.baseHp - damage);
@@ -836,6 +878,7 @@ export class Game {
       return;
     }
     if (target.hp <= 0) return;
+    rememberAttacker(this, target, source);
     damage = Math.max(
       1,
       Math.ceil(damage * (1 - (target.damageReduction || 0))),
@@ -845,9 +888,19 @@ export class Game {
       damage = Math.max(0, Math.ceil(armor.mode === "percent" ? damage * (1 - armor.value / 100) : damage - armor.value));
       if (!damage) { this.emit("blocked", {unit:target,source}); return; }
     }
+    const rangedArmor = target.side === "enemy" && target.mechanics?.rangedReduction;
+    if (rangedArmor && heroAttack && ["arrow", "bullet", "orb"].includes(kind || attackKind(source))) {
+      const incoming = damage;
+      damage = Math.max(0, Math.ceil(rangedArmor.mode === "percent" ? damage * (1 - rangedArmor.value / 100) : damage - rangedArmor.value));
+      if (damage < incoming) this.emit("blocked", { unit: target, source, amount: incoming - damage, damage, kind, mechanic: "rangedReduction" });
+      if (!damage) return;
+    }
     const actual = Math.min(target.hp, damage);
     target.hp = Math.max(0, target.hp - damage);
-    if (target.hp <= 0 && this.heroes.includes(target)) this.heroTriggers.syncSourceEffects();
+    if (target.hp <= 0 && this.heroes.includes(target)) {
+      target.retaliationTargetId = null;
+      this.heroTriggers.syncSourceEffects();
+    }
     if (source?.lifeSteal && source.hp > 0) {
       const amount = Math.min(
         source.maxHp - source.hp,
@@ -882,6 +935,7 @@ export class Game {
       splash: source.splash ?? getWeaponSpec(source)?.splash ?? 0,
       splashRadius: source.splashRadius ?? 1,
       kind: attackKind(source),
+      heroAttack: this.heroes.includes(source),
       origin: {x:source.x,y:source.y},
       knockback: source.mechanics?.knockback?.distance || 0,
       duration,
@@ -902,7 +956,7 @@ export class Game {
       const missed = target === BASE ? this.baseHp <= 0 : target.hp <= 0;
       this.emit("impact", { ...attack, missed });
       if (missed) continue;
-      this.hit(target, damage, source, attack.critical, attack.kind);
+      this.hit(target, damage, source, attack.critical, attack.kind, attack.heroAttack);
       if (splash)
         for (const other of source.side === "enemy"
           ? [...this.heroes, ...this.followers, ...this.towers]
@@ -912,7 +966,7 @@ export class Game {
             other.hp > 0 &&
             dist(other, target) <= attack.splashRadius
           )
-            this.hit(other, Math.round(damage * splash), source, attack.critical, attack.kind);
+            this.hit(other, Math.round(damage * splash), source, attack.critical, attack.kind, attack.heroAttack);
         }
       if (source.side === "hero") knockback(this,target,attack.origin || source,attack.knockback);
     }
@@ -964,16 +1018,18 @@ export class Game {
     this.resolveAttacks(dt);
     this.waveElapsed += dt;
     for (const queue of this.spawnQueues)
-      if (queue.spawned < queue.types.length && this.waveElapsed + 1e-9 >= queue.nextAt) this.spawn(queue);
+      if (queue.spawned < queue.types.length && this.waveElapsed + 1e-9 >= queue.nextAt) launchBoat(this, queue);
+    tickBoats(this, dt);
     for (const h of [...this.heroes, ...this.followers, ...this.towers]) {
       if (h.hp <= 0 || isDormant(this,h)) continue;
       h.cooldown -= dt;
       if (isHealer(h) && this.heroes.includes(h)) { tickHealer(this, h); continue; }
+      const retaliationTarget = this.heroes.includes(h) ? tickRetaliation(this, h) : null;
       const targets = this.enemies
         .filter((e) => e.hp > 0 && gridDistance(h, e) <= h.range)
         .sort((a, b) => gridDistance(h, a) - gridDistance(h, b));
       if (h.cooldown <= 0 && targets.length) {
-        const target = targets[0];
+        const target = retaliationTarget || targets[0];
         h.cooldown = 1 / h.rate;
         this.attack(h, target);
       }
@@ -992,7 +1048,7 @@ export class Game {
           e.cooldown = 1 / e.rate;
           this.attack(e, target);
         }
-      } else if (e.moveCooldown <= 0) {
+      } else if (!e.boatId && e.moveCooldown <= 0) {
         const destinations = [BASE, ...this.mines.filter((m) => m.hp > 0)].map((goal) => ({ goal, path: this.path(e, goal, { adjacent: true }) })).filter((v) => v.path);
         destinations.sort((a, b) => a.path.length - b.path.length);
         const goal = destinations[0]?.goal || BASE;
@@ -1012,6 +1068,7 @@ export class Game {
       }
     }
     this.enemies = this.enemies.filter((e) => e.hp > 0);
+    this.boats = this.boats.filter(b => this.enemies.some(e => e.boatId === b.id));
     this.towers = this.towers.filter((t) => t.hp > 0);
     this.followers = this.followers.filter((u) => u.hp > 0);
     if (this.baseHp <= 0) {
@@ -1028,49 +1085,18 @@ export class Game {
       // The final kill ends the wave, even if missed projectiles are still flying.
       this.attacks = [];
       if (this.wave + 1 === this.dayPlan.waves.length) {
-        // Lock victory before running rules, and resolve them before reviving fallen heroes.
+        // Only actual survivors receive victory effects; recovery waits until the next day.
         this.phase = "victory";
         this.settlement = victoryPayout(this.mines);
         this.heroTriggers.victory();
         finishVictoryBonuses(this.settlement);
         this.clearTemporaryCards();
       }
-      const revived = new Set(this.heroes.filter(h => h.hp <= 0));
-      // Restore all living-source bonuses before calculating revival and healing health.
-      for (const h of revived) h.hp = 1;
-      this.heroTriggers.syncSourceEffects();
-      for (const h of this.heroes) {
-        const dead = revived.has(h);
-        h.hp = Math.min(
-          h.maxHp,
-          (dead ? 0 : h.hp) +
-            h.maxHp *
-              (dead
-                ? this.config.initial.reviveHp
-                : this.config.initial.waveHeal),
-        );
-        if (dead) {
-          const spawn = h.home || BASE,
-            options = [];
-          for (let y = 1; y < H - 1; y++)
-            for (let x = 1; x < W - 1; x++)
-              if (!this.blocked(x, y, h, true)) options.push({ x, y });
-          options.sort((a, b) => dist(a, spawn) - dist(b, spawn));
-          if (options.length) Object.assign(h, options[0]);
-          h.path = [];
-          this.emit("revive", { unit: h });
-        }
-      }
-      this.heroTriggers.syncSourceEffects();
       this.emit("waveClear", { day: this.dayNumber(), wave: this.wave + 1 });
       if (this.wave + 1 < this.dayPlan.waves.length) {
         this.wave++;
         this.waitForWave(this.dayPlan.waves[this.wave].startDelay);
       } else {
-        for (const hero of [...this.heroes, ...this.towers]) {
-          hero.dayEffects = [];
-          this.rebuildHero(hero, false);
-        }
         this.emit("victory", { total: this.settlement.total });
       }
     }
@@ -1100,6 +1126,7 @@ export class Game {
       baseHp: this.baseHp,
       baseMaxHp: this.baseMaxHp,
       cards: { ...this.cards },
+      skillCards: syncSkillCards(this).map(copy => ({ ...copy, remaining: Math.max(0, copy.readyAt - this.time) })),
       heroReserve: this.heroReserve.map((h) => ({ id: h.id, cardId: h.cardId, level: h.level, equipment: [...h.equipment] })),
       rewardOptions: [...this.rewardOptions],
       shop: this.shop ? { ...structuredClone(this.shop), prices: shopPrices(this) } : null,
@@ -1114,6 +1141,7 @@ export class Game {
         path: h.path.map((p) => ({ ...p })),
       })),
       enemies: this.enemies.map((e) => ({ ...e })),
+      boats: this.boats.map(b => ({ ...b, gate: { ...b.gate }, members: [...b.members] })),
       followers: this.followers.map((u) => ({ ...u, equipment: [], path: u.path.map(p => ({ ...p })), followTrail: u.followTrail.map(p => ({ ...p })) })),
       towers: this.towers.map((t) => ({ ...t })),
     };

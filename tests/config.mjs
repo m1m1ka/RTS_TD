@@ -208,7 +208,7 @@ for (const mutate of [
   g.tick(0.025);
   if (g.phase === "victory") g.tick(6);
   assert.equal(g.phase, "reward");
-  g.chooseReward([0, 1]);
+  g.chooseReward([0]);
   assert.equal(g.phase, "won", "any configured day count can finish");
 }
 {
@@ -232,7 +232,7 @@ for (const mutate of [
   assert.equal(g.enemies[1].hp, 100);
   assert.equal(g.enemies[1].slowAmount, 0.8);
   assert.equal(g.enemies[1].slowUntil, 7);
-  assert.equal(g.cards.combo, 1);
+  assert.equal(g.cards.combo, 2, "battle card remains in hand during cooldown");
   const file = JSON.stringify(c);
   assert.deepEqual(
     assertConfig(JSON.parse(file)),

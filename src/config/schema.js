@@ -1,3 +1,5 @@
+import { pirateIds } from "../marine-content.js";
+import { heroRankConfigErrors, resolveRankValues } from "../hero-ranks.js";
 import { reachableTerrain } from "../terrain.js";
 import { mapLayoutErrors } from "../map-presets.js";
 import { heroRarities, heroRoles, heroStatFields } from "../hero-grades.js";
@@ -16,6 +18,7 @@ export const builtInIcons = [
   "parts",
   ...Object.keys(RESOURCE_CARDS),
   ...presetIds,
+  ...pirateIds,
   "catgirl",
   "blue",
   "green",
@@ -39,6 +42,7 @@ export const builtInIcons = [
 ];
 export const skins = [
   ...presetIds,
+  ...pirateIds,
   "catgirl",
   "blue",
   "green",
@@ -173,10 +177,10 @@ export function validateConfig(c) {
     if (e.pool === "selected") {
       if (!e.cards.length) fail(p, "至少选择一张候选卡牌");
       if (new Set(e.cards).size !== e.cards.length) fail(p, "候选卡牌不能重复");
-      for (const key of e.cards) if (typeof key !== "string" || !own(c.cards, key)) fail(p, "候选卡牌不存在");
+      for (const key of e.cards) if (typeof key !== "string" || !own(c.cards, key)) fail(p, `候选卡牌不存在：${String(key)}`);
     }
   };
-  const unit = (u, p, hero = false) => {
+  const unit = (u, p, hero = false, enemy = false) => {
     if (!isObject(u)) {
       fail(p, "缺少单位属性");
       return;
@@ -209,9 +213,10 @@ export function validateConfig(c) {
     if (u.combatBehavior !== undefined) enumeration(u.combatBehavior, p + "战斗行为", Object.keys(combatBehaviors));
     if (u.mechanics !== undefined) {
       const m = u.mechanics;
-      if (!hero || !isObject(m)) fail(p,"特殊机制必须是英雄配置对象");
+      if ((!hero && !enemy) || !isObject(m)) fail(p,"特殊机制必须是英雄或敌人配置对象");
       else {
-        for (const k of Object.keys(m)) if (!["immobile","dormant","deathsAsSacrifice","knockback","arrowReduction"].includes(k)) fail(p,"未知特殊机制 "+k);
+        const allowed = hero ? ["immobile","dormant","deathsAsSacrifice","knockback","arrowReduction"] : ["rangedReduction"];
+        for (const k of Object.keys(m)) if (!allowed.includes(k)) fail(p,"未知特殊机制 "+k);
         for (const k of ["immobile","dormant","deathsAsSacrifice"]) if (m[k] !== undefined && typeof m[k] !== "boolean") fail(p,k+" 必须为开关");
         if (m.knockback !== undefined) {
           if (!isObject(m.knockback)) fail(p,"击退配置格式错误");
@@ -222,6 +227,13 @@ export function validateConfig(c) {
           else {
             enumeration(m.arrowReduction.mode,p+"弓箭减伤方式",["fixed","percent"]);
             num(m.arrowReduction.value,p+"弓箭减伤量",0,m.arrowReduction.mode==="percent"?100:100000);
+          }
+        }
+        if (m.rangedReduction !== undefined) {
+          if (!isObject(m.rangedReduction)) fail(p,"远程抵挡配置格式错误");
+          else {
+            enumeration(m.rangedReduction.mode,p+"远程抵挡方式",["fixed","percent"]);
+            num(m.rangedReduction.value,p+"远程抵挡量",0,m.rangedReduction.mode==="percent"?100:100000);
           }
         }
       }
@@ -285,13 +297,17 @@ export function validateConfig(c) {
       }
     }
   }
-  for (const [key, card] of Object.entries(c.cards)) {
-    const p = `卡牌 ${key}`;
-    id(key, p);
-    if (!isObject(card)) {
-      fail(p, "格式错误");
+  for (const [key, baseCard] of Object.entries(c.cards)) {
+    const label = `卡牌 ${key}`;
+    id(key, label);
+    if (!isObject(baseCard)) {
+      fail(label, "格式错误");
       continue;
     }
+    for (const error of heroRankConfigErrors(baseCard)) fail(label, error);
+    const rankedCards = baseCard.category === "hero" ? [0, 1, 2, 3].map(rank => resolveRankValues(baseCard, rank)) : [baseCard];
+    for (const [rank, card] of rankedCards.entries()) {
+    const p = label + (baseCard.category === "hero" ? ` ${rank} 阶` : "");
     str(card.name, p + "名称", 32);
     if (card.category === "hero") {
       enumeration(card.rarity, p + "品质", Object.keys(heroRarities));
@@ -394,64 +410,78 @@ export function validateConfig(c) {
         }
       }
     }
-    if (!Array.isArray(card.effects) || card.effects.length > 20) {
-      fail(p, "效果列表最多 20 项");
-      continue;
+    const variants = [card];
+    if (card.category === "battle") {
+      num(card.cooldown, p + "冷却秒数", .1, 3600);
+      if (!Array.isArray(card.skillTiers) || card.skillTiers.length > 9) fail(p, "技能升阶配置最多 9 项（最高 10 阶）");
+      else for (const [i, tier] of card.skillTiers.entries()) {
+        if (!isObject(tier)) { fail(p, "技能升阶配置格式错误"); continue; }
+        num(tier.cooldown, p + (i + 2) + " 阶冷却秒数", .1, 3600);
+        variants.push({ ...card, effects: tier.effects });
+      }
     }
-    if (card.category !== "hero" && !card.effects.length)
-      fail(p, "至少需要一个效果");
-    const summoned = card.effects.filter((e) => e?.type === "summon").length;
-    if (card.category === "hero" || summoned) unit(card.unit, p, card.category === "hero");
-    if (
-      card.category === "resource" &&
-      ((card.target === "ground" && summoned !== 1) ||
-        (card.target === "hero" && summoned))
-    )
-      fail(p, "地面资源牌必须有一个放置炮台效果；英雄目标不能放置炮台");
-    for (const [i, e] of card.effects.entries()) {
-      const ep = p + "效果 " + (i + 1),
-        spec = effectTypes[e?.type];
-      if (!spec || !spec.categories.includes(card.category)) {
-        fail(ep, "该类型不支持此效果");
+    for (const [tierIndex, variant] of variants.entries()) {
+      if (!Array.isArray(variant.effects) || variant.effects.length > 20) {
+        fail(p, "效果列表最多 20 项");
         continue;
       }
-      if (card.target === "any" && !["gold", "generateCard"].includes(e.type))
-        fail(ep, "战场任意位置仅支持获得金币和生成卡牌；其他效果请选择英雄或地面目标");
-      if (e.type === "level") num(e.value, ep, 1, 99, true);
-      if (e.type === "generateCard") generatedCards(e, ep);
-      if (e.type === "gold") num(e.value, ep + "金币", 1, 999, true);
-      if (["swapLevels", "sacrifice", "drainLevels"].includes(e.type)) num(e.radius, ep + "英雄范围", -1, 24, true);
-      if (["battleStart", "swapLevels", "sacrifice", "drainLevels"].includes(e.type) && card.target !== "hero") fail(ep, "此效果需要英雄目标");
-      if (e.type === "drainLevels") {
-        num(e.limit, ep + "吸取总上限", 1, 999, true);
-        num(e.perHero, ep + "每位英雄上限", 1, 999, true);
-      }
-      if (e.valueMode !== undefined) {
-        enumeration(e.valueMode, ep + "数值类型", Object.keys(valueModes));
-        if (!["heal", "damage"].includes(e.type)) fail(ep, "只有恢复生命和造成伤害支持数值类型；属性加成请使用计算方式");
-      }
-      if (["heal", "damage"].includes(e.type)) num(e.value, ep, e.valueMode === "percent" ? .01 : 1, e.valueMode === "percent" ? 100 : 100000);
-      if (["damage", "slow", "splash"].includes(e.type))
-        num(e.radius, ep + "范围", 0, 24, true);
-      if (["slow", "lifesteal", "mitigation", "splash"].includes(e.type))
-        num(e.value, ep + "比例", 0, e.type === "splash" ? 5 : 0.95);
-      if (e.type === "slow") num(e.duration, ep + "时长", 0.1, 120);
-      if (e.type === "weapon") {
-        enumeration(e.weapon, ep + "武器", Object.keys(weaponOptions));
-        num(e.range, ep + "最小射程", 0, 24, true);
-      }
-      if (e.type === "stat") {
-        enumeration(e.stat, ep + "属性", Object.keys(statLabels));
-        enumeration(e.mode, ep + "模式", Object.keys(statModes));
-        num(
-          e.value,
-          ep + "数值",
-          e.mode === "multiply" ? 0.05 : 0,
-          e.mode === "percent" ? 10000 : e.mode === "multiply" ? 10 : 100000,
-          e.stat === "range" && e.mode === "add",
-        );
+      if (variant.category !== "hero" && !variant.effects.length)
+        fail(p, "至少需要一个效果");
+      const summoned = variant.effects.filter((e) => e?.type === "summon").length;
+      if (variant.category === "hero" || summoned) unit(variant.unit, p, variant.category === "hero");
+      if (
+        variant.category === "resource" &&
+        ((variant.target === "ground" && summoned !== 1) ||
+          (variant.target === "hero" && summoned))
+      )
+        fail(p, "地面资源牌必须有一个放置炮台效果；英雄目标不能放置炮台");
+      for (const [i, e] of variant.effects.entries()) {
+        const ep = p + (card.category === "battle" ? `${tierIndex + 1} 阶` : "") + "效果 " + (i + 1),
+          spec = effectTypes[e?.type];
+        if (!spec || !spec.categories.includes(variant.category)) {
+          fail(ep, "该类型不支持此效果");
+          continue;
+        }
+        if (variant.target === "any" && !["gold", "generateCard"].includes(e.type))
+          fail(ep, "战场任意位置仅支持获得金币和生成卡牌；其他效果请选择英雄或地面目标");
+        if (e.type === "level") num(e.value, ep, 1, 99, true);
+        if (e.type === "generateCard") generatedCards(e, ep);
+        if (e.type === "gold") num(e.value, ep + "金币", 1, 999, true);
+        if (["swapLevels", "sacrifice", "drainLevels"].includes(e.type)) num(e.radius, ep + "英雄范围", -1, 24, true);
+        if (["battleStart", "swapLevels", "sacrifice", "drainLevels"].includes(e.type) && variant.target !== "hero") fail(ep, "此效果需要英雄目标");
+        if (e.type === "drainLevels") {
+          num(e.limit, ep + "吸取总上限", 1, 999, true);
+          num(e.perHero, ep + "每位英雄上限", 1, 999, true);
+        }
+        if (e.valueMode !== undefined) {
+          enumeration(e.valueMode, ep + "数值类型", Object.keys(valueModes));
+          if (!["heal", "damage"].includes(e.type)) fail(ep, "只有恢复生命和造成伤害支持数值类型；属性加成请使用计算方式");
+        }
+        if (["heal", "damage"].includes(e.type)) num(e.value, ep, e.valueMode === "percent" ? .01 : 1, e.valueMode === "percent" ? 100 : 100000);
+        if (["damage", "slow", "splash"].includes(e.type))
+          num(e.radius, ep + "范围", 0, 24, true);
+        if (["slow", "lifesteal", "mitigation", "splash"].includes(e.type))
+          num(e.value, ep + "比例", 0, e.type === "splash" ? 5 : 0.95);
+        if (e.type === "slow") num(e.duration, ep + "时长", 0.1, 120);
+        if (e.type === "weapon") {
+          enumeration(e.weapon, ep + "武器", Object.keys(weaponOptions));
+          num(e.range, ep + "最小射程", 0, 24, true);
+        }
+        if (e.type === "stat") {
+          enumeration(e.stat, ep + "属性", Object.keys(statLabels));
+          enumeration(e.mode, ep + "模式", Object.keys(statModes));
+          num(
+            e.value,
+            ep + "数值",
+            e.mode === "multiply" ? 0.05 : 0,
+            e.mode === "percent" ? 10000 : e.mode === "multiply" ? 10 : 100000,
+            e.stat === "range" && e.mode === "add",
+          );
+        }
       }
     }
+  }
+
   }
   if (Object.keys(c.enemies).length < 1 || Object.keys(c.enemies).length > 50)
     fail("敌人", "需要 1～50 种敌人");
@@ -463,7 +493,7 @@ export function validateConfig(c) {
     }
     str(e.name, key + "名称", 32);
     icon(e.useIcon, key + "图标");
-    unit(e, "敌人 " + key);
+    unit(e, "敌人 " + key, false, true);
   }
   const inventory = (v, p) => {
     if (!isObject(v)) {
@@ -477,7 +507,10 @@ export function validateConfig(c) {
   };
   num(c.initial.baseHp, "核心生命", 1, 1000000);
   num(c.initial.firstWaveDelay, "每天第一波等待时间", 0, 3600);
-  num(c.initial.waveHeal, "波后治疗比例", 0, 1);
+  num(c.initial.boatSpeed, "船航行速度", .1, 20);
+  num(c.initial.landingKnockback, "登岸击退距离", 0, 10, true);
+  // Retain the legacy field for existing configuration files; waves no longer heal.
+  if (c.initial.waveHeal !== undefined) num(c.initial.waveHeal, "旧版波后治疗比例（不再生效）", 0, 1);
   num(c.initial.reviveHp, "复活血量比例", 0.01, 1);
   inventory(c.initial.cards, "初始手牌");
   if (
@@ -521,7 +554,7 @@ export function validateConfig(c) {
       num(cell.x, dp + "障碍 X", 0, 14, true);
       num(cell.y, dp + "障碍 Y", 0, 10, true);
       const key = `${cell.x},${cell.y}`;
-      if (key === "7,5" || terrain.has(key)) fail(dp + "地图障碍", "不能占用打卡机或重复格子");
+      if (key === "7,5" || terrain.has(key)) fail(dp + "地图障碍", "不能占用美人鱼或重复格子");
       terrain.add(key);
     }
     const mineCells = new Set();
@@ -532,7 +565,7 @@ export function validateConfig(c) {
       num(mine.y, dp + "金矿 Y", 0, 10, true);
       if (mine.maxHp !== undefined) num(mine.maxHp, dp + "金矿生命", 1, 100000, true);
       const key = `${mine.x},${mine.y}`;
-      if (key === "7,5" || terrain.has(key) || mineCells.has(key)) fail(dp + "金矿", "不能与打卡机、树木或其他金矿重叠");
+      if (key === "7,5" || terrain.has(key) || mineCells.has(key)) fail(dp + "金矿", "不能与美人鱼、树木或其他金矿重叠");
       mineCells.add(key);
     }
     const reachable = reachableTerrain(new Set([...terrain, ...mineCells]));
@@ -540,7 +573,8 @@ export function validateConfig(c) {
       const [x, y] = key.split(",").map(Number);
       if (![[x-1,y],[x+1,y],[x,y-1],[x,y+1]].some(([a,b]) => reachable.has(`${a},${b}`))) fail(dp + "金矿", "金矿需要保留可到达的相邻格子");
     }
-    if (reachable.size < 2) fail(dp + "地图障碍", "需要保留通往打卡机的道路");
+    if (reachable.size < 2) fail(dp + "地图障碍", "需要保留通往美人鱼的道路");
+    if (![...reachable].some(key => { const [x,y] = key.split(",").map(Number); return x === 0 || x === 14 || y === 0 || y === 10; })) fail(dp + "地图障碍", "需要保留至少一处可登岸且通往美人鱼的海岸");
     if (!Array.isArray(day.waves) || !day.waves.length || day.waves.length > 100) {
       fail(dp, "每天需要 1～100 波");
       continue;

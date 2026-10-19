@@ -1,3 +1,7 @@
+import { migrateSkillCards } from "../skill-cards.js";
+import { migrateHeroRanks } from "../hero-ranks.js";
+import { migrateMarineContent } from "../marine-content.js";
+import { migrateSeaArrivals } from "../sea-arrivals.js";
 import { migrateHeroGrades } from "../hero-grades.js";
 import { migrateMapPresets } from "../map-presets.js";
 import { CATGIRL_CARD, HERO_CONTENT_VERSION } from "./hero-content.js";
@@ -1557,3 +1561,9 @@ migrateWorkshopContent(DEFAULT_CONFIG);
 
 migrateHeroGrades(DEFAULT_CONFIG);
 migrateMapPresets(DEFAULT_CONFIG);
+
+migrateMarineContent(DEFAULT_CONFIG);
+migrateSeaArrivals(DEFAULT_CONFIG);
+
+migrateSkillCards(DEFAULT_CONFIG);
+migrateHeroRanks(DEFAULT_CONFIG);

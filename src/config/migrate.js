@@ -1,3 +1,7 @@
+import { migrateSkillCards } from "../skill-cards.js";
+import { migrateHeroRanks } from "../hero-ranks.js";
+import { migrateMarineContent } from "../marine-content.js";
+import { migrateSeaArrivals } from "../sea-arrivals.js";
 import { migrateHeroGrades } from "../hero-grades.js";
 import { migrateMapPresets } from "../map-presets.js";
 import { migrateHeroRules } from "./trigger-rules.js";
@@ -10,7 +14,7 @@ import { migrateRewards } from "../rewards.js";
 import { migrateShops } from "../shop.js";
 import { migrateAttackModules } from "../attack-modules.js";
 import { migrateWorkshopContent } from "./workshop-content.js";
-const finalizeConfig = config => migrateMapPresets(migrateHeroGrades(config));
+const finalizeConfig = config => migrateHeroRanks(migrateSkillCards(migrateSeaArrivals(migrateMarineContent(migrateMapPresets(migrateHeroGrades(config))))));
 // Version 1 stored each level as a wave. Preserve each level as a day.
 export function migrateConfig(value) {
   const c = migrateWorkshopContent(migrateShops(structuredClone(value)));

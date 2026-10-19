@@ -44,7 +44,7 @@ const config = () => structuredClone(DEFAULT_CONFIG);
   g.applyConfig(assertConfig(second));
   g.phase = "reward";
   g.rewardOptions = ["training", "coffee", "tower", "guard", "fireball"];
-  g.chooseReward([0, 1]);
+  g.chooseReward([0]);
   g.chooseDay(g.nextDays()[0]);
   assert.equal(g.day, 1);
   assert.equal(g.obstacles.size, 1);
@@ -76,7 +76,7 @@ const config = () => structuredClone(DEFAULT_CONFIG);
   next.days[1].waves[0].spawns[0].y = 4;
   g.applyConfig(assertConfig(next));
   g.phase = "reward"; g.rewardOptions = ["training", "coffee", "tower", "guard", "fireball"];
-  g.chooseReward([0, 1]); g.chooseDay(g.nextDays()[0]);
+  g.chooseReward([0]); g.chooseDay(g.nextDays()[0]);
   assert.ok(tower.x !== 6 || tower.y !== 4, "carried towers move off a new branch's spawn point");
   assert.ok(g.path({ x: 6, y: 4 }, { x: 7, y: 5 }, { adjacent: true }));
 }

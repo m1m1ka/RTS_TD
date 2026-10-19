@@ -38,7 +38,7 @@ const kill = (g) => { for (const e of g.enemies) g.hit(e, 1000000, g.heroes[0]);
   step(g, 0.025);
   assert.equal(g.spawned, 2);
   assert.equal(g.enemies[0].enemyId, "runner");
-  assert.equal(g.enemies[0].x, 13, "right gate spawn takes its first step from that gate");
+  assert.ok(g.enemies[0].x > 14 && g.enemies[0].boatId, "right gate starts aboard a ship east of the island");
   kill(g);
   // Unresolved projectiles must not delay the last-kill completion event.
   g.attacks.push({ remaining: 50 });
@@ -64,33 +64,33 @@ const kill = (g) => { for (const e of g.enemies) g.hit(e, 1000000, g.heroes[0]);
   assert.equal(g.phase, "reward");
   assert.equal(events.filter((e) => e.type === "wave").length, 2);
   assert.equal(events.filter((e) => e.type === "waveClear").length, 2);
-  g.chooseReward([0, 1]);
+  g.chooseReward([0]);
   assert.equal(g.phase, "won");
 }
 {
   const c = fixture();
   c.initial.firstWaveDelay = 0;
-  c.days[0].waves[0].spawns = [point(5, 5, 0, "grunt", 2), point(14, 5, 0, "runner")];
+  c.days[0].waves[0].spawns = [point(0, 5, 0, "grunt", 2), point(14, 5, 0, "runner")];
+  c.enemies.grunt.atk = c.enemies.runner.atk = 0;
   const g = new Game(() => {}, c);
-  g.playCard("hero_blue", 5, 5);
+  g.playCard("hero_blue", 1, 5);
   g.heroes[0].atk = 0;
-  g.heroes[0].x = 4;
-  assert.equal(g.cardTarget("tower", 5, 5).valid, false, "stationary towers cannot permanently block spawn points");
-  g.heroes[0].x = 5;
+  assert.equal(g.cardTarget("tower", 0, 5).valid, false, "stationary towers cannot permanently block spawn points");
+  g.heroes[0].x = 0;
   g.startDay();
+  g.heroes[0].atk = 0; // Opening level-up rules rebuild stats before this timing-only scenario.
   step(g, 0.025);
-  assert.equal(g.spawned, 1, "unblocked gate runs independently");
-  assert.equal(g.spawnQueues[0].spawned, 0, "blocked point retains its own queue");
-  assert.equal(g.enemies[0].enemyId, "runner");
-  g.heroes[0].x = 4;
-  step(g, 0.025);
-  assert.equal(g.spawnQueues[0].spawned, 1);
-  assert.equal(g.enemies.find((e) => e.enemyId === "grunt").y, 5);
-  kill(g);
+  assert.equal(g.spawned, 3, "ships launch independently even when a hero occupies the shore");
+  assert.equal(g.boats.length, 2);
+  step(g, 2.975);
+  assert.equal(g.heroes[0].x, 2, "landing pushes the hero at the bow before considering side cells");
+  const first = g.enemies.find(e => e.enemyId === "grunt" && !e.boatId);
+  assert.equal(first.y, 5);
+  first.x = 1; first.y = 4; // Clear the gangway without advancing its timer.
   step(g, 0.45);
-  assert.equal(g.spawnQueues[0].spawned, 1);
+  assert.equal(g.enemies.filter(e => e.enemyId === "grunt" && !e.boatId).length, 1);
   step(g, 0.05);
-  assert.equal(g.spawnQueues[0].spawned, 2, "per-point spacing is respected");
+  assert.equal(g.enemies.filter(e => e.enemyId === "grunt" && !e.boatId).length, 2, "per-point spacing controls disembarkation");
 }
 {
   const c = fixture();
@@ -138,4 +138,33 @@ for (const mutate of [
   const c = fixture(); mutate(c);
   assert.ok(validateConfig(c).length, "invalid nested wave config must be rejected");
 }
-console.log("PASS waves: first-wave clock, independent gates, delayed spawns, final kill, inter-wave delay, pause, occupancy, spacing, live edits, day reward, v1 migration, validation");
+for (const nextKind of ["battle", "shop"]) {
+  const c = fixture();c.initial.firstWaveDelay=0;
+  c.days.push(structuredClone(DEFAULT_CONFIG.days[1]));
+  for(const card of Object.values(c.cards))if(card.category==="hero")card.triggerRules=[];
+  c.days[0].next=[c.days[1].id];c.days[1].kind=nextKind;
+  const events=[],g=new Game(e=>events.push(e),c);
+  g.playCard("hero_blue",5,5);g.playCard("hero_green",9,5);g.startDay();
+  const [alive,dead]=g.heroes;
+  alive.dayEffects.push({type:"stat",stat:"atk",mode:"add",value:17});g.rebuildHero(alive,false);
+  alive.hp=123;alive.cooldown=3;alive.moveCooldown=2;
+  g.hit(dead,100000,{side:"enemy"});
+  const before={hp:alive.hp,atk:alive.atk,dayEffects:structuredClone(alive.dayEffects),equipment:[...alive.equipment],level:alive.level,cooldown:alive.cooldown,moveCooldown:alive.moveCooldown};
+  const clear=()=>{g.spawnQueues.forEach(q=>q.spawned=q.types.length);g.enemies=[];g.tick(0);};
+  const unchanged=()=>{
+    assert.equal(dead.hp,0,"fallen hero stays dead until the next day");
+    for(const key of Object.keys(before))assert.deepEqual(alive[key],before[key],`${key} is not reset by clearing a wave`);
+    assert.equal(events.filter(e=>e.type==="revive").length,0);
+  };
+  clear();assert.equal(g.phase,"waiting");unchanged();
+  g.beginWave();clear();assert.equal(g.phase,"victory");unchanged();
+  g.tick(6);assert.equal(g.phase,"reward");assert.equal(g.rewardOptions.length,3);unchanged();
+  const cards=structuredClone(g.cards);assert.equal(g.chooseReward([0,1]),false);assert.deepEqual(g.cards,cards);
+  assert.ok(g.chooseReward([0]));unchanged();
+  assert.ok(g.chooseDay(c.days[1].id));
+  for(const hero of g.heroes){assert.equal(hero.hp,hero.maxHp);assert.deepEqual(hero.dayEffects,[]);assert.equal(hero.cooldown,0);}
+  assert.equal(alive.level,before.level);assert.deepEqual(alive.equipment,before.equipment);
+  assert.equal(events.filter(e=>e.type==="revive"&&e.unit.id===dead.id).length,1);
+  assert.equal(g.phase,nextKind==="shop"?"shop":"between");
+}
+console.log("PASS waves: clocks, gates, spacing, live edits, no wave recovery, next-day revival/healing/reset, battle and shop transitions, three-of-one reward and validation");

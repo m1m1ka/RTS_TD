@@ -66,7 +66,7 @@ export class GoldVisuals {
         const x = p.side ? w - p.vx * t : p.vx * t, y = h * p.y + p.vy * t + 230 * t * t;
         g.save(); g.translate(x, y); g.rotate(p.spin + t * p.spin); g.fillStyle = p.color;
         g.strokeStyle = "#283e32"; g.lineWidth = 1.5;
-        g.fillRect(-4, -7, 8, 14); g.strokeRect(-4, -7, 8, 14); g.restore();
+        g.fillRect(-4, -4, 8, 8); g.strokeRect(-4, -4, 8, 8); g.restore();
       }
       g.globalAlpha = 1;
     }

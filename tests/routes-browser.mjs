@@ -65,9 +65,8 @@ try {
     await game.locator("#start").click();
     await game.evaluate(() => window.__game.advance(9));
     await game.locator('[data-reward="0"]').click();
-  await game.locator('[data-reward="1"]').click();
-  await game.locator("[data-reward-confirm]").click();
-  await game.waitForFunction(() => window.__game.snapshot().phase !== "reward");
+    await game.locator("[data-reward-confirm]").click();
+    await game.waitForFunction(() => window.__game.snapshot().phase !== "reward");
   };
   await finishDay();
   await game.waitForFunction(() => window.__game.snapshot().phase === "route");

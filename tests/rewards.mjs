@@ -11,21 +11,21 @@ const random = (value, action) => { const old = Math.random; Math.random = () =>
   pool.cards = { training: 1, coffee: 3, tower: 2, guard: 1, coin_purse: 4, legacy: 0 };
   for (let i = 0; i < 20; i++) {
     const offers = drawRewards(c, c.days[0]);
-    assert.equal(offers.length, 5); assert.equal(new Set(offers).size, 5); assert.ok(!offers.includes("legacy"));
+    assert.equal(offers.length, 3); assert.equal(new Set(offers).size, 3); assert.ok(!offers.includes("legacy"));
   }
   assert.equal(random(0, () => drawRewards(c, c.days[0]))[0], "training");
   assert.equal(random(.1, () => drawRewards(c, c.days[0]))[0], "coffee", "weights determine the draw boundary");
   pool.cards = { coin_purse: 1 };
-  assert.deepEqual(drawRewards(c, c.days[0]), Array(5).fill("coin_purse"));
+  assert.deepEqual(drawRewards(c, c.days[0]), Array(3).fill("coin_purse"));
   const g = new Game(() => {}, c); g.phase = "reward"; g.rewardOptions = drawRewards(c, c.days[0]);
   const before = structuredClone(g.cards);
-  for (const invalid of [0, [], [0], [0,0], [0,1,2], [-1,1], [0,5], [0,1.5], ["0",1]]) {
+  for (const invalid of [0, [], [0,1], [0,0], [0,1,2], [-1], [3], [1.5], ["0"], [NaN]]) {
     assert.equal(g.chooseReward(invalid), false); assert.deepEqual(g.cards, before);
   }
-  assert.ok(g.chooseReward([0,1])); assert.equal(g.cards.coin_purse, 2); assert.equal(g.phase, "route");
-  assert.equal(g.chooseReward([0,1]), false); assert.equal(g.cards.coin_purse, 2);
+  assert.ok(g.chooseReward([0])); assert.equal(g.cards.coin_purse, 1); assert.equal(g.phase, "route");
+  assert.equal(g.chooseReward([0]), false); assert.equal(g.cards.coin_purse, 1);
   g.chooseDay(g.nextDays()[0]);
-  assert.equal(g.cards.coin_purse, 2);
+  assert.equal(g.cards.coin_purse, 1);
 }
 {
   const old = config(); delete old.rewardPools; delete old.resourceContentVersion;
@@ -71,7 +71,7 @@ const fixture = () => {
   assert.deepEqual(g.heroes.map(h => h.level), [12,7]); assert.equal(g.heroes.includes(a), false); assert.equal(g.attacks.length, 0);
   assert.equal(g.kills, 0, "sacrifice is not an enemy kill");
   g.phase = "reward"; g.rewardOptions = ["training","coffee","guard","tower","fireball"];
-  g.chooseReward([0,1]); g.chooseDay(g.nextDays()[0]);
+  g.chooseReward([0]); g.chooseDay(g.nextDays()[0]);
   assert.equal(g.heroes.length, 2); assert.ok(!g.heroes.some(h => h.id === a.id));
   assert.equal(g.cards.hero_blue, undefined, "destroyed hero never returns to the hand");
   assert.equal(g.gold, 3);
@@ -94,4 +94,4 @@ for (const mutate of [
   c => c.cards.level_swap.target = "any",
   c => c.cards.coin_purse.effects.push({type:"heal",value:20}),
 ]) { const c = config(); mutate(c); assert.ok(validateConfig(c).length); assert.throws(() => assertConfig(c)); }
-console.log("PASS rewards/resources: weighted 5-of-2, duplicates, atomic claims, migration, portability, gold, one start event, swaps, capped drains, sacrifice persistence and validation");
+console.log("PASS rewards/resources: weighted 3-of-1, duplicates, atomic claims, migration, portability, gold, one start event, swaps, capped drains, sacrifice persistence and validation");

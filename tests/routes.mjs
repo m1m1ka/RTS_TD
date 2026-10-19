@@ -12,7 +12,7 @@ const fixture = () => {
   b.obstacles = [{ x: 1, y: 1 }]; d.obstacles = [{ x: 2, y: 2 }];
   return c;
 };
-const claim = (g) => { g.phase = "reward"; g.rewardOptions = ["training", "coffee", "tower", "guard", "fireball"]; return g.chooseReward([0, 1]); };
+const claim = (g) => { g.phase = "reward"; g.rewardOptions = ["training", "coffee", "tower", "guard", "fireball"]; return g.chooseReward([0]); };
 {
   const c = assertConfig(fixture()), g = new Game(() => {}, c), [a, b, d, end] = c.days;
   const layout = campaignLayout(c);
@@ -30,7 +30,7 @@ const claim = (g) => { g.phase = "reward"; g.rewardOptions = ["training", "coffe
   assert.equal(g.time, time);
   assert.equal(g.playCard("training", 7, 3), false);
   const cards = structuredClone(g.cards);
-  assert.equal(g.chooseReward([0, 1]), false, "reward cannot be claimed twice");
+  assert.equal(g.chooseReward([0]), false, "reward cannot be claimed twice");
   assert.ok(g.chooseDay(d.id));
   assert.equal(g.day, 2);
   assert.equal(g.snapshot().day, 2, "branch nodes share a day column");

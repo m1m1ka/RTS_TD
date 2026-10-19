@@ -72,10 +72,10 @@
 .booster strong, .booster small { display: block; position: relative; margin-top: 10px; }
 .booster strong { font-size: 18px; font-weight: 900; }
 .booster small { font: 900 14px/1.2 var(--retro-number, monospace); letter-spacing: 3px; }
-.booster-rays { position: absolute; inset: -40px; opacity: 0; border-radius: 50%; background: repeating-conic-gradient(#fff0b577 0deg 10deg, transparent 10deg 30deg); pointer-events: none; }
+.booster-rays { display: none; position: absolute; inset: -40px; opacity: 0; border-radius: 50%; background: repeating-conic-gradient(#fff0b577 0deg 10deg, transparent 10deg 30deg); pointer-events: none; }
 .booster.ripping .booster-lid { animation: booster-tear .5s ease-in forwards; }
 .booster.ripping .booster-seal { animation: seal-break .5s ease-in forwards; }
-.booster.ripping .booster-rays { animation: pack-rays .5s ease-out forwards; }
+.booster.ripping .booster-rays { display: block; animation: pack-rays .5s ease-out forwards; }
 .pack-reveal h3 { font-size: 23px; margin: 4px; color: var(--retro-cream, #fff0b5); font-weight: 900; }
 .pack-reveal > p { color: var(--retro-paper, #e9dba1); font-size: 13px; margin: 9px; letter-spacing: .12em; }
 .pack-choices { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 690px; margin-inline: auto; gap: 28px; }
@@ -121,3 +121,17 @@
   .pack-choices .card-description { font-size: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { #shop-dialog * { animation-duration: .01ms !important; transition: none !important; } }
+.skill-forge { padding: 16px 4px; border-top: 2px solid #b7878177; text-align: left; }
+.fusion-list { display: grid; gap: 12px; }
+.fusion-recipe { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 15px; padding: 12px; background: #211e30aa; border: 2px solid #947268; color: #fff0b5; }
+.fusion-recipe img { width: 56px; height: 56px; image-rendering: pixelated; }
+.fusion-recipe strong, .fusion-recipe small { display: block; }
+.fusion-recipe small { margin-top: 5px; color: #dfc897; }
+.fusion-recipe p { margin: 5px 0 0; font-size: 12px; line-height: 1.6; }
+.fusion-recipe .shop-action { font-size: 14px; padding: 8px 12px; white-space: nowrap; }
+.fusion-empty { font-size: 14px; color: #dfc897; }
+@media (max-width: 600px) {
+  .fusion-recipe { grid-template-columns: 40px minmax(0, 1fr); gap: 10px; }
+  .fusion-recipe img { width: 40px; height: 40px; }
+  .fusion-recipe .shop-action { grid-column: 2; justify-self: start; }
+}

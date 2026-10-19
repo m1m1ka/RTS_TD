@@ -34,7 +34,8 @@ const kill = (g, h) => g.hit(h, 100000, { side: "enemy" });
   assert.equal(events.filter(e => e.type === "heroSacrifice").length, 1);
   assert.equal(events.filter(e => e.type === "heroBattleStart").length, 0, "death must not masquerade as battle start");
   kill(g, a); g.applyConfig(structuredClone(c)); assert.equal(g.cards.training, initialCards + 1);
-  clear(g); assert.ok(a.hp > 0); assert.equal(g.phase, "waiting");
+  clear(g); assert.equal(a.hp, 0); assert.equal(g.phase, "waiting");
+  assert.ok(g.reviveHero(a,{maxRevives:1,hpPercent:50},b), "explicit revival skills still work between waves");
   kill(g, a); assert.equal(a.level, 3); assert.equal(g.cards.training, initialCards + 2, "a new death after revival triggers again");
 }
 {
@@ -54,11 +55,12 @@ const kill = (g, h) => g.hit(h, 100000, { side: "enemy" });
   const { g, a, b, events } = deploy(c), before = g.cards.training, rate = a.rate, speed = a.speed;
   g.startDay(); kill(g, a); clear(g);
   assert.equal(a.level, 1); assert.equal(g.cards.training, before, "intermediate waves do not count as victory");
-  assert.ok(a.hp > 0);
+  assert.equal(a.hp, 0, "no automatic revival between waves");
+  assert.ok(g.reviveHero(a,{maxRevives:1,hpPercent:50},b), "explicit revival restores victory eligibility");
   g.wave = g.dayPlan.waves.length - 1; g.beginWave(); kill(g, b); clear(g);
   assert.equal(g.phase, "victory"); assert.equal(a.level, 2); assert.equal(b.level, 1);
-  assert.ok(b.hp > 0, "ordinary wave revival still happens but cannot grant victory eligibility");
-  assert.equal(g.cards.training, before + 1); assert.equal(a.rate, rate + .3); assert.equal(a.speed, speed);
+  assert.equal(b.hp, 0, "fallen heroes remain dead through victory");
+  assert.equal(g.cards.training, before + 1); assert.equal(a.rate, rate + .3); assert.equal(a.speed, speed + 2);
   assert.deepEqual(events.filter(e => e.type === "heroVictory").map(e => e.unit.id), [a.id]);
   assert.equal(events.filter(e => e.type === "heroBattleStart").length, 0);
   g.tick(6); g.tick(6); g.applyConfig(structuredClone(c)); assert.equal(a.level, 2);

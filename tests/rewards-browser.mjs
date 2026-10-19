@@ -58,19 +58,32 @@ try {
   await page.locator("#start").click();
   await page.evaluate(()=>window.__game.advance(12));
   assert.equal((await state()).phase,"reward");
-  assert.equal(await page.locator('[data-reward]').count(),5);
+  assert.equal(await page.locator('[data-reward]').count(),3);
   assert.ok(await page.locator('#reward-dialog').evaluate(el => { const s = getComputedStyle(el); return s.borderTopWidth === '0px' && s.boxShadow === 'none' && s.backgroundColor === 'rgba(0, 0, 0, 0)' && s.backgroundImage === 'none'; }), "rewards have no enclosing panel");
-  assert.deepEqual(new Set((await state()).rewardOptions),new Set(keys),"editor pool binding is live");
+  assert.ok(await page.locator('#reward-dialog').evaluate(el => { const s = getComputedStyle(el, '::backdrop'); return s.backgroundColor === 'rgba(0, 0, 0, 0)' && s.backgroundImage === 'none' && s.backdropFilter === 'none'; }), "battlefield remains visible behind rewards");
+  assert.ok((await state()).rewardOptions.every(key=>keys.includes(key)),"editor pool binding is live");
+  assert.equal(new Set((await state()).rewardOptions).size,3);
   await page.waitForTimeout(1100);
-  await page.screenshot({path:"logs/rewards-five-cards.png"});
+  await page.screenshot({path:"logs/rewards-three-cards.png"});
   const confirm=page.locator('[data-reward-confirm]'); assert.ok(await confirm.isDisabled());
   await page.locator('[data-reward="0"]').click(); await page.locator('[data-reward="1"]').click();
-  assert.equal(await page.locator('.reward-card.picked').count(),2); assert.ok(await confirm.isEnabled());
-  await page.locator('[data-reward="2"]').click(); assert.equal(await page.locator('.reward-card.picked').count(),2);
-  await page.locator('[data-reward="0"]').click(); assert.ok(await confirm.isDisabled());
+  assert.equal(await page.locator('.reward-card.picked').count(),1); assert.ok(await confirm.isEnabled());
+  assert.equal(await page.locator('[data-reward="1"]').getAttribute('aria-pressed'),'true',"clicking another card switches selection");
+  await page.locator('[data-reward="1"]').click(); assert.ok(await confirm.isDisabled());
   await page.locator('[data-reward="2"]').click();
   await page.screenshot({path:"logs/rewards-selection.png"});
   await page.keyboard.press("Escape"); assert.ok(await page.locator('#reward-dialog').isVisible());
+  for(const [width,height] of [[1280,720],[844,390],[667,320],[320,568],[390,844]]) {
+    await page.setViewportSize({width,height});
+    await page.waitForTimeout(100);
+    assert.ok(await page.locator('#reward-dialog').evaluate(el=>{
+      const s=getComputedStyle(el),items=[...el.querySelectorAll('[data-reward],[data-reward-confirm]')];
+      return s.overflowY==='hidden'&&s.overflowX==='hidden'&&!el.querySelector('select')&&items.every(item=>{
+        const r=item.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth;
+      });
+    }),`reward cards and confirm fit without scrollbars at ${width}x${height}`);
+  }
+  await page.setViewportSize({width:844,height:390});await page.screenshot({path:"logs/rewards-landscape.png"});
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:"logs/rewards-mobile.png"});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
@@ -78,9 +91,9 @@ try {
   await confirm.click();
   await page.waitForFunction(()=>window.__game.snapshot().phase==="won");
   const after=await state();
-  assert.equal(Object.values(after.cards).reduce((a,b)=>a+b,0),Object.values(before.cards).reduce((a,b)=>a+b,0)+2);
-  for(const index of [1,2]){const key=before.rewardOptions[index];assert.equal(after.cards[key],(before.cards[key]||0)+1);}
+  assert.equal(Object.values(after.cards).reduce((a,b)=>a+b,0),Object.values(before.cards).reduce((a,b)=>a+b,0)+1);
+  const key=before.rewardOptions[2];assert.equal(after.cards[key],(before.cards[key]||0)+1);
   assert.equal(await page.locator('#reward-dialog').isVisible(),false);
   assert.deepEqual(errors,[]);
-  console.log("PASS reward browser: editable pools, live per-day binding, resource art/use/removal, five cards, toggle/max-two, desktop/mobile layout, animated claim and exact inventory");
+  console.log("PASS reward browser: editable pools, live per-day binding, resource art/use/removal, three cards, single-selection switching, desktop/mobile layout, animated claim and exact inventory");
 } finally {await browser?.close();server.kill();}

@@ -25,10 +25,10 @@ const clear = g => { g.spawnQueues.forEach(q => q.spawned = q.types.length); g.e
   assert.equal(a.reviveUsage.used, 2); assert.ok(a.hp > 0);
   kill(g,a); assert.equal(a.hp, 0); assert.equal(a.reviveUsage.used, 2);
   kill(g,a); assert.equal(events.filter(e => e.type === "heroSacrifice").length, 3);
-  clear(g); assert.ok(a.hp > 0, "normal wave revival still occurs");
+  clear(g); assert.equal(a.hp, 0, "waves do not revive fallen heroes");
   assert.equal(a.reviveUsage.used, 2); kill(g,a); assert.equal(a.hp, 0, "wave changes do not replenish effect charges");
   g.wave = g.dayPlan.waves.length - 1; g.beginWave(); clear(g); g.tick(6);
-  g.chooseReward([0,1]); assert.ok(g.chooseDay(g.nextDays()[0]));
+  g.chooseReward([0]); assert.ok(g.chooseDay(g.nextDays()[0]));
   kill(g,a); assert.ok(a.hp > 0); assert.equal(a.reviveUsage.used, 1, "new day starts a fresh allowance");
 }
 {

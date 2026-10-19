@@ -1,3 +1,6 @@
+import { drawMermaid } from "./marine-art.js";
+import { drawPirate } from "./pirate-art.js";
+import { pirateAliases, pirateLooks } from "./marine-content.js";
 import { presetById } from "./hero-presets.js";
 import { drawHeroPreset } from "./hero-preset-art.js";
 const ink = "#203c30";
@@ -65,55 +68,21 @@ function line(ctx, points, color, width = 4) {
   ctx.stroke();
 }
 export function unitArt(type, { portrait = false } = {}) {
-  const c = canvas(),
-    g = c.getContext("2d");
+  const c = canvas(type === "base" ? 384 : 128), g = c.getContext("2d");
   g.lineJoin = "round";
   g.lineCap = "round";
-  const enemy = ["grunt", "runner", "tank", "boss"].includes(type);
-  ellipse(g, 65, 115, 45, 9, "#102f2555");
   if (type === "base") {
-    rounded(g, 13, 22, 101, 96, 14, "#b89550", "#284330", 6);
-    rounded(g, 18, 15, 92, 96, 12, "#e9d296", "#f8e9bf", 4);
-    rounded(g, 29, 25, 70, 43, 7, "#344b38", "#867e4c", 4);
-    g.fillStyle = "#d4ef9c";
-    g.font = "bold 22px monospace";
-    g.textAlign = "center";
-    g.fillText("17:59", 64, 53);
-    rounded(g, 34, 77, 37, 21, 3, "#64816a", "#304c37", 3);
-    line(
-      g,
-      [
-        [43, 88],
-        [61, 88],
-      ],
-      "#b7d698",
-      3,
-    );
-    ellipse(g, 88, 87, 8, 8, "#91bd6b");
-    ellipse(g, 86, 84, 3, 3, "#dff2a5");
-    shape(
-      g,
-      [
-        [44, 17],
-        [43, 3],
-        [86, 3],
-        [83, 17],
-      ],
-      "#f5ecd1",
-      "#56633d",
-      3,
-    );
-    line(
-      g,
-      [
-        [51, 9],
-        [75, 9],
-      ],
-      "#9caa7c",
-      2,
-    );
+    g.scale(3, 3);
+    drawMermaid(g);
     return c;
   }
+  const pirate = pirateAliases[type] || type;
+  if (pirateLooks[pirate]) {
+    drawPirate(g, pirate, portrait, { shape, rounded, ellipse, line, ink });
+    return c;
+  }
+  const enemy = false;
+  ellipse(g, 65, 115, 45, 9, "#102f2555");
   const color = enemy
     ? "#e87b65"
     : type === "blue"
@@ -553,134 +522,145 @@ export const obstacles = new Set();
 export function treeArt() {
   const c = canvas(), g = c.getContext("2d");
   g.lineJoin = "round";
-  rounded(g, 5, 7, 118, 116, 9, "#315c3d", "#203c30", 5);
-  line(g, [[14, 34], [14, 16], [36, 13]], "#69845b", 3);
-  ellipse(g, 65, 105, 45, 12, "#183e2e99");
-  rounded(g, 54, 76, 21, 32, 4, "#5b6346", "#253f30", 4);
-  shape(g, [[21, 85], [27, 65], [25, 54], [39, 43], [40, 30], [58, 20], [72, 22], [84, 33], [89, 45], [103, 56], [100, 70], [107, 86], [94, 98], [37, 98]], "#365c40", "#213d2c", 5);
-  shape(g, [[30, 64], [42, 49], [43, 35], [59, 27], [72, 29], [82, 40], [83, 49], [96, 61], [89, 71], [41, 72]], "#436d49", null);
-  shape(g, [[44, 40], [58, 31], [71, 33], [81, 42], [74, 48], [51, 49]], "#527c50", null);
-  line(g, [[31, 83], [42, 88], [88, 88], [99, 82]], "#4a7048", 4);
+  g.lineCap = "round";
+  // A transparent sandy footprint lets the same palm sit on both board and editor tiles.
+  ellipse(g, 67, 111, 40, 10, "#806d4538");
+  ellipse(g, 53, 113, 22, 6, "#d4b574");
+  g.beginPath();
+  g.moveTo(43, 112); g.bezierCurveTo(61, 91, 60, 68, 49, 44);
+  g.lineTo(61, 40); g.bezierCurveTo(77, 66, 78, 90, 62, 113);
+  g.closePath(); g.fillStyle = "#b58a50"; g.fill();
+  g.strokeStyle = "#594d32"; g.lineWidth = 4; g.stroke();
+  g.beginPath(); g.moveTo(49, 108); g.bezierCurveTo(67, 88, 65, 64, 55, 47);
+  g.strokeStyle = "#e0ba76"; g.lineWidth = 5; g.stroke();
+  for (const [x, y, dx] of [[53, 100, 14], [58, 88, 13], [59, 76, 12], [57, 64, 11]])
+    line(g, [[x, y], [x + dx, y + 3]], "#86653e", 2.5);
+  const fronds = [
+    { fill: "#448052", points: [[57,43],[43,33],[30,18],[14,12],[28,9],[43,13],[40,18],[50,21],[48,26],[59,30],[64,42]], vein: [[57,41],[37,20],[18,13]] },
+    { fill: "#559755", points: [[56,42],[50,26],[55,13],[69,5],[66,18],[62,16],[64,26],[60,25],[64,38]], vein: [[57,38],[58,24],[65,10]] },
+    { fill: "#62a35c", points: [[59,41],[70,25],[89,16],[111,19],[98,23],[100,27],[87,27],[91,32],[77,33],[78,38],[64,46]], vein: [[62,40],[81,25],[105,20]] },
+    { fill: "#397d4d", points: [[62,43],[83,35],[105,41],[119,60],[104,53],[106,59],[94,50],[94,57],[81,48],[80,54],[63,49]], vein: [[65,45],[89,44],[115,57]] },
+    { fill: "#4c9251", points: [[55,43],[34,31],[15,37],[5,56],[17,48],[16,54],[28,43],[29,49],[41,42],[45,48]], vein: [[51,43],[29,37],[9,52]] },
+    { fill: "#65a45a", points: [[54,43],[39,46],[27,58],[23,78],[33,68],[36,71],[39,59],[43,63],[47,52],[54,51]], vein: [[52,47],[39,54],[27,73]] },
+    { fill: "#3f844d", points: [[60,44],[77,47],[88,62],[89,80],[80,69],[76,72],[74,60],[70,63],[66,53],[58,51]], vein: [[62,48],[76,58],[85,75]] },
+  ];
+  for (const leaf of fronds) {
+    shape(g, leaf.points, leaf.fill, "#285438", 3);
+    line(g, leaf.vein, "#a6c977", 1.8);
+  }
+  for (const [x, y, r] of [[49, 51, 7], [64, 51, 7], [56, 58, 7.5]]) {
+    ellipse(g, x, y + 1, r + 1.5, r + 1.5, "#514631");
+    ellipse(g, x, y, r, r, "#98723f");
+    ellipse(g, x - 2, y - 2, r * .55, r * .48, "#c49a5b");
+  }
   return c;
 }
 export function mapArt(blocked = obstacles) {
-  const s = 96,
-    c = canvas(15 * s, 11 * s),
-    g = c.getContext("2d");
+  const s = 96, c = canvas(15 * s, 11 * s), g = c.getContext("2d");
   let seed = 375;
   const rnd = () => {
     seed = (seed * 1664525 + 1013904223) >>> 0;
     return seed / 4294967296;
   };
-  g.fillStyle = "#315c3b";
+  g.fillStyle = "#f3d48c";
   g.fillRect(0, 0, c.width, c.height);
-  for (let y = 0; y < 11; y++)
-    for (let x = 0; x < 15; x++) {
-      const px = x * s,
-        py = y * s;
-      let light = 31 + rnd() * 7;
-      g.fillStyle = `hsl(${131 + rnd() * 9} 28% ${light}%)`;
-      g.fillRect(px, py, s, s);
-      const grad = g.createLinearGradient(px, py, px + s, py + s);
-      grad.addColorStop(0, "#8fb4690a");
-      grad.addColorStop(1, "#12332927");
-      g.fillStyle = grad;
-      g.fillRect(px, py, s, s);
-      g.strokeStyle = "#193d2c32";
-      g.lineWidth = 2;
-      g.strokeRect(px + 1, py + 1, s - 2, s - 2);
-      if (y === 5 || x === 7) {
-        g.fillStyle = "#adc17b0b";
-        g.fillRect(px + 3, py + 3, s - 6, s - 6);
-      }
-      for (let n = 0; n < 180; n++) {
-        g.fillStyle = rnd() > 0.5 ? "#c1d39808" : "#0c32200b";
-        g.fillRect(
-          px + rnd() * s,
-          py + rnd() * s,
-          1 + rnd() * 3,
-          1 + rnd() * 3,
-        );
-      }
-      if (rnd() < 0.22 && Math.abs(x - 7) + Math.abs(y - 5) > 2) {
-        const bx = px + 25 + rnd() * 25,
-          by = py + 65;
-        for (let n = 0; n < 5; n++) {
-          let k = n * 8;
-          line(
-            g,
-            [
-              [bx + k, by],
-              [bx + k - 5, by - 16 - n * 3],
-              [bx + k - 2, by - 23 - n * 3],
-            ],
-            "#346b43",
-            8,
-          );
-          line(
-            g,
-            [
-              [bx + k, by - 2],
-              [bx + k - 4, by - 18 - n * 3],
-            ],
-            "#659653",
-            3,
-          );
-        }
-      } else if (rnd() < 0.27) {
-        const fx = px + 20 + rnd() * 50,
-          fy = py + 20 + rnd() * 50;
-        if (rnd() > 0.6) {
-          ellipse(g, fx - 4, fy, 4, 2, "#bdc185");
-          ellipse(g, fx + 3, fy - 2, 3, 4, "#d3ca90");
-          ellipse(g, fx + 3, fy + 3, 3, 3, "#bdc185");
-          ellipse(g, fx, fy, 2, 2, "#d6ae61");
-        } else {
-          ellipse(g, fx, fy, 6, 3, "#799471");
-          ellipse(g, fx + 8, fy + 4, 4, 2, "#32573c");
-        }
-      }
+  for (let y = 0; y < 11; y++) for (let x = 0; x < 15; x++) {
+    const px = x * s, py = y * s;
+    // Alternating warm sand, with soft edges rather than dark grid outlines.
+    const light = ((x + y) % 2 ? 73 : 79) + rnd() * 2;
+    g.fillStyle = `hsl(43 84% ${light}%)`;
+    g.fillRect(px, py, s, s);
+    const shade = g.createLinearGradient(px, py, px + s * .65, py + s);
+    shade.addColorStop(0, "#fff5c625");
+    shade.addColorStop(.6, "#fff5c600");
+    shade.addColorStop(1, "#ba884b10");
+    g.fillStyle = shade;
+    g.fillRect(px, py, s, s);
+    g.strokeStyle = "#fff0bd24";
+    g.lineWidth = 1;
+    g.strokeRect(px + .5, py + .5, s - 1, s - 1);
+    for (let n = 0; n < 65; n++) {
+      g.fillStyle = rnd() > .5 ? "#fff5d21c" : "#b3915511";
+      g.fillRect(px + rnd() * s, py + rnd() * s, 1 + rnd() * 2, 1 + rnd() * 2);
     }
+    const detail = rnd();
+    if (detail > .12 || blocked.has(`${x},${y}`) || Math.abs(x - 7) + Math.abs(y - 5) < 3) continue;
+    const fx = px + 26 + rnd() * 44, fy = py + 28 + rnd() * 38;
+    g.save(); g.translate(fx, fy); g.rotate(rnd() * 1.4 - .7);
+    if (detail < .045) {
+      const points = Array.from({ length: 10 }, (_, i) => {
+        const angle = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 5 : 11;
+        return [Math.cos(angle) * r, Math.sin(angle) * r];
+      });
+      ellipse(g, 1, 5, 10, 4, "#a9794226");
+      shape(g, points, "#de884e", "#bf713c", 1.5);
+      ellipse(g, -1, -2, 2, 1.5, "#f6b376");
+    } else if (detail < .09) {
+      ellipse(g, 0, 5, 10, 4, "#a9794226");
+      g.beginPath(); g.moveTo(-4, 7); g.quadraticCurveTo(-15, 0, -8, -7);
+      g.quadraticCurveTo(0, -15, 8, -7); g.quadraticCurveTo(15, 0, 4, 7); g.closePath();
+      g.fillStyle = "#f8edc0"; g.fill(); g.strokeStyle = "#c5ad75"; g.lineWidth = 1.2; g.stroke();
+      for (const dx of [-7, -3, 3, 7]) line(g, [[0, 7], [dx, -6]], "#d5c28d", 1);
+    } else {
+      ellipse(g, 0, 2, 7, 4, "#b9ae87");
+      ellipse(g, -2, 0, 4, 2, "#e0d6ae");
+      ellipse(g, 10, 6, 3, 2, "#c2ad80");
+    }
+    g.restore();
+  }
   const tree = blocked.size ? treeArt() : null;
   for (const key of blocked) {
     const [x, y] = key.split(",").map(Number);
     g.drawImage(tree, x * s, y * s, s, s);
   }
-  // Ragged forest canopy, matching the reference's dark peripheral foliage.
-  for (let i = 0; i < 45; i++) {
-    const edge = i % 4,
-      xx = edge < 2 ? rnd() * c.width : edge === 2 ? -22 : c.width + 22,
-      yy = edge >= 2 ? rnd() * c.height : edge === 0 ? -24 : c.height + 24;
-    ellipse(g, xx, yy, 35 + rnd() * 35, 30 + rnd() * 30, "#203f2e");
-    ellipse(g, xx - 6, yy - 9, 30 + rnd() * 27, 20 + rnd() * 20, "#2a4c32");
-  }
   return c;
 }
 
-export function forestArt() {
-  const c = canvas(1536, 1024),
-    g = c.getContext("2d");
-  g.fillStyle = "#284b34";
-  g.fillRect(0, 0, c.width, c.height);
-  let seed = 139;
+// Wrapped brush marks and light pools make a seamless, slowly drifting sea tile.
+export function oceanArt() {
+  const size = 1024, c = canvas(size), g = c.getContext("2d");
+  g.fillStyle = "#208eae";
+  g.fillRect(0, 0, size, size);
+  let seed = 739;
   const rnd = () => {
     seed = (seed * 1664525 + 1013904223) >>> 0;
     return seed / 4294967296;
   };
-  for (let i = 0; i < 680; i++) {
-    const x = rnd() * c.width,
-      y = rnd() * c.height,
-      r = 18 + rnd() * 36;
-    ellipse(g, x, y + 10, r + 3, r * 0.72, "#193a2b");
-    ellipse(
-      g,
-      x,
-      y,
-      r,
-      r * 0.72,
-      ["#2b4d34", "#31563a", "#284b33", "#345a3b"][i % 4],
-    );
-    ellipse(g, x - 5, y - 9, r * 0.69, r * 0.4, "#46694130");
+  const wrap = draw => {
+    for (const dx of [-size, 0, size]) for (const dy of [-size, 0, size]) {
+      g.save(); g.translate(dx, dy); draw(); g.restore();
+    }
+  };
+  for (let i = 0; i < 24; i++) {
+    const x = rnd() * size, y = rnd() * size, r = 120 + rnd() * 220;
+    wrap(() => {
+      const light = g.createRadialGradient(x, y, 0, x, y, r);
+      light.addColorStop(0, i % 3 ? "#52e4d53d" : "#104f842b");
+      light.addColorStop(1, i % 3 ? "#52e4d500" : "#104f8400");
+      g.fillStyle = light; g.fillRect(x - r, y - r, r * 2, r * 2);
+    });
   }
+  g.lineCap = "round";
+  for (let row = 0; row < 28; row++) for (let col = 0; col < 14; col++) {
+    const x = col * size / 14 + (row % 2) * 30 + rnd() * 23;
+    const y = row * size / 28 + rnd() * 15;
+    const length = 17 + rnd() * 30, bend = rnd() * 3 - 1.5;
+    const width = 4 + rnd() * 3, alpha = .14 + rnd() * .24;
+    wrap(() => {
+      g.strokeStyle = `rgba(184,242,217,${alpha})`; g.lineWidth = width;
+      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + length / 2, y - 1.5, x + length, y + bend); g.stroke();
+    });
+  }
+  return c;
+}
+
+export function shorelineArt() {
+  const c = canvas(1640, 1240), g = c.getContext("2d");
+  rounded(g, 4, 10, 1632, 1224, 85, "#157b9e", null);
+  rounded(g, 12, 8, 1616, 1216, 78, "#4ccbd1", null);
+  rounded(g, 32, 30, 1576, 1176, 58, "#9ae2cd", null);
+  rounded(g, 44, 42, 1552, 1152, 45, "#b99d65", null);
+  rounded(g, 48, 42, 1544, 1144, 42, "#d9bf80", null);
+  rounded(g, 57, 51, 1526, 1126, 33, "#e6d29b", null);
   return c;
 }

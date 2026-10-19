@@ -53,13 +53,15 @@ const deploy = c => {
   near(d.hp, max, "reactivation does not grant a free heal"); assert.equal(d.dayEffects.length, count);
   g.hit(b, 100000, { side: "enemy" }); near(d.atk, base + 10 + 3);
   g.hit(a, 100000, { side: "enemy" }); near(d.atk, base + 3);
-  // Both sources revive before wave healing; daily effects survive intermediate waves.
+  // Dead sources stay inactive; daily effects survive until entering the next day.
   g.spawnQueues.forEach(q => q.spawned = q.types.length); g.enemies = []; g.tick(0);
-  assert.equal(g.phase, "waiting"); near(d.atk, (base + 10) * 1.5 + 3);
-  near(a.hp, a.maxHp * c.initial.reviveHp);
+  assert.equal(g.phase, "waiting"); near(d.atk, base + 3);
+  near(a.hp, 0);
   g.wave = g.dayPlan.waves.length - 1; g.beginWave();
   g.spawnQueues.forEach(q => q.spawned = q.types.length); g.enemies = []; g.tick(0);
-  assert.equal(g.phase, "victory"); near(d.atk, base); near(d.lifeSteal, .15);
+  assert.equal(g.phase, "victory"); near(d.atk, base + 3); near(d.lifeSteal, .15);
+  g.tick(6);g.chooseReward([0]);g.chooseDay(g.nextDays()[0]);
+  near(d.atk, base);near(a.hp,a.maxHp);
 }
 {
   const c = config();

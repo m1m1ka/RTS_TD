@@ -49,11 +49,13 @@ const clearWave = (g) => {
   clearWave(g);
   if (g.phase === "victory") g.tick(6);
   assert.equal(g.phase, "reward");
+  near(a.speed, appliedSpeed);
+  near(b.rate, baseRate + .2);
+  assert.equal(a.level, 3, "victory keeps current-day buffs and levels");
+  g.chooseReward([0]);
+  g.chooseDay(g.nextDays()[0]);
   near(a.speed, baseSpeed);
   near(b.rate, baseRate);
-  assert.equal(a.level, 3, "levels remain after temporary buffs expire");
-  g.chooseReward([0, 1]);
-  g.chooseDay(g.nextDays()[0]);
   g.startDay();
   assert.equal(a.level, 7, "next click uses the edited rules, including echo");
   near(a.speed, baseSpeed + 2, "daily movement gain starts afresh");
@@ -184,8 +186,8 @@ for (const duration of ["day", "permanent"]) {
   near(a.hp, 105, "lifesteal uses actual damage rather than overkill");
   g.wave = g.dayPlan.waves.length - 1; g.beginWave(); clearWave(g);
   const retained = duration === "day" ? .15 : .25;
-  near(a.lifeSteal, retained);
-  g.tick(6); g.chooseReward([0, 1]); g.chooseDay(g.nextDays()[0]);
+  near(a.lifeSteal, .25, "victory retains today's lifesteal bonus until the next day");
+  g.tick(6); g.chooseReward([0]); g.chooseDay(g.nextDays()[0]);
   assert.equal(g.heroes[0], a); near(a.lifeSteal, retained);
   g.applyUnitEffect(a, { type: "stat", stat: "lifeSteal", mode: "multiply", value: 2 });
   near(a.lifeSteal, retained * 2);

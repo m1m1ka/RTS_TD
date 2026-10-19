@@ -1,3 +1,4 @@
+import { marineLabel } from "./marine-content.js";
 import { inferHeroRole } from "./hero-grades.js";
 // Looks and starting stat templates only; equipment and trigger rules remain editable.
 export const heroPresets = [
@@ -37,7 +38,7 @@ export const heroPresets = [
 ];
 export const presetById = Object.fromEntries(heroPresets.map((p) => [p.id, p]));
 export const presetIds = heroPresets.map((p) => p.id);
-export const lookLabel = (id) => presetById[id] ? `${presetById[id].name} · ${presetById[id].role}` : id === "catgirl" ? "猫女 · 米娅" : id;
+export const lookLabel = (id) => presetById[id] ? `${presetById[id].name} · ${presetById[id].role}` : id === "catgirl" ? "猫女 · 米娅" : marineLabel(id) || id;
 export function createPresetCard(id) {
   const p = presetById[id];
   if (!p) throw new Error("未知英雄预设");

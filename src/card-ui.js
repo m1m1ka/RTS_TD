@@ -36,7 +36,7 @@ export class CardUI {
     );
     this.hand.addEventListener("pointerdown", (e) => {
       const b = e.target.closest("[data-card]");
-      if (!b || !this.canInteract() || e.button !== 0) return;
+      if (!b || b.disabled || !this.canInteract() || e.button !== 0) return;
       e.preventDefault();
       b.setPointerCapture(e.pointerId);
       this.drag = {
@@ -72,7 +72,7 @@ export class CardUI {
             document.getElementById("card-hud").getBoundingClientRect().top &&
           this.canInteract()
         ) {
-          if (this.onDrop(d.key, e)) this.cancel();
+          if (this.onDrop(d.key, e, d.slot)) this.cancel();
         }
         this.onAim(null);
       } else this.select(this.activeSlot === d.slot ? null : d.key, d.slot);
@@ -90,7 +90,7 @@ export class CardUI {
     });
     this.hand.addEventListener("keydown", (e) => {
       const b = e.target.closest("[data-card]");
-      if (b && ["Enter", " "].includes(e.key)) {
+      if (b && !b.disabled && this.canInteract() && ["Enter", " "].includes(e.key)) {
         e.preventDefault();
         this.select(b.dataset.card, b.dataset.handSlot);
       }
@@ -103,6 +103,7 @@ export class CardUI {
     return `<img src="${iconURL(c.icon, true)}" alt="" draggable="false">`;
   }
   select(key, slot = null) {
+    if (key && this.hand.querySelector(`[data-hand-slot="${slot}"]`)?.disabled) return;
     this.activeKey = key;
     this.activeSlot = key ? slot || this.hand.querySelector(`[data-card="${key}"]`)?.dataset.handSlot : null;
     this.hand.querySelectorAll("[data-card]").forEach((b) => {
@@ -143,18 +144,21 @@ export class CardUI {
         return;
       }
     }
-    const sig = getConfigRevision() + JSON.stringify([this.game.cards, this.game.heroReserve.map((h) => [h.cardId, h.level]), this.game.heroes.map(h => [h.cardId, h.hp > 0, h.destroyed])]);
+    const skills = this.game.syncSkillCards();
+    const sig = JSON.stringify(skills.map(c => [c.id, c.cardId, c.tier])) + getConfigRevision() + JSON.stringify([this.game.cards, this.game.heroReserve.map((h) => [h.cardId, h.level]), this.game.heroes.map(h => [h.cardId, h.hp > 0, h.destroyed])]);
     if (sig !== this.signature) {
       this.signature = sig;
       this.hand.innerHTML =
         Object.entries(this.game.cards)
           .filter(([, n]) => n > 0)
-          .flatMap(([key, count]) => cards[key].category === "hero"
+          .flatMap(([key, count]) => cards[key].category === "battle"
+            ? skills.filter(c => c.cardId === key).map((skill, copy) => ({ key, count: 1, copy, skill }))
+            : cards[key].category === "hero"
             ? Array.from({ length: count }, (_, copy) => ({ key, count: 1, copy }))
             : [{ key, count, copy: 0 }])
-          .map(({ key: k, count: n, copy }, i, hand) => {
-            const c = cards[k];
-            const slot = `${k}:${copy}`;
+          .map(({ key: k, count: n, copy, skill }, i, hand) => {
+            const c = this.game.cardDefinition(k, skill?.id);
+            const slot = skill?.id || `${k}:${copy}`;
             const selected = this.activeSlot === slot;
             const deployed = c.category === "hero" && this.game.heroes.find(h => h.cardId === k && !h.destroyed);
             const reserve = this.game.heroReserve.filter(h => h.cardId === k)[copy];
@@ -166,16 +170,32 @@ export class CardUI {
               "牌 · " + (c.temporary ? "临时" : {
                 hero: `Lv.${this.game.heroReserve.find((h) => h.cardId === k)?.level ?? 1} · 部署`,
                 resource: "消耗",
-                battle: "消耗",
+                battle: `${skill?.tier} 阶 · CD ${c.cooldown} 秒`,
                 equipment: "装备",
               }[c.category]);
             const description = escapeHTML(deployed ? heroHint : c.text)
               .replace(/ · /g, "<br>")
               .replace(/([+]?\d+(?:%)?)/g, "<em>$1</em>");
-            return `<button class="hand-card ${c.category} ${heroRarityClass(c)} ${selected ? "selected" : ""}" style="--tilt:${spread * 4}deg;--arc:${Math.abs(spread) * 7}px" data-card="${k}" data-hand-slot="${slot}" aria-label="${escapeHTML(c.name)}，${escapeHTML(c.category === "hero" ? heroHint : c.text)}，${c.category === "hero" ? `第${copy + 1}张` : `持有${n}张`}" title="${escapeHTML(c.text)} · ${c.category === "hero" ? heroHint : `持有 ${n} 张`}" aria-pressed="${selected}">${c.category === "hero" ? "" : `<b class="card-count" aria-hidden="true">×${n}</b>`}<strong class="card-title">${escapeHTML(c.name)}</strong><div class="card-picture">${this.art(k)}</div><span class="card-kind">${c.category === "hero" ? heroGradeLabel(c).replaceAll(" · ", "·") + (deployed ? " 升级+3" : " Lv." + (reserve?.level ?? 1)) + (c.temporary ? " 临时" : "") : label}</span><small class="card-description">${description}</small><span class="card-flourish" aria-hidden="true">◆</span></button>`;
+            return `<button class="hand-card ${c.category} ${heroRarityClass(c)} ${selected ? "selected" : ""}" style="--tilt:${spread * 4}deg;--arc:${Math.abs(spread) * 7}px" data-card="${k}" data-hand-slot="${slot}" aria-label="${escapeHTML(c.name)}，${escapeHTML(c.category === "hero" ? heroHint : c.text)}，${c.category === "hero" ? `第${copy + 1}张` : `持有${n}张`}" title="${escapeHTML(c.text)} · ${c.category === "hero" ? heroHint : `持有 ${n} 张`}" aria-pressed="${selected}">${["hero", "battle"].includes(c.category) ? "" : `<b class="card-count" aria-hidden="true">×${n}</b>`}<strong class="card-title">${escapeHTML(c.name)}</strong><div class="card-picture">${this.art(k)}</div><span class="card-kind">${c.category === "hero" ? heroGradeLabel(c).replaceAll(" · ", "·") + (deployed ? " 升级+3" : " Lv." + (reserve?.level ?? 1)) + (c.temporary ? " 临时" : "") : label}</span><small class="card-description">${description}</small>${skill ? `<span class="skill-cooldown" hidden><b></b><small>冷却中</small></span>` : ""}<span class="card-flourish" aria-hidden="true">◆</span></button>`;
           })
           .join("") || '<span class="empty-hand">暂无卡牌</span>';
     }
+    for (const copy of skills) {
+      const button = this.hand.querySelector(`[data-hand-slot="${copy.id}"]`);
+      if (!button) continue;
+      const remaining = Math.max(0, copy.readyAt - this.game.time);
+      const cooling = remaining > 1e-9;
+      button.disabled = cooling;
+      button.classList.toggle("cooling", cooling);
+      button.style.setProperty("--cooldown-progress", `${Math.min(100, remaining / (copy.cooldown || 1) * 100)}%`);
+      const overlay = button.querySelector(".skill-cooldown");
+      overlay.hidden = !cooling;
+      overlay.querySelector("b").textContent = `${Math.ceil(remaining)}s`;
+      const card = this.game.cardDefinition(copy.cardId, copy.id);
+      button.setAttribute("aria-label", `${card.name}，${copy.tier} 阶，${cooling ? `冷却剩余 ${Math.ceil(remaining)} 秒` : "可使用"}，${card.text}`);
+      if (cooling && this.activeSlot === copy.id) this.cancel();
+    }
+    if (this.activeSlot && ![...this.hand.querySelectorAll("[data-hand-slot]")].some(b => b.dataset.handSlot === this.activeSlot)) this.cancel();
     const overflow = this.hand.scrollWidth > this.hand.clientWidth + 2;
     this.hand.classList.toggle("overflowing", overflow);
     for (const id of ["hand-prev", "hand-next"])

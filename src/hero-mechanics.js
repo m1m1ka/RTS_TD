@@ -21,7 +21,7 @@ export function syncHeroMechanics(game) {
   game.emit("heroAwakened", { unit: hero });
 }
 export function knockback(game, target, origin, distance) {
-  if (!distance || target.hp <= 0 || target.side !== "enemy") return;
+  if (!distance || target.hp <= 0 || target.side !== "enemy" || target.boatId) return;
   const dx = Math.sign(target.x - origin.x), dy = Math.sign(target.y - origin.y);
   if (!dx && !dy) return;
   const from = {x:target.x,y:target.y};

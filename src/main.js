@@ -1,7 +1,11 @@
+import { pirateIds } from "./marine-content.js";
 import * as THREE from "three";
 import "./style.css";
 import "./cards.css";
-import { unitArt, mapArt, forestArt } from "./art.js";
+import { unitArt, mapArt, oceanArt, shorelineArt } from "./art.js";
+import { OceanMotion } from "./ocean-motion.js";
+import { BoatVisuals } from "./boat-visuals.js";
+import { CREW_SPRITE_SIZE, BOAT_SLOTS } from "./sea-arrivals.js";
 import { GoldVisuals } from "./gold-visuals.js";
 import { presetIds } from "./hero-presets.js";
 import { Game, W, H, BASE, dist, inside } from "./game.js";
@@ -43,10 +47,10 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color("#101018");
 const camera = new THREE.OrthographicCamera(-8, 8, 6, -6, 0.1, 100);
 camera.position.z = 20;
-const MIN_ZOOM = 1,
+const MIN_ZOOM = .8,
   MAX_ZOOM = 3.2;
 let overviewY = 0;
-camera.zoom = innerWidth <= 700 ? 1.65 : 1.28;
+camera.zoom = innerWidth <= 700 ? 1.65 : 1;
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -54,7 +58,7 @@ const retroRenderer = new RetroRenderer(renderer);
 arena.prepend(renderer.domElement);
 renderer.domElement.setAttribute(
   "aria-label",
-  "战场：点击英雄选择，点击草地逐格移动",
+  "战场：点击英雄选择，点击沙滩逐格移动",
 );
 renderer.domElement.tabIndex = 0;
 const textures = {},
@@ -62,6 +66,7 @@ const textures = {},
   whiteTextures = {};
 for (const type of [
   ...presetIds,
+  ...pirateIds,
   "catgirl",
   "blue",
   "green",
@@ -77,12 +82,12 @@ for (const type of [
   textures[type] = new THREE.CanvasTexture(arts[type]);
   textures[type].colorSpace = THREE.SRGBColorSpace;
   const white = document.createElement("canvas");
-  white.width = white.height = 128;
+  white.width = white.height = arts[type].width;
   const ctx = white.getContext("2d");
   ctx.drawImage(arts[type], 0, 0);
   ctx.globalCompositeOperation = "source-in";
   ctx.fillStyle = "#fff7dd";
-  ctx.fillRect(0, 0, 128, 128);
+  ctx.fillRect(0, 0, white.width, white.height);
   whiteTextures[type] = new THREE.CanvasTexture(white);
   whiteTextures[type].colorSpace = THREE.SRGBColorSpace;
 }
@@ -122,17 +127,22 @@ function pos(x, y, z = 1) {
 const mapTexture = new THREE.CanvasTexture(mapArt());
 mapTexture.colorSpace = THREE.SRGBColorSpace;
 const board = imagePlane(mapTexture, 15, 11);
-board.material.color.set("#d5c79b");
 board.position.z = 0;
 scene.add(board);
-const forestTexture = new THREE.CanvasTexture(forestArt());
-forestTexture.colorSpace = THREE.SRGBColorSpace;
-forestTexture.wrapS = forestTexture.wrapT = THREE.RepeatWrapping;
-forestTexture.repeat.set(3, 3);
-const forest = imagePlane(forestTexture, 90, 60);
-forest.material.color.set("#756a64");
-forest.position.z = -0.1;
-scene.add(forest);
+const oceanTexture = new THREE.CanvasTexture(oceanArt());
+oceanTexture.colorSpace = THREE.SRGBColorSpace;
+oceanTexture.wrapS = oceanTexture.wrapT = THREE.RepeatWrapping;
+oceanTexture.repeat.set(90 / 12, 60 / 12);
+const ocean = imagePlane(oceanTexture, 90, 60);
+const oceanMotion = new OceanMotion(ocean.material);
+ocean.position.z = -0.1;
+scene.add(ocean);
+const shoreTexture = new THREE.CanvasTexture(shorelineArt());
+shoreTexture.colorSpace = THREE.SRGBColorSpace;
+const shore = imagePlane(shoreTexture, 16.4, 12.4);
+shore.position.z = -0.05;
+scene.add(shore);
+const reducedOceanMotion = matchMedia("(prefers-reduced-motion: reduce)");
 const selection = plane(0.97, 0.97, "#d7efa2", 0.15);
 selection.position.z = 0.12;
 scene.add(selection);
@@ -180,10 +190,10 @@ let best = 0;
 try {
   best = Number(localStorage.getItem("friday-defense-best") || 0);
 } catch {}
-const baseSprite = imagePlane(textures.base, 1.36, 1.36);
+const baseSprite = imagePlane(textures.base, 1.65, 1.65);
 baseSprite.position.copy(pos(7, 5, 1));
 scene.add(baseSprite);
-const baseWhite = imagePlane(whiteTextures.base, 1.36);
+const baseWhite = imagePlane(whiteTextures.base, 1.65);
 baseWhite.position.copy(pos(7, 5, 1.05));
 baseWhite.material.opacity = 0;
 scene.add(baseWhite);
@@ -199,13 +209,15 @@ function motionState(sprite, white, size) {
     attackDirection: new THREE.Vector2(1, 0),
   };
 }
-const baseMotion = motionState(baseSprite, baseWhite, 1.36);
+const baseMotion = motionState(baseSprite, baseWhite, 1.65);
 const goldVisuals = new GoldVisuals(scene, camera, pos);
+const boatVisuals = new BoatVisuals(scene, pos);
 const combatVFX = new CombatVFX(scene, (unit) =>
   unit === BASE
     ? baseSprite.position.clone()
     : unitMeshes.get(unit.id)?.group.position.clone() ||
       pos(unit.x, unit.y, 1.1),
+  renderer,
 );
 function textTexture(text, color = "#f3edc5", size = 24) {
   const c = document.createElement("canvas");
@@ -235,7 +247,7 @@ const gateGroup = new THREE.Group();
 scene.add(gateGroup);
 let gateKey = "";
 function updateGates() {
-  const gates = game.currentWave().spawns,
+  const gates = game.currentWave()?.spawns || [],
     key = JSON.stringify(gates.map(({ x, y }) => [x, y]));
   if (key === gateKey) return;
   gateKey = key;
@@ -248,8 +260,8 @@ function updateGates() {
     const c = document.createElement("canvas");
     c.width = c.height = 96;
     const g = c.getContext("2d");
-    g.strokeStyle = "#e7a082";
-    g.globalAlpha = 0.6;
+    g.strokeStyle = "#94513d";
+    g.globalAlpha = 0.85;
     g.lineWidth = 3;
     g.setLineDash([5, 6]);
     g.strokeRect(9, 9, 78, 78);
@@ -319,8 +331,8 @@ new ResizeObserver(resize).observe(arena);
 function constrainCamera() {
   const halfWidth = (camera.right - camera.left) / (2 * camera.zoom);
   const halfHeight = (camera.top - camera.bottom) / (2 * camera.zoom);
-  const limitX = Math.max(0.3, 7.5 - halfWidth + 0.5);
-  const limitY = Math.max(0.5, 5.5 - halfHeight + 2.3);
+  const limitX = Math.max(0.3, 13.5 - halfWidth + 0.5);
+  const limitY = Math.max(0.5, 11.5 - halfHeight + 2.3);
   camera.position.x = THREE.MathUtils.clamp(camera.position.x, -limitX, limitX);
   camera.position.y = THREE.MathUtils.clamp(
     camera.position.y,
@@ -372,11 +384,15 @@ function banner(text) {
 function tone(freq = 440, duration = 0.06, type = "sine", volume = 0.025) {
   gameAudio.tone(freq, duration, type, volume);
 }
-function floating(unit, text, color = "#fbefc3", number = null) {
-  const tex = textTexture(text, color, number?.fontSize ?? 29),
-    scale = number ? 1.4 : 1,
+function floating(unit, text, color = "#fbefc3", number = null, status = null) {
+  const tex = textTexture(text, color, number?.fontSize ?? (status ? 36 : 29)),
+    scale = number ? 1.4 : status ? 1.65 : 1,
     m = imagePlane(tex, 1.25 * tex.image.width / 256 * scale, 0.32 * scale);
   m.position.copy(pos(unit.x, unit.y - 0.45, 4));
+  if (status) {
+    const recent = effects.filter(e => e.status && e.unitId === unit.id && e.life > e.max - .25).length;
+    m.position.y += .4 + Math.min(recent, 3) * .3;
+  }
   const overlapping = number ? effects.filter(e => e.number && e.unitId === unit.id && e.life > e.max - .2).length : 0;
   if (overlapping) {
     m.position.x += (overlapping % 2 ? -1 : 1) * .16 * Math.ceil(overlapping / 2);
@@ -386,26 +402,14 @@ function floating(unit, text, color = "#fbefc3", number = null) {
   m.material.depthTest = false;
   scene.add(m);
   const duration = number?.duration ?? .8;
-  effects.push({ m, baseScale: m.scale.clone(), life: duration, max: duration, vy: number ? .8 : .65, texture: tex, number, unitId: unit.id });
+  effects.push({ m, baseScale: m.scale.clone(), life: duration, max: duration, vy: number ? .8 : .65, texture: tex, number, status, text, unitId: unit.id });
 }
 function floatingNumber(event) {
   const number = combatNumber(event);
   if (number) floating(event.unit, number.text, number.color, number);
 }
 function burst(unit, color) {
-  for (let i = 0; i < 7; i++) {
-    const m = plane(0.07, 0.07, color);
-    m.position.copy(pos(unit.x, unit.y, 3));
-    scene.add(m);
-    const a = Math.random() * Math.PI * 2;
-    effects.push({
-      m,
-      life: 0.5,
-      max: 0.5,
-      vx: Math.cos(a) * 1.4,
-      vy: Math.sin(a) * 1.4,
-    });
-  }
+  combatVFX.burst(unit, color);
 }
 function shoot(attack) {
   const { source, target } = attack,
@@ -472,7 +476,7 @@ function onEvent(e) {
     const names = Object.entries(e.cards).slice(0, 3).map(([key, count]) => `${cards[key]?.name || key} ×${count}`).join(" · ");
     toast(`获得 ${names}${Object.keys(e.cards).length > 3 ? ` 等 ${e.count} 张牌` : ""}`);
   }
-  if (e.type === "cardRefunded") toast(`返还 ${cards[e.card]?.name || e.card} ×1`);
+  if (e.type === "cardRefunded") toast(cards[e.card]?.category === "battle" ? `${cards[e.card].name} 冷却已重置` : `返还 ${cards[e.card]?.name || e.card} ×1`);
   if (e.type === "randomStatGained") {
     const label = { maxHp: "生命上限", atk: "攻击力", lifeSteal: "吸血", critChance: "暴击率", critDamage: "暴击伤害" }[e.stat];
     floating(e.unit, `${label} +${e.value}${["lifeSteal", "critChance", "critDamage"].includes(e.stat) ? "%" : ""}`, "#edcf78");
@@ -508,7 +512,10 @@ function onEvent(e) {
   }
   if (e.type === "impact") combatVFX.land(e);
   if (["spawn", "deploy", "followerSpawn"].includes(e.type)) addVisual(e.unit);
+  if (e.type === "deploy" && game.heroes.includes(e.unit)) combatVFX.dust(e.unit);
+  if (e.type === "step" && game.heroes.includes(e.unit) && e.unit.hp > 0) combatVFX.dust(e.unit, true);
   if (e.type === "followerSpawn") burst(e.unit, "#b6d893");
+  if (e.type === "land") burst(e.from, "#bce4d3");
   if (e.type === "revive" && e.fromEffect) {
     const v = unitMeshes.get(e.unit.id);
     if (v) { v.dying = 0; v.hitTimer = 0; v.attack = 0; v.sprite.material.opacity = 1; }
@@ -543,11 +550,13 @@ function onEvent(e) {
     if (e.unit.side === "enemy") { if (!audioHandled) tone(170, 0.045, "triangle", 0.009); }
     else
       toast(
-        `${e.unit.name || "咖啡炮台"}已倒下${game.heroes.includes(e.unit) ? "，下一波归队" : ""}`,
+        `${e.unit.name || "咖啡炮台"}已倒下${game.heroes.includes(e.unit) ? "，下一天归队" : ""}`,
       );
   }
   if (e.type === "heroAwakened") { floating(e.unit,"苏醒","#e5d8a2"); combatVFX.shield(e.unit); }
-  if (e.type === "blocked") combatVFX.shield(e.unit);
+  if (e.type === "blocked") { combatVFX.shield(e.unit); floating(e.unit, "抵挡", "#b9e2f5", null, "blocked"); }
+  if (e.type === "knockback") floating(e.unit, "击退", "#ffda8b", null, "knockback");
+  if (e.type === "rankUp") floating(e.unit, `升至 ${e.rank} 阶`, "#ffda72", null, "rankUp");
   if (e.type === "healingCast") {
     combatVFX.heal(e.source, e.target);
     const v = unitMeshes.get(e.source.id);
@@ -565,14 +574,6 @@ function onEvent(e) {
     if (e.type === "upgrade") combatVFX.upgrade(e.unit);
     else if (!e.automatic && e.amount > 0) combatVFX.healTarget(e.unit);
     if (!audioHandled) tone(650, 0.2);
-    if (e.useIcon) {
-      const map = new THREE.TextureLoader().load(iconURL(e.useIcon));
-      map.colorSpace = THREE.SRGBColorSpace;
-      const m = imagePlane(map, 0.6);
-      m.position.copy(pos(e.unit.x, e.unit.y - 0.4, 3.6));
-      scene.add(m);
-      effects.push({ m, texture: map, life: 0.65, max: 0.65, vy: 0.4 });
-    }
   }
   if (e.type === "equip") {
     floating(e.unit, cards[e.card].name, "#e7c0fa");
@@ -585,12 +586,6 @@ function onEvent(e) {
   }
   if (e.type === "cardImpact") {
     combatVFX.castCard(e.visual, e.x, e.y, e.radius);
-    const map = new THREE.TextureLoader().load(iconURL(e.useIcon));
-    map.colorSpace = THREE.SRGBColorSpace;
-    const m = imagePlane(map, 0.8);
-    m.position.copy(pos(e.x, e.y, 3.6));
-    scene.add(m);
-    effects.push({ m, texture: map, life: 0.5, max: 0.5, vy: 0.3 });
   }
   if (e.type === "wave") {
     banner(`第 ${e.day} 天 · 第 ${e.wave} 波`);
@@ -616,9 +611,9 @@ const cardUI = new CardUI({
     uiTimer = 1;
   },
   onAim: previewCard,
-  onDrop: (key, e) => {
+  onDrop: (key, e, slot) => {
     const p = cellFromEvent(e);
-    return game.playCard(key, p.x, p.y);
+    return game.playCard(key, p.x, p.y, slot);
   },
 });
 const cardRange = new THREE.Group();
@@ -630,8 +625,8 @@ function previewCard(e) {
     return;
   }
   const { x, y } = cellFromEvent(e),
-    c = cards[cardUI.activeKey];
-  const valid = game.cardTarget(cardUI.activeKey, x, y).valid;
+    c = game.cardDefinition(cardUI.activeKey, cardUI.activeSlot);
+  const valid = game.cardTarget(cardUI.activeKey, x, y, cardUI.activeSlot).valid;
   hover.visible = inside(x, y);
   hover.position.copy(pos(x, y, 0.2));
   hover.material.color.set(valid ? "#94d58d" : "#d16b63");
@@ -660,7 +655,7 @@ function updateInspector() {
   const heroCard = game.heroes.includes(unit) ? game.config.cards[unit.cardId] : null;
   $("unit-inspector").dataset.hasProfile = String(!!heroCard);
   $("unit-profile").hidden = !heroCard;
-  $("unit-role").textContent = heroCard ? heroRoles[heroCard.role] || heroRoles[inferHeroRole(heroCard)] : "";
+  $("unit-role").textContent = heroCard ? `${heroRoles[heroCard.role] || heroRoles[inferHeroRole(heroCard)]} · ${unit.rank ?? 0} 阶 · Lv.${unit.level}` : "";
   $("unit-description").textContent = heroCard?.text || "暂无英雄描述";
   const src = iconURL(unit.useIcon || unit.type, true);
   if ($("unit-icon").getAttribute("src") !== src) $("unit-icon").src = src;
@@ -706,7 +701,7 @@ function updateUI() {
     "⚑ 迎战";
   $("pause").textContent = paused ? "▶" : "Ⅱ";
   $("speed").textContent = speed + "×";
-  const c = cards[cardUI.activeKey];
+  const c = game.cardDefinition(cardUI.activeKey, cardUI.activeSlot);
   $("map-hint").textContent =
     paused && !$("dialog").open
       ? "Ⅱ 暂停"
@@ -724,7 +719,7 @@ function updateUI() {
               : "选择敌人") +
           " · Esc 取消"
         : game.phase === "shop" ? "" : !game.heroes.length
-          ? "拖入英雄 · 守护下班打卡机"
+          ? "拖入英雄 · 守护美人鱼"
           : "";
   $("map-hint").classList.toggle("paused", paused && !$("dialog").open);
   cardUI.render();
@@ -732,9 +727,10 @@ function updateUI() {
 const customUnitTextures = new Map();
 function unitTexturePair(u) {
   const icon = u.useIcon || u.type;
-  if (textures[icon])
+  if (textures[icon] && !u.boatId)
     return { normal: textures[icon], white: whiteTextures[icon] };
-  if (!customUnitTextures.has(icon)) {
+  const key = u.boatId ? `crew:${icon}` : icon;
+  if (!customUnitTextures.has(key)) {
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 128;
     const white = document.createElement("canvas");
@@ -754,10 +750,10 @@ function unitTexturePair(u) {
       g.fillRect(0, 0, 128, 128);
       pair.normal.needsUpdate = pair.white.needsUpdate = true;
     };
-    img.src = iconURL(icon);
-    customUnitTextures.set(icon, pair);
+    img.src = iconURL(icon, !!u.boatId);
+    customUnitTextures.set(key, pair);
   }
-  return customUnitTextures.get(icon);
+  return customUnitTextures.get(key);
 }
 function syncAppearance(v, u) {
   const pair = unitTexturePair(u);
@@ -770,7 +766,7 @@ function syncAppearance(v, u) {
 }
 function addVisual(u) {
   if (unitMeshes.has(u.id)) return unitMeshes.get(u.id);
-  const size = (u.type === "boss" ? 1.1 : 0.91) * (u.isFollower ? FOLLOWER_SCALE : 1);
+  const size = (["boss", "pirate_captain"].includes(u.type) ? 1.15 : ["tank", "pirate_heavy"].includes(u.type) ? 1.03 : 0.91) * (u.isFollower ? FOLLOWER_SCALE : 1);
   const group = new THREE.Group(),
     sprite = imagePlane(
       unitTexturePair(u).normal,
@@ -786,7 +782,8 @@ function addVisual(u) {
   white.material.opacity = 0;
   group.add(white);
   const healthBar = new HealthBar(group, u, size);
-  group.position.copy(pos(u.x, u.y, 1.1));
+  group.position.copy(pos(u.seaX ?? u.x, u.seaY ?? u.y, 1.1));
+  group.scale.setScalar(u.boatId ? CREW_SPRITE_SIZE / size : 1);
   scene.add(group);
   const v = {
     group,
@@ -888,7 +885,7 @@ function clickCell(x, y) {
   if (!inside(x, y)) return;
   if (cardUI.activeKey) {
     if (paused) return;
-    if (game.playCard(cardUI.activeKey, x, y)) cardUI.cancel();
+    if (game.playCard(cardUI.activeKey, x, y, cardUI.activeSlot)) cardUI.cancel();
   } else {
     const unit = [...game.heroes, ...game.followers, ...game.towers, ...game.enemies].find(
       (u) => u.hp > 0 && u.x === x && u.y === y,
@@ -1128,7 +1125,7 @@ function showResult(won) {
     localStorage.setItem("friday-defense-best", String(best));
   } catch {}
   openDialog(
-    `<div class="result-icon">${won ? "✳" : "☂"}</div><h2>${won ? "准时下班！" : "被迫加班…"}</h2><div class="result-stats"><div><b>${game.completedDays.length}</b><span>完成关卡</span></div><div><b>${game.kills}</b><span>击退</span></div><div><b>${best}</b><span>最佳</span></div></div><button id="play-again" class="primary-button">再来</button>`,
+    `<div class="result-icon">${won ? "✳" : "☂"}</div><h2>${won ? "成功守护美人鱼！" : "美人鱼失守…"}</h2><div class="result-stats"><div><b>${game.completedDays.length}</b><span>完成关卡</span></div><div><b>${game.kills}</b><span>击退</span></div><div><b>${best}</b><span>最佳</span></div></div><button id="play-again" class="primary-button">再来</button>`,
   );
 }
 function reset() {
@@ -1142,6 +1139,7 @@ function reset() {
     v.group.children.forEach((m) => m.material.dispose());
   }
   unitMeshes.clear();
+  boatVisuals.reset();
   for (const pair of customUnitTextures.values()) {
     pair.normal.dispose();
     pair.white.dispose();
@@ -1158,7 +1156,7 @@ function reset() {
   baseMotion.hitTimer = baseMotion.attack = 0;
   baseSprite.position.copy(pos(7, 5, 1));
   baseSprite.rotation.z = 0;
-  baseSprite.scale.set(1.36, 1.36, 1);
+  baseSprite.scale.set(1.65, 1.65, 1);
   baseWhite.material.opacity = 0;
   paused = false;
   speed = 1;
@@ -1178,6 +1176,7 @@ function animate(now) {
   lastTime = now;
   wallTime += realDt;
   const dt = paused || ["shop", "reward", "route"].includes(game.phase) || $("route-dialog").open ? 0 : realDt * speed;
+  if (!reducedOceanMotion.matches) oceanMotion.update(dt);
   if (dt) {
     let left = dt;
     while (left > 0) {
@@ -1188,6 +1187,7 @@ function animate(now) {
     }
   }
   goldVisuals.update(game, dt);
+  boatVisuals.update(game, dt);
   $("gold-total").textContent = game.gold;
   const alive = [...game.heroes, ...game.followers, ...game.enemies, ...game.towers].filter(
       (u) => u.hp > 0,
@@ -1219,11 +1219,13 @@ function animate(now) {
     }
   for (const u of alive) {
     const v = unitMeshes.get(u.id) || addVisual(u),
-      target = pos(u.x, u.y, 1.1);
+      target = pos(u.seaX ?? u.x, u.seaY ?? u.y, 1.1);
     v.dying = 0;
     v.sprite.material.opacity = game.isDormant(u) ? .55 : 1;
-    v.group.position.lerp(target, Math.min(1, dt * 15));
-    v.group.position.z = 1.1 + u.y * 0.005;
+    if (u.boatId) v.group.position.copy(target);
+    else v.group.position.lerp(target, Math.min(1, dt * 15));
+    v.group.position.z = u.boatId ? 1.2 + u.y * .005 + Math.floor(u.boatSeat / BOAT_SLOTS) * .02 : 1.1 + u.y * 0.005;
+    v.group.scale.setScalar(u.boatId ? CREW_SPRITE_SIZE / v.size : 1);
     v.healthBar.update(u.hp, u.maxHp, dt, u.level || 0, u.equipment || []);
     applyMotion(v, dt, u.id);
     syncAppearance(v, u);
@@ -1321,12 +1323,16 @@ if (import.meta.env.DEV)
       movableCells: [...moveCells],
       frames: frame,
       camera: { zoom: camera.zoom, x: camera.position.x, y: camera.position.y },
+      ocean: { time: oceanMotion.time.value, reducedMotion: reducedOceanMotion.matches },
+      boatVisualCount: boatVisuals.items.size,
+      boatVisuals: [...boatVisuals.items].map(([id,v]) => ({id,width:v.mesh.geometry.parameters.width,height:v.mesh.geometry.parameters.height})),
       combat: combatVFX.snapshot(),
       combatNumbers: effects.filter(e => e.number).map(e => ({ ...e.number, unitId: e.unitId, life: e.life, aspect: e.m.scale.x / e.m.scale.y, textureAspect: e.texture.image.width / e.texture.image.height })),
+      combatStatuses: effects.filter(e => e.status).map(e => ({ type: e.status, text: e.text, unitId: e.unitId, life: e.life })),
       weapons: [...unitMeshes.entries()]
         .filter(([, v]) => v.weapon)
         .map(([id, v]) => ({ id, ...v.weapon.snapshot() })),
-      unitVisuals: [...unitMeshes.entries()].map(([id, v]) => ({ id, size: v.size })),
+      unitVisuals: [...unitMeshes.entries()].map(([id, v]) => ({ id, size: v.size, displaySize: v.size * v.group.scale.x })),
       healthBars: [...unitMeshes.entries()].map(([id, v]) => ({
         id,
         ...v.healthBar.snapshot(),

@@ -93,7 +93,7 @@ export class RouteMap {
     }
     const title = this.dialog.querySelector("[data-route-choice]"), subtitle = this.dialog.querySelector("[data-route-detail]");
     if (title) title.textContent = day?.name || "选择下一天";
-    if (subtitle) subtitle.textContent = day ? day.kind === "shop" ? "商店 · 招募英雄，购买卡包" : `${day.waves.length} 波敌袭 · 守住打卡机` : "点击亮起的关卡";
+    if (subtitle) subtitle.textContent = day ? day.kind === "shop" ? "商店 · 招募英雄，购买卡包" : `${day.waves.length} 波敌袭 · 守住美人鱼` : "点击亮起的关卡";
     const button = this.dialog.querySelector("[data-route-depart]");
     if (button) { button.disabled = !day; button.textContent = day?.kind === "shop" ? "进入商店！" : "下一天！"; }
   }

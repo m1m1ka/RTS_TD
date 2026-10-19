@@ -249,14 +249,30 @@
           "effects": [
             {
               "type": "level",
-              "value": 1
+              "value": 1,
+              "rankValues": {
+                "1": {
+                  "value": 2
+                },
+                "2": {
+                  "value": 3
+                },
+                "3": {
+                  "value": 4
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "common",
       "role": "tank",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_green": {
       "name": "小叶",
@@ -295,7 +311,18 @@
           "target": {
             "kind": "selfAndNearest",
             "radius": -1,
-            "count": 1
+            "count": 1,
+            "rankValues": {
+              "1": {
+                "count": 2
+              },
+              "2": {
+                "count": 3
+              },
+              "3": {
+                "count": 10
+              }
+            }
           },
           "effects": [
             {
@@ -303,14 +330,30 @@
               "stat": "rate",
               "mode": "add",
               "value": 0.2,
-              "duration": "day"
+              "duration": "day",
+              "rankValues": {
+                "1": {
+                  "value": 0.3
+                },
+                "2": {
+                  "value": 0.4
+                },
+                "3": {
+                  "value": 0.8
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "common",
       "role": "marksman",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_purple": {
       "name": "咕咕",
@@ -359,14 +402,30 @@
               "cards": [
                 "resource_1"
               ],
-              "count": 1
+              "count": 1,
+              "rankValues": {
+                "1": {
+                  "count": 2
+                },
+                "2": {
+                  "count": 3
+                },
+                "3": {
+                  "count": 4
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "common",
       "role": "marksman",
-      "statSource": "custom"
+      "statSource": "custom",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "training": {
       "name": "零件",
@@ -678,14 +737,30 @@
               "stat": "critChance",
               "mode": "add",
               "value": 5,
-              "duration": "day"
+              "duration": "day",
+              "rankValues": {
+                "1": {
+                  "value": 10
+                },
+                "2": {
+                  "value": 20
+                },
+                "3": {
+                  "value": 50
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "common",
       "role": "assassin",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_1": {
       "name": "壳卫",
@@ -724,19 +799,46 @@
           "target": {
             "kind": "randomAllies",
             "radius": -1,
-            "count": 3
+            "count": 3,
+            "rankValues": {
+              "1": {
+                "count": 4
+              },
+              "2": {
+                "count": 5
+              },
+              "3": {
+                "count": 10
+              }
+            }
           },
           "effects": [
             {
               "type": "level",
-              "value": 1
+              "value": 1,
+              "rankValues": {
+                "1": {
+                  "value": 2
+                },
+                "2": {
+                  "value": 3
+                },
+                "3": {
+                  "value": 4
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "rare",
       "role": "tank",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_2": {
       "name": "浪人",
@@ -783,21 +885,48 @@
               "stat": "atk",
               "mode": "add",
               "value": 30,
-              "duration": "day"
+              "duration": "day",
+              "rankValues": {
+                "1": {
+                  "value": 40
+                },
+                "2": {
+                  "value": 50
+                },
+                "3": {
+                  "value": 100
+                }
+              }
             },
             {
               "type": "stat",
               "stat": "rate",
               "mode": "add",
               "value": 0.2,
-              "duration": "day"
+              "duration": "day",
+              "rankValues": {
+                "1": {
+                  "value": 0.3
+                },
+                "2": {
+                  "value": 0.5
+                },
+                "3": {
+                  "value": 1
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "epic",
       "role": "warrior",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_3": {
       "name": "小鹿",
@@ -815,41 +944,41 @@
         "atk": 40,
         "range": 1,
         "rate": 0.5,
-        "weapon": "",
+        "weapon": "staff",
         "speed": 2,
         "levelGrowth": {
           "maxHp": 62.5,
           "atk": 10
         },
         "critChance": 10,
-        "attackModule": "slash"
-      },
-      "triggerRules": [
-        {
-          "name": "开战成长",
-          "enabled": true,
-          "trigger": {
-            "event": "battleStart",
-            "scope": "any",
-            "radius": -1
-          },
-          "target": {
-            "kind": "nearest",
-            "radius": -1,
-            "count": 1
-          },
-          "effects": [
-            {
-              "type": "heal",
-              "value": 30,
-              "valueMode": "percent"
+        "attackModule": "heal",
+        "combatBehavior": "heal",
+        "healing": {
+          "targets": "heroes",
+          "valueMode": "fixed",
+          "value": 15,
+          "rankValues": {
+            "1": {
+              "value": 30
+            },
+            "2": {
+              "value": 50
+            },
+            "3": {
+              "value": 100
             }
-          ]
+          }
         }
-      ],
+      },
+      "triggerRules": [],
       "rarity": "rare",
       "role": "warrior",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "coin_purse": {
       "name": "小金库",
@@ -971,14 +1100,36 @@
               "type": "summonFollower",
               "hpPercent": 30,
               "atkPercent": 30,
-              "count": 1
+              "count": 1,
+              "rankValues": {
+                "1": {
+                  "count": 2,
+                  "hpPercent": 40,
+                  "atkPercent": 40
+                },
+                "2": {
+                  "count": 3,
+                  "hpPercent": 50,
+                  "atkPercent": 50
+                },
+                "3": {
+                  "count": 4,
+                  "hpPercent": 60,
+                  "atkPercent": 60
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "common",
       "role": "warrior",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_5": {
       "name": "燧羽",
@@ -1024,14 +1175,36 @@
               "type": "summonFollower",
               "hpPercent": 30,
               "atkPercent": 30,
-              "count": 1
+              "count": 1,
+              "rankValues": {
+                "1": {
+                  "hpPercent": 40,
+                  "atkPercent": 40,
+                  "count": 2
+                },
+                "2": {
+                  "hpPercent": 50,
+                  "atkPercent": 50,
+                  "count": 3
+                },
+                "3": {
+                  "hpPercent": 60,
+                  "atkPercent": 60,
+                  "count": 4
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "common",
       "role": "marksman",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_6": {
       "name": "铜镜",
@@ -1070,19 +1243,46 @@
           "target": {
             "kind": "randomAllies",
             "radius": -1,
-            "count": 3
+            "count": 3,
+            "rankValues": {
+              "1": {
+                "count": 4
+              },
+              "2": {
+                "count": 5
+              },
+              "3": {
+                "count": 10
+              }
+            }
           },
           "effects": [
             {
               "type": "level",
-              "value": 1
+              "value": 1,
+              "rankValues": {
+                "1": {
+                  "value": 2
+                },
+                "2": {
+                  "value": 3
+                },
+                "3": {
+                  "value": 4
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "rare",
       "role": "marksman",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_7": {
       "name": "粟骑",
@@ -1096,17 +1296,17 @@
       "unit": {
         "name": "阿蓝",
         "type": "blue",
-        "maxHp": 450,
-        "atk": 40,
+        "maxHp": 350,
+        "atk": 37.5,
         "range": 1,
-        "rate": 0.5,
+        "rate": 1,
         "weapon": "",
-        "speed": 2,
+        "speed": 6.5,
         "levelGrowth": {
-          "maxHp": 62.5,
-          "atk": 10
+          "maxHp": 40,
+          "atk": 8.75
         },
-        "critChance": 10,
+        "critChance": 30,
         "attackModule": "slash"
       },
       "triggerRules": [
@@ -1128,20 +1328,42 @@
               "type": "summonFollower",
               "hpPercent": 30,
               "atkPercent": 30,
-              "count": 1
+              "count": 1,
+              "rankValues": {
+                "1": {
+                  "hpPercent": 40,
+                  "atkPercent": 40,
+                  "count": 2
+                },
+                "2": {
+                  "hpPercent": 50,
+                  "atkPercent": 50,
+                  "count": 3
+                },
+                "3": {
+                  "hpPercent": 60,
+                  "atkPercent": 60,
+                  "count": 4
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "rare",
-      "role": "warrior",
-      "statSource": "preset"
+      "role": "assassin",
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_8": {
       "name": "棋手",
       "category": "hero",
       "target": "ground",
-      "text": "整备：触发最近两位英雄的整备效果",
+      "text": "整备：触发最近一位英雄的整备效果",
       "icon": "standardbearer",
       "useIcon": "standardbearer",
       "visual": "fireball",
@@ -1174,7 +1396,18 @@
           "target": {
             "kind": "nearest",
             "radius": -1,
-            "count": 2
+            "count": 1,
+            "rankValues": {
+              "1": {
+                "count": 2
+              },
+              "2": {
+                "count": 3
+              },
+              "3": {
+                "count": 4
+              }
+            }
           },
           "effects": [
             {
@@ -1185,7 +1418,12 @@
       ],
       "rarity": "common",
       "role": "tank",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        5,
+        10,
+        15
+      ]
     },
     "hero_9": {
       "name": "牧师",
@@ -1231,14 +1469,36 @@
               "type": "summonFollower",
               "hpPercent": 30,
               "atkPercent": 30,
-              "count": 1
+              "count": 1,
+              "rankValues": {
+                "1": {
+                  "count": 2,
+                  "hpPercent": 40,
+                  "atkPercent": 40
+                },
+                "2": {
+                  "count": 3,
+                  "hpPercent": 50,
+                  "atkPercent": 50
+                },
+                "3": {
+                  "count": 4,
+                  "hpPercent": 60,
+                  "atkPercent": 60
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "rare",
       "role": "support",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_10": {
       "name": "指挥官",
@@ -1252,15 +1512,15 @@
       "unit": {
         "name": "阿蓝",
         "type": "blue",
-        "maxHp": 448,
-        "atk": 38.4,
-        "range": 3,
+        "maxHp": 800,
+        "atk": 60,
+        "range": 1,
         "rate": 0.5,
         "weapon": "",
-        "speed": 2,
+        "speed": 1.5,
         "levelGrowth": {
-          "maxHp": 67.2,
-          "atk": 5
+          "maxHp": 150,
+          "atk": 8
         },
         "critChance": 0,
         "attackModule": "slash"
@@ -1286,7 +1546,18 @@
               "mode": "percent",
               "value": 50,
               "duration": "day",
-              "whileSourceAlive": true
+              "whileSourceAlive": true,
+              "rankValues": {
+                "1": {
+                  "value": 60
+                },
+                "2": {
+                  "value": 70
+                },
+                "3": {
+                  "value": 100
+                }
+              }
             },
             {
               "type": "stat",
@@ -1294,14 +1565,30 @@
               "mode": "percent",
               "value": 50,
               "duration": "day",
-              "whileSourceAlive": true
+              "whileSourceAlive": true,
+              "rankValues": {
+                "1": {
+                  "value": 60
+                },
+                "2": {
+                  "value": 70
+                },
+                "3": {
+                  "value": 100
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "epic",
-      "role": "support",
-      "statSource": "preset"
+      "role": "tank",
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_11": {
       "name": "斗士",
@@ -1345,14 +1632,30 @@
           "effects": [
             {
               "type": "level",
-              "value": 2
+              "value": 2,
+              "rankValues": {
+                "1": {
+                  "value": 3
+                },
+                "2": {
+                  "value": 4
+                },
+                "3": {
+                  "value": 5
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "common",
       "role": "warrior",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_12": {
       "name": "死士",
@@ -1397,14 +1700,33 @@
             {
               "type": "revive",
               "maxRevives": 1,
-              "hpPercent": 100
+              "hpPercent": 100,
+              "rankValues": {
+                "1": {
+                  "maxRevives": 2,
+                  "hpPercent": 100
+                },
+                "2": {
+                  "maxRevives": 3,
+                  "hpPercent": 100
+                },
+                "3": {
+                  "maxRevives": 4,
+                  "hpPercent": 100
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "common",
       "role": "warrior",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_13": {
       "name": "铃公主",
@@ -1448,14 +1770,30 @@
           "effects": [
             {
               "type": "level",
-              "value": 1
+              "value": 1,
+              "rankValues": {
+                "1": {
+                  "value": 2
+                },
+                "2": {
+                  "value": 3
+                },
+                "3": {
+                  "value": 4
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "common",
       "role": "support",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_14": {
       "name": "赤鬓",
@@ -1480,7 +1818,10 @@
           "atk": 12.8
         },
         "critChance": 10,
-        "attackModule": "slash"
+        "attackModule": "slash",
+        "mechanics": {
+          "dormant": true
+        }
       },
       "triggerRules": [
         {
@@ -1503,7 +1844,18 @@
               "mode": "add",
               "value": 0.2,
               "duration": "day",
-              "whileSourceAlive": true
+              "whileSourceAlive": true,
+              "rankValues": {
+                "1": {
+                  "value": 0.3
+                },
+                "2": {
+                  "value": 0.4
+                },
+                "3": {
+                  "value": 0.5
+                }
+              }
             },
             {
               "type": "stat",
@@ -1511,14 +1863,30 @@
               "mode": "add",
               "value": 0.05,
               "duration": "day",
-              "whileSourceAlive": true
+              "whileSourceAlive": true,
+              "rankValues": {
+                "1": {
+                  "value": 0.07
+                },
+                "2": {
+                  "value": 0.1
+                },
+                "3": {
+                  "value": 0.15
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "epic",
       "role": "warrior",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_15": {
       "name": "医疗兵",
@@ -1548,7 +1916,18 @@
         "healing": {
           "targets": "heroes",
           "valueMode": "fixed",
-          "value": 30
+          "value": 15,
+          "rankValues": {
+            "1": {
+              "value": 30
+            },
+            "2": {
+              "value": 50
+            },
+            "3": {
+              "value": 100
+            }
+          }
         }
       },
       "triggerRules": [
@@ -1570,14 +1949,36 @@
               "type": "summonFollower",
               "hpPercent": 50,
               "atkPercent": 50,
-              "count": 1
+              "count": 1,
+              "rankValues": {
+                "1": {
+                  "hpPercent": 60,
+                  "atkPercent": 160,
+                  "count": 2
+                },
+                "2": {
+                  "hpPercent": 70,
+                  "atkPercent": 70,
+                  "count": 3
+                },
+                "3": {
+                  "hpPercent": 80,
+                  "atkPercent": 80,
+                  "count": 4
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "rare",
       "role": "support",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        5,
+        10,
+        15
+      ]
     },
     "hero_16": {
       "name": "枪兵",
@@ -1606,58 +2007,30 @@
         "mechanics": {
           "immobile": true,
           "knockback": {
-            "distance": 1
+            "distance": 1,
+            "rankValues": {
+              "1": {
+                "distance": 2
+              },
+              "2": {
+                "distance": 3
+              },
+              "3": {
+                "distance": 4
+              }
+            }
           }
         }
       },
-      "triggerRules": [
-        {
-          "name": "开战成长",
-          "enabled": true,
-          "trigger": {
-            "event": "battleStart",
-            "scope": "any",
-            "radius": -1
-          },
-          "target": {
-            "kind": "self",
-            "radius": -1,
-            "count": 1
-          },
-          "effects": [
-            {
-              "type": "level",
-              "value": 1
-            }
-          ]
-        },
-        {
-          "name": "越战越勇",
-          "enabled": true,
-          "trigger": {
-            "event": "heroBattleStart",
-            "scope": "any",
-            "radius": -1
-          },
-          "target": {
-            "kind": "self",
-            "radius": -1,
-            "count": 1
-          },
-          "effects": [
-            {
-              "type": "stat",
-              "stat": "speed",
-              "mode": "add",
-              "value": 0.5,
-              "duration": "day"
-            }
-          ]
-        }
-      ],
+      "triggerRules": [],
       "rarity": "rare",
       "role": "warrior",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_17": {
       "name": "烛尽",
@@ -1671,14 +2044,14 @@
       "unit": {
         "name": "阿蓝",
         "type": "blue",
-        "maxHp": 350,
-        "atk": 30,
+        "maxHp": 240,
+        "atk": 20,
         "range": 3,
         "rate": 0.5,
         "weapon": "staff",
         "speed": 2,
         "levelGrowth": {
-          "maxHp": 52.5,
+          "maxHp": 35,
           "atk": 2
         },
         "critChance": 0,
@@ -1694,9 +2067,14 @@
         }
       },
       "triggerRules": [],
-      "rarity": "rare",
+      "rarity": "common",
       "role": "support",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_18": {
       "name": "零件工人",
@@ -1731,7 +2109,18 @@
             "event": "interval",
             "scope": "any",
             "radius": -1,
-            "interval": 5
+            "interval": 5,
+            "rankValues": {
+              "1": {
+                "interval": 4
+              },
+              "2": {
+                "interval": 3
+              },
+              "3": {
+                "interval": 2
+              }
+            }
           },
           "target": {
             "kind": "self",
@@ -1753,7 +2142,12 @@
       ],
       "rarity": "rare",
       "role": "support",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_19": {
       "name": "维修工人",
@@ -1783,13 +2177,29 @@
         "healing": {
           "targets": "towers",
           "valueMode": "fixed",
-          "value": 30
+          "value": 30,
+          "rankValues": {
+            "1": {
+              "value": 50
+            },
+            "2": {
+              "value": 80
+            },
+            "3": {
+              "value": 150
+            }
+          }
         }
       },
       "triggerRules": [],
       "rarity": "rare",
       "role": "support",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "hero_20": {
       "name": "机器人",
@@ -1814,7 +2224,7 @@
           "atk": 2
         },
         "critChance": 0,
-        "attackModule": "slash"
+        "attackModule": "claw"
       },
       "triggerRules": [
         {
@@ -1833,14 +2243,30 @@
           "effects": [
             {
               "type": "ownerLevel",
-              "percent": 30
+              "percent": 50,
+              "rankValues": {
+                "1": {
+                  "percent": 60
+                },
+                "2": {
+                  "percent": 80
+                },
+                "3": {
+                  "percent": 100
+                }
+              }
             }
           ]
         }
       ],
       "rarity": "rare",
       "role": "support",
-      "statSource": "preset"
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ]
     },
     "battle_1": {
       "name": "新战斗牌",
@@ -1934,7 +2360,7 @@
       "mechanics": {
         "rangedReduction": {
           "mode": "percent",
-          "value": 50
+          "value": 80
         }
       }
     },
@@ -3755,6 +4181,376 @@
                   "type": "enemy_1",
                   "count": 1,
                   "level": 2
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 7,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "y": 1
+        },
+        {
+          "x": 5,
+          "y": 1
+        },
+        {
+          "x": 6,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "y": 1
+        },
+        {
+          "x": 8,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "y": 1
+        },
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 2
+        },
+        {
+          "x": 14,
+          "y": 3
+        },
+        {
+          "x": 14,
+          "y": 8
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 5
+        },
+        {
+          "x": 14,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 7
+        },
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "y": 9
+        },
+        {
+          "x": 4,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 9
+        },
+        {
+          "x": 8,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 7,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        },
+        {
+          "x": 13,
+          "y": 2
+        },
+        {
+          "x": 13,
+          "y": 3
+        },
+        {
+          "x": 13,
+          "y": 4
+        },
+        {
+          "x": 13,
+          "y": 5
+        },
+        {
+          "x": 13,
+          "y": 6
+        },
+        {
+          "x": 13,
+          "y": 7
+        },
+        {
+          "x": 13,
+          "y": 8
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_wave_1",
+      "kind": "battle",
+      "next": [
+        "day_4"
+      ]
+    },
+    {
+      "id": "day_4",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "runner",
+                  "count": 3,
+                  "level": 3
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 3
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 2,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "runner",
+                  "count": 3,
+                  "level": 3
+                },
+                {
+                  "type": "grunt",
+                  "count": 4,
+                  "level": 3
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 3
                 }
               ]
             }

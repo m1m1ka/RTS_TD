@@ -167,6 +167,16 @@ export class HeroTriggers {
     rule = this.rankedRule(owner, rule);
     const game = this.game, targets = this.targets(owner, eventHero, rule.target, deathEvent);
     for (const effect of rule.effects) {
+      if (effect.type === "resetBattleCooldown") {
+        const played = cascade.playedCard;
+        if (played?.category === "battle" && played.copy && !played.cooldownReset
+          && effect.chance > 0 && (effect.chance >= 100 || Math.random() * 100 < effect.chance)) {
+          played.cooldownReset = true;
+          played.copy.readyAt = game.time;
+          game.emit("battleCooldownReset", { card: played.key, unit: owner });
+        }
+        continue;
+      }
       if (effect.type === "refundCard") {
         const played = cascade.playedCard;
         if (played && !played.refunded && ["resource", "battle"].includes(played.category)

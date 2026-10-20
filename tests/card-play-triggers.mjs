@@ -6,6 +6,8 @@ import { cardPlayRules } from "../src/config/trigger-rules.js";
 const clone = structuredClone;
 function fixture(rules) {
   const c = clone(DEFAULT_CONFIG);
+  // Keep a consumable healing resource fixture for refund-category tests.
+  c.cards.coffee.category = "resource"; delete c.cards.coffee.cooldown; delete c.cards.coffee.skillTiers;
   for (const card of Object.values(c.cards)) if (card.category === "hero") card.triggerRules = [];
   c.cards.hero_blue.triggerRules = clone(rules);
   c.initial.cards = { hero_blue: 3, hero_green: 1, coffee: 30, training: 20, fireball: 20, quiver: 1 };
@@ -44,6 +46,7 @@ function random(value, fn) { const old = Math.random; try { Math.random = () => 
   h.hp = h.maxHp;
   g.phase = "route";
   assert.ok(g.chooseDay(g.nextDays()[0]));
+  assert.ok(g.playCard(h.cardId, h.x, h.y));
   for (let i = 0; i < 4; i++) play(g);
   assert.equal(g.cards.training, initial + 4, "progress persists through death and next day, with no counting while dead");
   assert.equal(events.filter(e => e.type === "heroCardPlayed").length, 3);

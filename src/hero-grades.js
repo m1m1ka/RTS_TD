@@ -72,3 +72,5 @@ export const heroRarityClass = card => card.category === "hero"
   ? `rarity-${Object.hasOwn(heroRarities, card.rarity) ? card.rarity : "common"}` : "";
 export const heroGradeLabel = card => card.category === "hero"
   ? `${heroRarities[card.rarity] || heroRarities.common} · ${heroRoles[card.role] || heroRoles[inferHeroRole(card)]}` : "";
+
+export const heroRoleLabel = card => card.category === "hero" ? (heroRoles[card.role] || heroRoles[inferHeroRole(card)]) : "";

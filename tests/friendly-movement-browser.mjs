@@ -1,7 +1,7 @@
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 const url="http://127.0.0.1:5185";
 const server=spawn(process.execPath,["node_modules/vite/bin/vite.js","--host","127.0.0.1","--port","5185","--strictPort"],{stdio:"ignore",windowsHide: true, env: { ...process.env, FRIDAY_CONFIG_SYNC: "0" }});
 let browser;
@@ -12,11 +12,19 @@ try {
   const context=await browser.newContext({viewport:{width:1440,height:1000}});context.setDefaultTimeout(15000);
   const page=await context.newPage(),errors=[];page.on("pageerror",e=>errors.push(e.message));
   await page.goto(url);await page.waitForFunction(()=>window.__game?.snapshot().frames>3);
+  assert.equal(await page.locator("#hero-deployment-count").textContent(),"0/5");
   const click=async(x,y)=>{const p=await page.evaluate(([x,y])=>window.__game.cellToScreen(x,y),[x,y]);await page.mouse.click(p.x,p.y);};
   for(const [key,x,y] of [["hero_blue",3,3],["hero_green",4,3]]){await page.locator(`[data-card="${key}"]`).click();await click(x,y);}
   await click(3,3);
+  await page.waitForFunction(()=>document.querySelector("#hero-deployment-count").textContent==="2/5");
+  const goldBox=await page.locator(".loot").first().boundingBox(), countBox=await page.locator(".hero-counter").boundingBox();
+  assert.ok(countBox.x>goldBox.x+goldBox.width);
   await page.waitForFunction(()=>window.__game.snapshot().movableCells.includes("4,3"));
+  assert.equal(await page.evaluate(()=>window.__game.snapshot().movementArrowVisible),true);
+  mkdirSync("logs",{recursive:true});
+  await page.screenshot({path:"logs/movement-selection.png"});
   await click(4,3);
+  await page.waitForFunction(()=>!window.__game.snapshot().movementArrowVisible);
   assert.equal(await page.evaluate(()=>window.__game.snapshot().inspectedUnitId),null,"clicking occupied friendly destination orders movement, not a selection switch");
   await page.waitForFunction(()=>{const [a,b]=window.__game.snapshot().heroes;return a.x===4&&a.y===3&&(b.x!==4||b.y!==3);});
   const moved=await page.evaluate(()=>window.__game.snapshot());

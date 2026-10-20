@@ -10,7 +10,7 @@
   pointer-events: auto;
   user-select: none;
 }
-.hand-tray { display: flex; align-items: center; gap: 4px; background: linear-gradient(transparent 28%, #101018a6 85%, #101018d9); }
+.hand-tray { display: flex; align-items: center; gap: 4px; background: transparent; }
 #hand {
   display: flex;
   flex: 1;
@@ -227,3 +227,5 @@
 .skill-cooldown[hidden] { display: none; }
 .skill-cooldown b { font: 900 30px/1.2 var(--retro-number, monospace); }
 .skill-cooldown small { font-size: 12px; }
+
+.hero-card-level { position: absolute; top: 3px; left: 5px; z-index: 2; color: #fff; font: 900 16px/1.2 var(--retro-number, monospace); text-shadow: -1px -1px #182527, 1px -1px #182527, -1px 1px #182527, 1px 1px #182527, 0 2px 2px #182527; pointer-events: none; }

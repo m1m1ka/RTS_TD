@@ -1,3 +1,8 @@
+import { heroRankDescription } from "./hero-ranks.js";
+import { DebugConsole } from "./debug-console.js";
+import { createHeroRankOutline, updateHeroRankOutline } from "./hero-rank-art.js";
+import { EnemyPreviewUI } from "./enemy-preview-ui.js";
+import { movementTileArt, heroArrowArt } from "./movement-art.js";
 import { pirateIds } from "./marine-content.js";
 import * as THREE from "three";
 import "./style.css";
@@ -8,7 +13,7 @@ import { BoatVisuals } from "./boat-visuals.js";
 import { CREW_SPRITE_SIZE, BOAT_SLOTS } from "./sea-arrivals.js";
 import { GoldVisuals } from "./gold-visuals.js";
 import { presetIds } from "./hero-presets.js";
-import { Game, W, H, BASE, dist, inside } from "./game.js";
+import { Game, W, H, BASE, dist, inside, MAX_DEPLOYED_HEROES } from "./game.js";
 import { gridDistance } from "./grid-distance.js";
 import { CombatVFX } from "./combat-vfx.js";
 import { HealthBar } from "./health-bar.js";
@@ -159,6 +164,17 @@ const outlineTexture = (() => {
 const selectionOutline = imagePlane(outlineTexture, 1.02);
 selectionOutline.position.z = 0.16;
 scene.add(selectionOutline);
+const movementTexture = new THREE.CanvasTexture(movementTileArt());
+const heroArrowTexture = new THREE.CanvasTexture(heroArrowArt());
+for (const texture of [movementTexture, heroArrowTexture]) {
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.magFilter = THREE.NearestFilter;
+}
+const heroArrow = imagePlane(heroArrowTexture, .48, .54);
+heroArrow.visible = false;
+heroArrow.material.depthTest = false;
+heroArrow.renderOrder = 20;
+scene.add(heroArrow);
 const hover = plane(0.96, 0.96, "#ddf4b6", 0.2);
 hover.position.z = 0.2;
 hover.visible = false;
@@ -243,41 +259,6 @@ function textTexture(text, color = "#f3edc5", size = 24) {
 const baseGlow = plane(1.6, 1.6, "#d8d27c", 0.055);
 baseGlow.position.copy(pos(7, 5, 0.1));
 scene.add(baseGlow);
-const gateGroup = new THREE.Group();
-scene.add(gateGroup);
-let gateKey = "";
-function updateGates() {
-  const gates = game.currentWave()?.spawns || [],
-    key = JSON.stringify(gates.map(({ x, y }) => [x, y]));
-  if (key === gateKey) return;
-  gateKey = key;
-  for (const m of [...gateGroup.children]) {
-    m.material.map.dispose();
-    m.material.dispose();
-    m.removeFromParent();
-  }
-  for (const gate of gates) {
-    const c = document.createElement("canvas");
-    c.width = c.height = 96;
-    const g = c.getContext("2d");
-    g.strokeStyle = "#94513d";
-    g.globalAlpha = 0.85;
-    g.lineWidth = 3;
-    g.setLineDash([5, 6]);
-    g.strokeRect(9, 9, 78, 78);
-    g.setLineDash([]);
-    g.beginPath();
-    g.moveTo(30, 38);
-    g.lineTo(48, 54);
-    g.lineTo(66, 38);
-    g.stroke();
-    const m = imagePlane(new THREE.CanvasTexture(c), 0.88);
-    m.position.copy(pos(gate.x, gate.y, 0.15));
-    m.rotation.z = Math.atan2(7 - gate.x, 5 - gate.y);
-    gateGroup.add(m);
-  }
-}
-
 const fireflies = [];
 const glowTexture = (() => {
   const c = document.createElement("canvas");
@@ -465,8 +446,9 @@ function onEvent(e) {
   const audioHandled = gameAudio.handleEvent(e);
   if (e.type === "shopPurchase" || e.type === "shopRefresh") tone(760, .12, "triangle", .03);
   if (e.type === "packOpened") tone(420, .28, "triangle", .025);
+  if (e.type === "battleCooldownReset") { toast("战斗牌冷却已重置"); floating(e.unit, "冷却重置", "#a8efff"); }
   if (e.type === "goldGranted") toast(`金币 +${e.amount}`);
-  if (e.type === "heroDestroyed" || e.type === "followerRemoved") {
+  if (e.type === "heroDestroyed" || e.type === "heroRecalled" || e.type === "followerRemoved") {
     inspectedUnitId = null;
     if (e.type === "heroDestroyed") burst(e.unit, "#e1c38b");
     const v = unitMeshes.get(e.unit.id);
@@ -602,10 +584,14 @@ function onEvent(e) {
   uiTimer = 1;
 }
 game = new Game(onEvent);
+const enemyPreview = new EnemyPreviewUI(game, (x, y) => {
+  const p = pos(x, y, .2).project(camera), r = renderer.domElement.getBoundingClientRect();
+  return { x: r.left + (p.x + 1) * r.width / 2, y: r.top + (1 - p.y) * r.height / 2 };
+});
 $("base-avatar").src = artUrls.base;
 const cardUI = new CardUI({
   game,
-  canInteract: () => !paused && !$("route-dialog").open && !["shop", "victory", "reward", "won", "lost", "route"].includes(game.phase),
+  canInteract: () => !paused && !document.getElementById("debug-console")?.open && !$("route-dialog").open && !["shop", "victory", "reward", "won", "lost", "route"].includes(game.phase),
   onSelect: () => {
     rangeKey = "";
     uiTimer = 1;
@@ -616,6 +602,7 @@ const cardUI = new CardUI({
     return game.playCard(key, p.x, p.y, slot);
   },
 });
+const debugConsole = new DebugConsole(game, () => { cardUI.signature = ""; updateUI(); }, () => cardUI.cancel());
 const cardRange = new THREE.Group();
 scene.add(cardRange);
 function previewCard(e) {
@@ -648,15 +635,23 @@ function inspectedUnit() {
 function updateInspector() {
   const unit = inspectedUnit();
   $("unit-inspector").hidden = !unit;
-  if (!unit) return;
+  if (!unit) { $("unit-profile").hidden = true; return; }
   $("unit-inspector").dataset.side = unit.side;
   $("unit-side").textContent = unit.side === "enemy" ? "敌方" : unit.isFollower ? "我方随从" : game.heroes.includes(unit) ? (game.isDormant(unit) ? "我方英雄 · 沉睡" : unit.mechanics?.immobile ? "我方英雄 · 固守" : "我方英雄") : "我方建筑";
   $("unit-name").textContent = unit.name || "咖啡炮台";
   const heroCard = game.heroes.includes(unit) ? game.config.cards[unit.cardId] : null;
   $("unit-inspector").dataset.hasProfile = String(!!heroCard);
+  $("unit-inspector").dataset.rarity = heroCard ? (heroCard.rarity || "common") : "";
   $("unit-profile").hidden = !heroCard;
-  $("unit-role").textContent = heroCard ? `${heroRoles[heroCard.role] || heroRoles[inferHeroRole(heroCard)]} · ${unit.rank ?? 0} 阶 · Lv.${unit.level}` : "";
-  $("unit-description").textContent = heroCard?.text || "暂无英雄描述";
+  $("unit-role").textContent = heroCard ? `Lv.${unit.level}　${heroRoles[heroCard.role] || heroRoles[inferHeroRole(heroCard)]}` : "";
+  $("unit-description").textContent = `${unit.rank ?? 0}阶：${heroRankDescription(heroCard, unit.rank ?? 0)}`;
+  if (heroCard) {
+    const panel = $("unit-inspector").getBoundingClientRect(), profile = $("unit-profile");
+    const beside = window.innerWidth - panel.right - 24 >= 210;
+    profile.style.width = Math.min(320, beside ? window.innerWidth - panel.right - 24 : window.innerWidth - 32) + "px";
+    profile.style.left = (beside ? panel.right + 16 : Math.max(16, panel.left)) + "px";
+    profile.style.top = (beside ? panel.top : panel.bottom + 12) + "px";
+  }
   const src = iconURL(unit.useIcon || unit.type, true);
   if ($("unit-icon").getAttribute("src") !== src) $("unit-icon").src = src;
   const healing = unit.combatBehavior === "heal";
@@ -691,7 +686,6 @@ function updateUI() {
   shopUI.update();
   updateTerrain();
   updateInspector();
-  updateGates();
   $("base-hp").textContent = Math.ceil(game.baseHp) + " / " + game.baseMaxHp;
   $("base-health").style.width = (game.baseHp / game.baseMaxHp) * 100 + "%";
   waveProgress.update(game);
@@ -782,12 +776,15 @@ function addVisual(u) {
   white.material.opacity = 0;
   group.add(white);
   const healthBar = new HealthBar(group, u, size);
+  const rankOutline = game.heroes.includes(u) ? createHeroRankOutline(geometry) : null;
+  if (rankOutline) group.add(rankOutline);
   group.position.copy(pos(u.seaX ?? u.x, u.seaY ?? u.y, 1.1));
   group.scale.setScalar(u.boatId ? CREW_SPRITE_SIZE / size : 1);
   scene.add(group);
   const v = {
     group,
     healthBar,
+    rankOutline,
     dying: 0,
     ...motionState(sprite, white, size),
   };
@@ -813,6 +810,7 @@ function clearGroup(group) {
 function updateRanges() {
   const h = inspectedUnit();
   if (!h || cardUI.activeKey) {
+    heroArrow.visible = false;
     selection.visible = selectionOutline.visible = false;
     clearGroup(rangeGroup);
     clearGroup(pathGroup);
@@ -831,7 +829,7 @@ function updateRanges() {
     const cells = movable ? game.reachableCells(h) : [];
     moveCells = new Set(cells.map((p) => `${p.x},${p.y}`));
     for (const p of cells) {
-      const m = plane(0.94, 0.94, "#a8dc86", 0.2);
+      const m = imagePlane(movementTexture, 0.94);
       m.position.copy(pos(p.x, p.y, 0.11));
       moveGroup.add(m);
     }
@@ -867,6 +865,11 @@ function updateRanges() {
     });
   }
   const v = unitMeshes.get(h.id);
+  heroArrow.visible = !!v && h.hp > 0 && h.side === "hero" && game.selectedUnit()?.id === h.id;
+  if (heroArrow.visible) {
+    const bob = reducedOceanMotion.matches ? 0 : Math.sin(wallTime * 4) * .045;
+    heroArrow.position.set(v.group.position.x, v.group.position.y + v.size * .5 + .46 + bob, 3);
+  }
   selection.material.color.set(h.side === "enemy" ? "#cf8071" : "#d7efa2");
   selectionOutline.material.color.set(h.side === "enemy" ? "#e8a29a" : "#ffffff");
   selection.visible = h.hp > 0;
@@ -882,10 +885,11 @@ function cellFromEvent(e) {
 }
 function clickCell(x, y) {
   if (["shop", "victory", "won", "lost", "reward", "route"].includes(game.phase) || $("route-dialog").open) return;
-  if (!inside(x, y)) return;
+  if (!inside(x, y)) { if (cardUI.activeKey) { cardUI.cancel(); updateUI(); } return; }
   if (cardUI.activeKey) {
     if (paused) return;
-    if (game.playCard(cardUI.activeKey, x, y, cardUI.activeSlot)) cardUI.cancel();
+    game.playCard(cardUI.activeKey, x, y, cardUI.activeSlot);
+    cardUI.cancel();
   } else {
     const unit = [...game.heroes, ...game.followers, ...game.towers, ...game.enemies].find(
       (u) => u.hp > 0 && u.x === x && u.y === y,
@@ -1051,7 +1055,7 @@ $("sound").onclick = () => {
   tone(600, 0.1);
 };
 document.addEventListener("keydown", (e) => {
-  if ($("dialog").open || $("route-dialog").open || $("shop-dialog").open || $("reward-dialog").open) return;
+  if (debugConsole.dialog.open || $("dialog").open || $("route-dialog").open || $("shop-dialog").open || $("reward-dialog").open) return;
   if (
     ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(
       e.code,
@@ -1145,7 +1149,6 @@ function reset() {
     pair.white.dispose();
   }
   customUnitTextures.clear();
-  gateKey = "";
   for (const e of effects) {
     scene.remove(e.m);
     e.m.material.dispose();
@@ -1175,7 +1178,7 @@ function animate(now) {
   const realDt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
   wallTime += realDt;
-  const dt = paused || ["shop", "reward", "route"].includes(game.phase) || $("route-dialog").open ? 0 : realDt * speed;
+  const dt = paused || debugConsole.dialog.open || ["shop", "reward", "route"].includes(game.phase) || $("route-dialog").open ? 0 : realDt * speed;
   if (!reducedOceanMotion.matches) oceanMotion.update(dt);
   if (dt) {
     let left = dt;
@@ -1188,7 +1191,14 @@ function animate(now) {
   }
   goldVisuals.update(game, dt);
   boatVisuals.update(game, dt);
+  enemyPreview.update(realDt);
   $("gold-total").textContent = game.gold;
+  const heroCount = game.deployedHeroCount();
+  const heroCountLabel = heroCount + "/" + MAX_DEPLOYED_HEROES;
+  if ($("hero-deployment-count").textContent !== heroCountLabel) {
+    $("hero-deployment-count").textContent = heroCountLabel;
+    $("hero-deployment-count").parentElement.setAttribute("aria-label", heroCountLabel);
+  }
   const alive = [...game.heroes, ...game.followers, ...game.enemies, ...game.towers].filter(
       (u) => u.hp > 0,
     ),
@@ -1197,6 +1207,7 @@ function animate(now) {
     if (!ids.has(id)) {
       v.dying = Math.max(0, (v.dying || 0.4) - dt);
       const progress = 1 - v.dying / 0.4;
+      if (v.rankOutline) v.rankOutline.visible = false;
       v.sprite.rotation.z = v.hitDirection.x * 0.3 + progress * 0.75;
       v.sprite.position.y = -progress * 0.16;
       v.sprite.scale.setScalar(v.size * (1 + progress * 0.18));
@@ -1229,6 +1240,7 @@ function animate(now) {
     v.healthBar.update(u.hp, u.maxHp, dt, u.level || 0, u.equipment || []);
     applyMotion(v, dt, u.id);
     syncAppearance(v, u);
+    updateHeroRankOutline(v, u, reducedOceanMotion.matches ? 0 : wallTime);
     syncWeapon(v, u);
     if (v.weapon) {
       const candidates =
@@ -1321,6 +1333,9 @@ if (import.meta.env.DEV)
       selectedCard: cardUI.activeKey,
       inspectedUnitId,
       movableCells: [...moveCells],
+      movementArrowVisible: heroArrow.visible,
+      rankOutlines: [...unitMeshes].filter(([,v]) => v.rankOutline).map(([id,v]) => ({id, visible:v.rankOutline.visible, rank:v.rankOutline.material.uniforms.rank.value})),
+      debugOpen: debugConsole.dialog.open,
       frames: frame,
       camera: { zoom: camera.zoom, x: camera.position.x, y: camera.position.y },
       ocean: { time: oceanMotion.time.value, reducedMotion: reducedOceanMotion.matches },

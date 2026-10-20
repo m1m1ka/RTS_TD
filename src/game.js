@@ -25,6 +25,7 @@ import { launchBoat, tickBoats, landingGate } from "./sea-arrivals.js";
 export const W = 15,
   H = 11,
   BASE = { x: 7, y: 5 };
+export const MAX_DEPLOYED_HEROES = 5;
 export let days = getConfig().days;
 export let heroSpecs = Object.values(getConfig().cards)
   .filter((c) => c.category === "hero")
@@ -125,7 +126,7 @@ export class Game {
     if (!force && next.size === this.obstacles.size && [...next].every((key) => this.obstacles.has(key)) && [...gates].every((key) => previousRoutes.has(key))) return;
     const reachable = reachableTerrain(blocked);
     const units = [...this.heroes, ...this.followers, ...this.towers, ...this.enemies].filter((u) => u.hp > 0 && !u.boatId);
-    const affected = units.filter((u) => next.has(`${u.x},${u.y}`) || !reachable.has(`${u.x},${u.y}`) || (force && u.side === "hero" && gates.has(`${u.x},${u.y}`)));
+    const affected = units.filter((u) => next.has(`${u.x},${u.y}`) || !reachable.has(`${u.x},${u.y}`) || (force && this.towers.includes(u) && gates.has(`${u.x},${u.y}`)));
     const occupied = new Set(units.filter((u) => !affected.includes(u)).map((u) => `${u.x},${u.y}`));
     if ([...gates].some((key) => !reachable.has(key) || next.has(key))) {
       this.emit("toast", { text: "地图会封住当前出兵路线，请保存并重开应用" });
@@ -304,14 +305,14 @@ export class Game {
     this.emit("move", { unit: h });
   }
   select(i) {
-    if (!this.heroes[i]) return;
+    if (!this.heroes[i] || this.heroes[i].hp <= 0) return;
     this.selectedFollowerId = null;
     this.selected = i;
     this.emit("select");
   }
   isDormant(unit) { return isDormant(this,unit); }
   canControl(unit) { return !!unit && unit.hp > 0 && canMoveHero(this,unit) && (this.heroes.includes(unit) || this.followers.includes(unit)); }
-  selectedUnit() { return this.selectedFollowerId !== null ? this.followers.find(u => u.id === this.selectedFollowerId && u.hp > 0) : this.heroes[this.selected]; }
+  selectedUnit() { return this.selectedFollowerId !== null ? this.followers.find(u => u.id === this.selectedFollowerId && u.hp > 0) : this.heroes[this.selected]?.hp > 0 ? this.heroes[this.selected] : undefined; }
   selectFollower(id) {
     if (!this.followers.some(u => u.id === id && u.hp > 0)) return;
     this.selected = -1;
@@ -319,6 +320,7 @@ export class Game {
     this.emit("select");
   }
   clearSelection() { this.selected = -1; this.selectedFollowerId = null; }
+  deployedHeroCount() { return this.heroes.filter(hero => !hero.destroyed).length; }
   syncSkillCards() { return syncSkillCards(this); }
   cardDefinition(key, instanceId) {
     const card = this.config.cards[key];
@@ -345,11 +347,15 @@ export class Game {
         if (hero !== deployed) return { valid: false, reason: "不能重复上场，请对同名英雄使用：等级 +3" };
         return { valid: true, hero: deployed, upgradeHero: true };
       }
+      if (this.deployedHeroCount() >= MAX_DEPLOYED_HEROES)
+        return { valid: false, reason: `最多上场 ${MAX_DEPLOYED_HEROES} 名英雄` };
     }
     if (card.target === "any") {
       return { valid: true };
     } else if (card.target === "ground") {
-      if (x < 1 || x > 13 || y < 1 || y > 9 || this.blocked(x, y, null, true))
+      if (this.blocked(x, y, null, true))
+        return { valid: false, reason: "需要一块空地" };
+      if (card.category !== "hero" && (x < 1 || x > 13 || y < 1 || y > 9))
         return { valid: false, reason: "需要一块内部空地" };
       if (card.effects.some((e) => e.type === "summon") &&
         [...this.config.days.flatMap((d) => d.waves), ...(this.dayPlan?.waves || [])]
@@ -460,7 +466,12 @@ export class Game {
       this.rebuildHero(hero, false);
       this.emit("equip", { unit: hero, card: key });
     } else if (card.category === "battle") {
-      this.emit("cardImpact", {
+      if (hero) for (const effect of card.effects) if (effect.type === "heal") {
+        const amount = Math.min(effectAmount(effect, hero), hero.maxHp - hero.hp);
+        hero.hp += amount;
+        this.emit("heal", { unit: hero, amount, useIcon: card.useIcon });
+      }
+      if (card.target !== "hero") this.emit("cardImpact", {
         card: key,
         visual: card.visual,
         useIcon: card.useIcon,
@@ -618,7 +629,7 @@ export class Game {
           );
     if (!canMoveHero(this,unit)) { unit.path = []; unit.healingTargetId = null; }
     if (!canMoveHero(this,unit) || isHealer(unit)) unit.retaliationTargetId = null;
-    if (card.category === "hero" && previousRank !== undefined && unit.rank > previousRank)
+    if (card.category === "hero" && this.heroes.includes(unit) && previousRank !== undefined && unit.rank > previousRank)
       this.emit("rankUp", { unit, from: previousRank, rank: unit.rank });
   }
   applyConfig(config) {
@@ -729,10 +740,22 @@ export class Game {
     if (this.phase !== "route" || !this.nextDays().includes(id)) return false;
     this.clearTemporaryCards();
     this.removeFollowers();
-    for (const hero of [...this.heroes, ...this.towers]) {
+    this.heroReserve = this.heroReserve.filter(hero => !hero.destroyed && this.config.cards[hero.cardId]?.category === "hero" && !this.config.cards[hero.cardId].temporary);
+    // Return one card per deployed hero; existing reserve cards are already in hand.
+    const recalled = this.heroes;
+    this.heroes = [];
+    for (const hero of recalled) {
+      this.emit("heroRecalled", { unit: hero });
+      const card = this.config.cards[hero.cardId];
+      if (hero.destroyed || card?.category !== "hero" || card.temporary) continue;
+      this.heroReserve.push(hero);
+      this.cards[hero.cardId] = (this.cards[hero.cardId] || 0) + 1;
+    }
+    for (const hero of [...this.heroReserve, ...this.towers]) {
       hero.dayEffects = [];
       hero.path = [];
       hero.retaliationTargetId = null;
+      hero.healingTargetId = null;
       this.rebuildHero(hero, false);
       hero.cooldown = hero.moveCooldown = 0;
     }
@@ -748,18 +771,14 @@ export class Game {
     this.phase = "between";
     this.shop = null;
     this.settlement = null;
-    const revived = this.heroes.filter(hero => hero.hp <= 0);
-    for (const hero of this.heroes) hero.hp = hero.maxHp;
     this.heroTriggers.syncSourceEffects();
-    for (const hero of this.heroes) hero.hp = hero.maxHp;
+    for (const hero of this.heroReserve) hero.hp = hero.maxHp;
     if (this.config.days[this.day].kind === "shop") enterShop(this);
     else {
       this.syncMines();
       this.syncTerrain(true);
     }
-    for (const hero of revived) this.emit("revive", { unit: hero });
     this.emit("daySelected", { id });
-    this.heroTriggers.prepare();
     return true;
   }
   dayNumber() {
@@ -916,6 +935,7 @@ export class Game {
       if (target.side === "enemy") {
         this.kills++;
       }
+      if (this.heroes[this.selected] === target || this.selectedFollowerId === target.id) this.clearSelection();
       this.emit("death", { unit: target, source });
       if (this.heroes.includes(target)) this.heroTriggers.resolve(target, "sacrifice");
       syncHeroMechanics(this);
@@ -1087,7 +1107,7 @@ export class Game {
       if (this.wave + 1 === this.dayPlan.waves.length) {
         // Only actual survivors receive victory effects; recovery waits until the next day.
         this.phase = "victory";
-        this.settlement = victoryPayout(this.mines);
+        this.settlement = victoryPayout(this.mines, this.config);
         this.heroTriggers.victory();
         finishVictoryBonuses(this.settlement);
         this.clearTemporaryCards();
@@ -1127,7 +1147,7 @@ export class Game {
       baseMaxHp: this.baseMaxHp,
       cards: { ...this.cards },
       skillCards: syncSkillCards(this).map(copy => ({ ...copy, remaining: Math.max(0, copy.readyAt - this.time) })),
-      heroReserve: this.heroReserve.map((h) => ({ id: h.id, cardId: h.cardId, level: h.level, equipment: [...h.equipment] })),
+      heroReserve: this.heroReserve.map((h) => ({ id: h.id, cardId: h.cardId, level: h.level, rank: h.rank ?? 0, hp: h.hp, maxHp: h.maxHp, equipment: [...h.equipment] })),
       rewardOptions: [...this.rewardOptions],
       shop: this.shop ? { ...structuredClone(this.shop), prices: shopPrices(this) } : null,
       kills: this.kills,

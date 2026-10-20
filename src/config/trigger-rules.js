@@ -20,6 +20,7 @@ export const triggerTargets = {
   alliesWithFollowers: "范围内所有拥有随从的英雄",
 };
 export const triggerEffects = {
+  resetBattleCooldown: { label: "概率重置本次战斗牌冷却", defaults: { chance: 20 } },
   randomStat: { label: "随机一项永久强化", defaults: { maxHp: 20, atk: 2, lifeSteal: 1, critChance: 1, critDamage: 5 } },
   refundCard: { label: "概率返还本次使用的牌", defaults: { chance: 20 } },
   victoryGold: { label: "胜利后额外获得金币", defaults: { value: 2 } },
@@ -45,6 +46,7 @@ export const cardPlayRules = {
   fiveCards: { ...newTriggerRule(), name: "五牌馈赠", trigger: { event: "cardPlayed", scope: "any", radius: -1, every: 5, category: "all" }, effects: [{ type: "generateCard", ...generationDefaults, category: "all" }] },
   cardGrowth: { ...newTriggerRule(), name: "用牌成长", trigger: { event: "cardPlayed", scope: "any", radius: -1, every: 1, category: "all" }, effects: [{ type: "randomStat", ...triggerEffects.randomStat.defaults }] },
   cardRefund: { ...newTriggerRule(), name: "灵感返还", trigger: { event: "cardPlayed", scope: "any", radius: -1, every: 1, category: "resourceBattle" }, effects: [{ type: "refundCard", ...triggerEffects.refundCard.defaults }] },
+  battleCooldown: { ...newTriggerRule(), name: "战斗牌冷却重置", trigger: { event: "cardPlayed", scope: "any", radius: -1, every: 1, category: "battle" }, effects: [{ type: "resetBattleCooldown", chance: 20 }] },
 };
 export function defaultHeroRules(key) {
   const rule = newTriggerRule();

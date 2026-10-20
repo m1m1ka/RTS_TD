@@ -1,3 +1,4 @@
+import { redeployHeroes } from "./helpers/redeploy.mjs";
 import assert from "node:assert/strict";
 import { Game as EngineGame, BASE, attackKind } from "../src/game.js";
 import { cards, startingCards } from "../src/cards.js";
@@ -79,7 +80,7 @@ const enemy = (id, x, y, hp = 300) => ({
   for (const p of [
     [7, 5],
     [-1, 5],
-    [0, 5],
+    [15, 5],
   ])
     assert.equal(g.playCard("hero_blue", ...p), false);
   assert.equal(g.cards.hero_blue, 1);
@@ -96,7 +97,8 @@ const enemy = (id, x, y, hp = 300) => ({
   g.heroes[0].hp -= 150;
   assert.ok(g.playCard("coffee", 7, 3));
   assert.equal(g.heroes[0].hp, g.heroes[0].maxHp - 30);
-  assert.equal(g.cards.coffee, 1);
+  assert.equal(g.cards.coffee, 2);
+  assert.ok(g.skillCards.some(c => c.cardId === "coffee" && c.readyAt > g.time));
   assert.ok(g.playCard("tower", 6, 4));
   assert.equal(g.towers.length, 1);
   assert.equal(g.cards.tower, undefined);
@@ -122,8 +124,8 @@ const enemy = (id, x, y, hp = 300) => ({
     assert.ok(g.playCard(k, h.x, h.y));
   }
   assert.equal(h.type, "green");
-  assert.equal(h.weapon, "staff");
-  assert.equal(attackKind(h), "orb");
+  assert.equal(h.weapon, "bow");
+  assert.equal(attackKind(h), "arrow");
   assert.equal(h.rate, 1.3 * 1.25);
   g.hit(h, 100, enemy(98, 4, 5));
   assert.equal(h.hp, h.maxHp - 75);
@@ -197,6 +199,7 @@ const enemy = (id, x, y, hp = 300) => ({
   const inventory = structuredClone(g.cards);
   assert.equal(g.chooseReward([0]), false);
   assert.deepEqual(g.cards, inventory);
+  redeployHeroes(g);
   g.day = 5;
   g.startDay();
   completeDay(g);
@@ -234,6 +237,7 @@ const enemy = (id, x, y, hp = 300) => ({
     g.chooseReward([0]);
     if (g.phase === "route") assert.ok(g.chooseDay(g.nextDays()[0]));
     if (wave < 5) {
+      redeployHeroes(g);
       while (g.cards.training) {
         const h = [...g.heroes].sort((a, b) => a.level - b.level)[0];
         g.playCard("training", h.x, h.y);

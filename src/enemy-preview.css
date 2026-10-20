@@ -1,0 +1,20 @@
+.enemy-previews { position: fixed; inset: 0; pointer-events: none; z-index: 12; overflow: hidden; }
+.enemy-preview-group { position: absolute; display: flex; gap: 4px; transform: translate(-50%, -50%); }
+.enemy-preview-group.left-shore { transform: translate(calc(-100% + var(--preview-size) / 2), -50%); }
+.enemy-preview-group.right-shore { transform: translate(calc(var(--preview-size) / -2), -50%); }
+.enemy-preview-icon {
+  width: var(--preview-size); height: var(--preview-size); padding: 2px;
+  pointer-events: auto; cursor: help; border: 2px solid #eed9a3; border-radius: 5px;
+  background: #a73535; box-shadow: 0 3px 0 #551c25b3, 0 0 10px #ed685433;
+}
+.enemy-preview-icon img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.enemy-preview-icon:hover, .enemy-preview-icon:focus-visible { border-color: #fff5c6; background: #c6413c; outline: 2px solid #fff3; }
+.enemy-preview-tip {
+  position: fixed; z-index: 90; width: min(280px, calc(100vw - 16px)); box-sizing: border-box;
+  padding: 0; background: transparent; color: white; border: 0;
+  text-align: center; line-height: 1.5; pointer-events: none;
+  text-shadow: 0 1px 2px #132d36, 0 0 3px #132d3699;
+}
+.enemy-preview-tip[hidden] { display: none; }
+.enemy-preview-tip strong { display: block; color: #ff6259; font-size: 17px; font-weight: 900; }
+.enemy-preview-tip p { color: #fff5df; font-size: 13px; margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }

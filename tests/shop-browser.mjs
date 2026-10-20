@@ -22,7 +22,9 @@ try{
   await editor.locator('[data-path="days.1.kind"]').selectOption("shop");
   await editor.locator('[data-path="days.1.name"]').fill("苔石杂货铺");
   assert.equal(await editor.locator('[data-wave-select]').count(),0);
-  for(const key of ["heroPrice","refreshCost","heroPackPrice","resourcePackPrice","equipmentPackPrice"])assert.ok(await editor.locator(`[data-path="days.1.shop.${key}"]`).isVisible());
+  assert.ok(await editor.locator('[data-path="days.1.shop.useDefaults"]').isChecked());
+  await editor.locator('[data-path="days.1.shop.useDefaults"]').uncheck();
+  for(const key of ["heroPrices.common","heroPrices.rare","heroPrices.epic","refreshCost","refreshIncrease","heroPackPrice","resourcePackPrice","equipmentPackPrice"])assert.ok(await editor.locator(`[data-path="days.1.shop.${key}"]`).isVisible());
   await editor.locator('[data-path="days.1.shop.refreshCost"]').fill("2");
   await editor.locator('#save-config').click();
   await editor.waitForFunction(()=>JSON.parse(localStorage.getItem("friday-defense-config-v1")).days[1].kind==="shop");
@@ -75,7 +77,10 @@ try{
   await page.locator(`#route-dialog [data-route-node="${c.days[2].id}"]`).click();
   await page.locator('[data-route-depart]').click();
   assert.equal((await state()).phase,"between");assert.equal((await state()).gold,lastGold);
-  assert.equal((await state()).heroes[0].level,3,"hero level survives shop transit");
+  assert.equal((await state()).heroes.length,0);
+  assert.equal((await state()).heroReserve[0].level,3,"hero level survives shop transit");
+  await page.locator('[data-card="hero_blue"]').first().click();
+  await page.evaluate(()=>window.__game.clickCell(7,3));
   assert.deepEqual([(await state()).heroes[0].x,(await state()).heroes[0].y],[7,3]);
   assert.equal((await state()).heroes[0].hp,(await state()).heroes[0].maxHp);
   // A transferred shop configuration can be the starting node with no money.

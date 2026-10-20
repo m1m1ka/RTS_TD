@@ -1,3 +1,4 @@
+import { redeployHeroes } from "./helpers/redeploy.mjs";
 import assert from "node:assert/strict";
 import { Game } from "../src/game.js";
 import { DEFAULT_CONFIG } from "../src/config/defaults.js";
@@ -14,8 +15,8 @@ const fixture = () => {
   const hero=g.heroes[0]; g.playCard("guard",7,3);
   g.phase="reward";g.rewardOptions=["training","coffee","guard","tower","fireball"];
   g.chooseReward([0]);g.gold=30;
-  assert.ok(g.chooseDay(c.days[1].id));assert.equal(g.phase,"shop");assert.equal(g.heroes.length,1);
-  assert.equal(g.heroes[0],hero);assert.equal(hero.level,2);
+  assert.ok(g.chooseDay(c.days[1].id));assert.equal(g.phase,"shop");assert.equal(g.heroes.length,0);
+  assert.equal(g.heroReserve[0],hero);assert.equal(hero.level,2);
   const hot = structuredClone(c);
   hot.days[1].obstacles = [{x:7,y:3}];
   g.applyConfig(assertConfig(hot));
@@ -43,7 +44,8 @@ const fixture = () => {
   }
   assert.ok(g.refreshShop());assert.ok(g.shop.packs.every(p=>p.sold),"hero refresh never restocks packs");
   const gold=g.gold;assert.ok(g.leaveShop());assert.equal(g.phase,"route");assert.equal(g.gold,gold);assert.equal(g.leaveShop(),false);
-  assert.ok(g.chooseDay(c.days[2].id));assert.equal(g.phase,"between");assert.equal(g.shop,null);assert.equal(g.heroes[0].level,2);
+  assert.ok(g.chooseDay(c.days[2].id));assert.equal(g.phase,"between");assert.equal(g.shop,null);assert.equal(g.heroes.length,0);
+  redeployHeroes(g);assert.equal(g.heroes[0].level,2);
   assert.deepEqual([g.heroes[0].x,g.heroes[0].y],[7,3]);assert.equal(g.heroes[0].level,2);assert.ok(g.heroes[0].equipment.includes("guard"));
   assert.ok(!events.some(e=>e.type==="victory"||e.type==="gold"),"shop grants no victory payout");
 }
@@ -88,7 +90,7 @@ const fixture = () => {
 }
 {
   const c=fixture();delete c.days[1].shop;
-  const migrated=assertConfig(c);assert.deepEqual(migrated.days[1].shop,SHOP_DEFAULTS);
+  const migrated=assertConfig(c);assert.deepEqual(migrated.days[1].shop,{useDefaults:true});
   assert.deepEqual(assertConfig(JSON.parse(JSON.stringify(migrated))),migrated);
 }
 for(const mutate of [c=>c.days[1].kind="unknown",c=>c.days[1].shop.heroPrice=-1,c=>c.days[1].shop.refreshCost=1.5,c=>c.days[1].shop.resourcePackPrice=NaN]) {

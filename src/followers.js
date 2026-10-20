@@ -1,10 +1,10 @@
 import { gridDistance } from "./grid-distance.js";
 // Followers are combat units, never heroes: no card ownership or trigger rules.
 export const FOLLOWER_SCALE = 0.65;
-export const MAX_FOLLOWERS = 32;
+export const MAX_FOLLOWERS = 40;
 export const FOLLOW_DELAY = 0.4;
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-const adjacent = (u) => [[0, -1], [1, 0], [0, 1], [-1, 0]].map(([dx, dy]) => ({ x: u.x + dx, y: u.y + dy }));
+const adjacent = (u) => [[0, -1], [1, 0], [0, 1], [-1, 0], [-1,-1], [1,-1], [-1,1], [1,1]].map(([dx, dy]) => ({ x: u.x + dx, y: u.y + dy }));
 const gateCells = (game) => new Set(game.currentDay().waves.flatMap(w => w.spawns).map(p => `${p.x},${p.y}`));
 const position = (u) => ({ x: u.x, y: u.y });
 const same = (a, b) => a?.x === b?.x && a?.y === b?.y;
@@ -27,7 +27,8 @@ export function summonFollowers(game, owner, effect) {
   if (!game.heroes.includes(owner) || owner.hp <= 0) return [];
   const gates = gateCells(game), spawned = [];
   const cells = adjacent(owner).filter(p => !game.blocked(p.x, p.y, null, true) && !gates.has(`${p.x},${p.y}`));
-  const capacity = MAX_FOLLOWERS - game.followers.filter(u => u.hp > 0).length;
+  const capacity = Math.min(MAX_FOLLOWERS - game.followers.filter(u => u.hp > 0).length,
+    8 - game.followers.filter(u => u.hp > 0 && u.ownerId === owner.id).length);
   for (const cell of cells.slice(0, Math.min(effect.count, capacity))) {
     const maxHp = Math.max(1, Math.ceil(owner.maxHp * effect.hpPercent / 100));
     const unit = {

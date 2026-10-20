@@ -1,0 +1,25 @@
+.hero-tag-tooltip {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  z-index: 10000;
+  box-sizing: border-box;
+  width: min(320px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  padding: 12px 15px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 6px;
+  background: rgba(0,0,0,.82);
+  color: #fff;
+  box-shadow: 0 5px 18px #0006;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: left;
+  pointer-events: auto;
+}
+.hero-tag-tooltip[hidden] { display: none; }
+.hero-tag-tooltip section + section { margin-top: 10px; padding-top: 8px; border-top: 1px solid #ffffff26; }
+.hero-tag-tooltip strong { color: #fff; font-size: 15px; }
+.hero-tag-tooltip p { margin: 3px 0 0; color: #fff; white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -162,9 +162,11 @@ for (const nextKind of ["battle", "shop"]) {
   const cards=structuredClone(g.cards);assert.equal(g.chooseReward([0,1]),false);assert.deepEqual(g.cards,cards);
   assert.ok(g.chooseReward([0]));unchanged();
   assert.ok(g.chooseDay(c.days[1].id));
-  for(const hero of g.heroes){assert.equal(hero.hp,hero.maxHp);assert.deepEqual(hero.dayEffects,[]);assert.equal(hero.cooldown,0);}
+  assert.equal(g.heroes.length,0);
+  assert.deepEqual(g.heroReserve,[alive,dead]);
+  for(const hero of g.heroReserve){assert.equal(hero.hp,hero.maxHp);assert.deepEqual(hero.dayEffects,[]);assert.equal(hero.cooldown,0);}
   assert.equal(alive.level,before.level);assert.deepEqual(alive.equipment,before.equipment);
-  assert.equal(events.filter(e=>e.type==="revive"&&e.unit.id===dead.id).length,1);
+  assert.equal(events.filter(e=>e.type==="revive"&&e.unit.id===dead.id).length,0);
   assert.equal(g.phase,nextKind==="shop"?"shop":"between");
 }
 console.log("PASS waves: clocks, gates, spacing, live edits, no wave recovery, next-day revival/healing/reset, battle and shop transitions, three-of-one reward and validation");

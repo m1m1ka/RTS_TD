@@ -18,6 +18,11 @@ function game(c, event=()=>{}) {const g=new Game(event,c);g.playCard("hero_blue"
 function blockSides(g) {for(const p of landingCells(g.boats[0]).slice(1))g.obstacles.add(`${p.x},${p.y}`);}
 
 for(const [x,y,dx,dy] of [[0,5,1,0],[14,5,-1,0],[7,0,0,1],[7,10,0,-1]]) {
+  const deployment = new Game(() => {}, fixture(x,y));
+  assert.equal(deployment.cardTarget("hero_blue",x,y).valid,true,"landing tile accepts hero deployment");
+  assert.equal(deployment.playCard("hero_blue",x,y),true);
+  deployment.applyConfig(structuredClone(deployment.config));
+  assert.deepEqual([deployment.heroes[0].x,deployment.heroes[0].y],[x,y],"config save preserves heroes on landing tiles");
   const g=game(fixture(x,y)), b=g.boats[0];
   assert.equal(g.enemies.length,7);assert.equal(b.layers,2);assert.deepEqual([b.dx,b.dy],[dx,dy]);
   assert.equal(g.remainingEnemies(),7,"offshore passengers count toward wave completion");

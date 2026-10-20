@@ -3,7 +3,7 @@ export function defaultSkillTiers(card) {
   return [1, 2].map(level => ({
     cooldown: Math.max(1, (card.cooldown ?? 12) - level * 2),
     effects: structuredClone(card.effects || []).map(effect => {
-      if (effect.type === "damage") effect.value = Math.min(effect.valueMode === "percent" ? 100 : 100000, effect.value * 3 ** level);
+      if (["damage", "heal"].includes(effect.type)) effect.value = Math.min(effect.valueMode === "percent" ? 100 : 100000, effect.value * 3 ** level);
       if (effect.type === "slow") {
         effect.duration = Math.min(120, effect.duration * 2 ** level);
         effect.value = Math.min(.95, effect.value + .1 * level);
@@ -30,6 +30,7 @@ export function skillDefinition(card, tier = 1) {
 }
 export function skillEffectText(card) {
   return card.effects.map(effect => {
+    if (effect.type === "heal") return `恢复 ${effect.value}${effect.valueMode === "percent" ? "% 最大生命" : " 生命"}`;
     if (effect.type === "damage") return `${effect.radius ? `范围 ${effect.radius} 格` : "单体"} · ${effect.value}${effect.valueMode === "percent" ? "% 最大生命" : ""} 伤害`;
     if (effect.type === "slow") return `范围 ${effect.radius} 格 · 减速 ${Math.round(effect.value * 100)}% · ${effect.duration} 秒`;
     if (effect.type === "generateCard") return `获得 ${effect.count} 张卡牌`;

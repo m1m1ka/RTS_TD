@@ -1,10 +1,11 @@
-import { heroRarityClass, heroGradeLabel } from "./hero-grades.js";
+import { heroRarityClass, heroRoleLabel } from "./hero-grades.js";
 import { RewardUI } from "./reward-ui.js";
 import { cards, cardTypes } from "./cards.js";
 import { CardAim } from "./card-aim.js";
 import { iconURL } from "./config/icons.js";
 import { escapeHTML } from "./config/schema.js";
 import { getConfigRevision } from "./config/store.js";
+import { HeroTagTooltip } from "./hero-tag-tooltip.js";
 
 export class CardUI {
   constructor({ game, onAim, onDrop, onSelect, canInteract }) {
@@ -18,6 +19,7 @@ export class CardUI {
     this.activeKey = null;
     this.activeSlot = null;
     this.signature = "";
+    this.tagTooltip = new HeroTagTooltip(game);
     this.drag = null;
     this.aim = new CardAim();
     this.hand = document.getElementById("hand");
@@ -72,9 +74,9 @@ export class CardUI {
             document.getElementById("card-hud").getBoundingClientRect().top &&
           this.canInteract()
         ) {
-          if (this.onDrop(d.key, e, d.slot)) this.cancel();
+          this.onDrop(d.key, e, d.slot);
         }
-        this.onAim(null);
+        this.cancel();
       } else this.select(this.activeSlot === d.slot ? null : d.key, d.slot);
       this.render();
     });
@@ -176,7 +178,7 @@ export class CardUI {
             const description = escapeHTML(deployed ? heroHint : c.text)
               .replace(/ · /g, "<br>")
               .replace(/([+]?\d+(?:%)?)/g, "<em>$1</em>");
-            return `<button class="hand-card ${c.category} ${heroRarityClass(c)} ${selected ? "selected" : ""}" style="--tilt:${spread * 4}deg;--arc:${Math.abs(spread) * 7}px" data-card="${k}" data-hand-slot="${slot}" aria-label="${escapeHTML(c.name)}，${escapeHTML(c.category === "hero" ? heroHint : c.text)}，${c.category === "hero" ? `第${copy + 1}张` : `持有${n}张`}" title="${escapeHTML(c.text)} · ${c.category === "hero" ? heroHint : `持有 ${n} 张`}" aria-pressed="${selected}">${["hero", "battle"].includes(c.category) ? "" : `<b class="card-count" aria-hidden="true">×${n}</b>`}<strong class="card-title">${escapeHTML(c.name)}</strong><div class="card-picture">${this.art(k)}</div><span class="card-kind">${c.category === "hero" ? heroGradeLabel(c).replaceAll(" · ", "·") + (deployed ? " 升级+3" : " Lv." + (reserve?.level ?? 1)) + (c.temporary ? " 临时" : "") : label}</span><small class="card-description">${description}</small>${skill ? `<span class="skill-cooldown" hidden><b></b><small>冷却中</small></span>` : ""}<span class="card-flourish" aria-hidden="true">◆</span></button>`;
+            return `<button class="hand-card ${c.category} ${heroRarityClass(c)} ${selected ? "selected" : ""}" style="--tilt:${spread * 4}deg;--arc:${Math.abs(spread) * 7}px" ${c.category === "hero" ? `data-hero-card="${k}"` : ""} data-card="${k}" data-hand-slot="${slot}" aria-label="${escapeHTML(c.name)}，${escapeHTML(c.category === "hero" ? heroHint : c.text)}，${c.category === "hero" ? `第${copy + 1}张` : `持有${n}张`}" title="${escapeHTML(c.text)} · ${c.category === "hero" ? heroHint : `持有 ${n} 张`}" aria-pressed="${selected}">${["hero", "battle"].includes(c.category) ? "" : `<b class="card-count" aria-hidden="true">×${n}</b>`}<strong class="card-title">${escapeHTML(c.name)}</strong><div class="card-picture">${this.art(k)}${c.category === "hero" ? `<b class="hero-card-level">Lv.${reserve?.level ?? 1}</b>` : ""}</div><span class="card-kind">${c.category === "hero" ? heroRoleLabel(c) : label}</span><small class="card-description">${description}</small>${skill ? `<span class="skill-cooldown" hidden><b></b><small>冷却中</small></span>` : ""}<span class="card-flourish" aria-hidden="true">◆</span></button>`;
           })
           .join("") || '<span class="empty-hand">暂无卡牌</span>';
     }

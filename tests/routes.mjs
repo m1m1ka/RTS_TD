@@ -1,3 +1,4 @@
+import { redeployHeroes } from "./helpers/redeploy.mjs";
 import assert from "node:assert/strict";
 import { Game } from "../src/game.js";
 import { DEFAULT_CONFIG } from "../src/config/defaults.js";
@@ -34,6 +35,9 @@ const claim = (g) => { g.phase = "reward"; g.rewardOptions = ["training", "coffe
   assert.ok(g.chooseDay(d.id));
   assert.equal(g.day, 2);
   assert.equal(g.snapshot().day, 2, "branch nodes share a day column");
+  assert.equal(g.heroes.length, 0);
+  assert.equal(g.heroReserve.length, 1);
+  redeployHeroes(g);
   assert.equal(g.heroes.length, 1);
   assert.equal(g.heroes[0].name, "米娅");
   assert.deepEqual([g.heroes[0].x, g.heroes[0].y], [7, 3]);
@@ -88,8 +92,12 @@ const claim = (g) => { g.phase = "reward"; g.rewardOptions = ["training", "coffe
   claim(g);
   assert.equal(g.heroes.length, 2, "route overview does not recall heroes yet");
   assert.ok(g.chooseDay(g.nextDays()[0]));
+  assert.deepEqual(g.heroes, []);
+  assert.deepEqual(g.heroReserve, [low, high]);
+  assert.equal(g.cards.hero_blue, 2, "one card returns without merging away the spare copy");
+  redeployHeroes(g);
   assert.deepEqual(g.heroes, [low, high]);
-  assert.equal(g.cards.hero_blue, 1, "deployed heroes never return to inventory");
+  assert.equal(g.cards.hero_blue, 1, "redeployment consumes only the returned copy");
   assert.deepEqual(g.heroes.map(h => [h.x,h.y]), [[4,4],[5,4]]);
   assert.deepEqual(g.heroReserve, []);
   assert.equal(high.level, 8, "transition does not repeat initial level effects");
@@ -106,6 +114,8 @@ const claim = (g) => { g.phase = "reward"; g.rewardOptions = ["training", "coffe
   assert.equal(high.hp, 5, "repeated start clicks cannot heal during combat");
   assert.equal(high.level, level);
   claim(g); g.chooseDay(g.nextDays()[0]);
+  assert.equal(g.heroes.length, 0);
+  redeployHeroes(g);
   assert.equal(g.heroes.length, 2);
   assert.equal(g.cards.hero_blue, 1);
   const previousLevel = low.level;

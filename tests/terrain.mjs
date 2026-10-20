@@ -1,3 +1,4 @@
+import { redeployHeroes } from "./helpers/redeploy.mjs";
 import assert from "node:assert/strict";
 import { Game } from "../src/game.js";
 import { DEFAULT_CONFIG } from "../src/config/defaults.js";
@@ -12,11 +13,13 @@ const config = () => structuredClone(DEFAULT_CONFIG);
   g.playCard("hero_blue",7,3);g.playCard("hero_green",6,3);
   const ids = g.heroes.map(h => h.id), owned = structuredClone(g.cards);
   g.phase = "route";g.chooseDay(g.nextDays()[0]);
-  assert.deepEqual(g.heroes.map(h => h.id), ids);
+  assert.equal(g.heroes.length,0);
+  assert.deepEqual(g.heroReserve.map(h => h.id), ids);
+  redeployHeroes(g);
   assert.deepEqual(g.cards, owned);
   const cells = g.heroes.map(h => `${h.x},${h.y}`);
   assert.equal(new Set(cells).size, 2);
-  assert.ok(cells.every(cell => !["6,3","7,3"].includes(cell)), "new mines and spawn points relocate retained heroes without overlap");
+  assert.ok(cells.every(cell => cell !== "6,3"), "manual redeployment obeys the new map's mines without overlap");
 }
 {
   const c = config();
@@ -48,6 +51,8 @@ const config = () => structuredClone(DEFAULT_CONFIG);
   g.chooseDay(g.nextDays()[0]);
   assert.equal(g.day, 1);
   assert.equal(g.obstacles.size, 1);
+  assert.equal(g.heroes.length, 0);
+  redeployHeroes(g);
   assert.equal(g.heroes.length, 1);
   assert.equal(g.heroes[0], hero);
   assert.ok(!g.obstacles.has(`${hero.x},${hero.y}`), "kept hero moves off the new tree");

@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import {DEFAULT_CONFIG} from "../src/config/defaults.js";
+import {assertConfig,validateConfig} from "../src/config/schema.js";
+import {heroRankDescription} from "../src/hero-ranks.js";
+import {enterShop,refreshShop,buyShopPack} from "../src/shop.js";
+const c=structuredClone(DEFAULT_CONFIG);
+c.days[0].kind="shop";c.days[0].shop={useDefaults:true,heroPool:"custom",heroPackPool:"custom"};
+c.rewardPools.custom={name:"测试池",cards:{hero_blue:3,training:1,coffee:0}};
+c.cards.hero_blue.rankDescriptions={0:"初阶",1:"一阶",3:"三阶"};assertConfig(c);
+assert.equal(heroRankDescription(c.cards.hero_blue,1),"一阶");assert.equal(heroRankDescription(c.cards.hero_blue,2),c.cards.hero_blue.text);
+const g={config:c,day:0,gold:100,emit(){}};enterShop(g);assert.deepEqual(g.shop.heroes,["hero_blue","hero_blue"]);refreshShop(g);assert.deepEqual(g.shop.heroes,["hero_blue","hero_blue"]);
+g.shop.packs=[{category:"hero",sold:false}];assert.ok(buyShopPack(g,0));assert.deepEqual(g.shop.opening.options,["hero_blue","hero_blue","hero_blue"]);
+c.days[0].shop.heroPool="missing";assert.ok(validateConfig(c).length);c.days[0].shop.heroPool="custom";c.rewardPools.custom.cards={training:1};assert.ok(validateConfig(c).length);
+console.log("PASS rank descriptions, shop pool filtering, refresh/pack reuse and invalid pools");

@@ -11,8 +11,8 @@ function mapScenery(layout) {
   }
   return `<svg class="route-landscape" width="${layout.width}" height="${layout.height}" aria-hidden="true"><defs><symbol id="route-pine" viewBox="0 0 36 48"><path d="M18 0 4 21h7L0 36h15v12h6V36h15L25 21h7Z" fill="currentColor"/><path d="M18 5v29M18 23l-7 9" fill="none" stroke="#b2c29a" stroke-opacity=".22"/></symbol></defs><path class="map-river" d="M ${layout.width * .4} -20 Q ${layout.width * .6} 100 ${layout.width * .48} 230 T ${layout.width * .62} ${layout.height + 40}"/>${trees.join("")}<text x="${layout.width * .25}" y="${layout.height - 36}" class="map-region">低语林地</text><text x="${layout.width * .74}" y="65" class="map-region">暮色边境</text></svg>`;
 }
-export function routeGraph(config, { selected, available = [], completed = [], history = [], editor = false, adventure = false, chosen = null } = {}) {
-  let layout = campaignLayout(config);
+export function routeGraph(config, { selected, available = [], completed = [], history = [], editor = false, adventure = false, chosen = null, layoutOverride = null, linkSource = null, selectedEdge = null } = {}) {
+  let layout = layoutOverride || campaignLayout(config);
   if (adventure) {
     const height = Math.max(480, layout.height * 1.35);
     layout = { width: layout.width * 1.15, height, nodes: layout.nodes.map(n => ({ ...n, x: n.x * 1.15, y: height / 2 + (n.y - layout.height / 2) * 1.35 + Math.sin(n.depth * 1.8) * 54 })) };
@@ -24,14 +24,16 @@ export function routeGraph(config, { selected, available = [], completed = [], h
     if (!to) continue;
     const used = history.some((key, i) => key === from.day.id && history[i + 1] === id);
     const active = from.day.id === selected && available.includes(id);
-    paths.push(`<path class="${used ? "walked" : active ? "available" : ""}" d="M ${from.x + 27} ${from.y} C ${from.x + 95} ${from.y}, ${to.x - 95} ${to.y}, ${to.x - 27} ${to.y}"/>`);
+    const curve = `M ${from.x + 27} ${from.y} C ${from.x + 95} ${from.y}, ${to.x - 95} ${to.y}, ${to.x - 27} ${to.y}`;
+    const picked = selectedEdge?.[0] === from.day.id && selectedEdge?.[1] === id;
+    paths.push(`<path class="${used ? "walked" : active ? "available" : ""} ${picked ? "edge-selected" : ""}" d="${curve}"/>${editor ? `<path class="route-edge-hit" data-route-from="${esc(from.day.id)}" data-route-to="${esc(id)}" d="${curve}"/>` : ""}`);
   }
   const stall = '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 15h22v13H5z" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M3 14 7 5h18l4 9v3H3z" fill="currentColor"/><path d="M12 28V19h8v9" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>';
   const sword = '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="m6 3 17 19-3 3L3 6zM26 3 9 22l3 3L29 6z" fill="currentColor"/><path d="m17 24 7-7m-10 7-7-7m16 10 4-4M5 23l4 4" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
   return `<div class="route-scroll" tabindex="0" aria-label="横向关卡路线"><div class="route-canvas" style="width:${layout.width}px;height:${layout.height}px">${adventure ? mapScenery(layout) : ""}<svg class="route-lines" width="${layout.width}" height="${layout.height}" aria-hidden="true">${paths.join("")}</svg>${layout.nodes.map(({ day, depth, x, y }) => {
     const done = completed.includes(day.id), active = available.includes(day.id), current = day.id === selected;
     const end = !nextDayIds(config, day.id).length;
-    return `<button type="button" data-route-node="${esc(day.id)}" class="route-node ${done ? "done" : ""} ${active ? "available" : ""} ${current ? "current" : ""} ${day.id === chosen ? "chosen" : ""} ${editor ? "editable" : ""}" style="left:${x}px;top:${y}px" ${!editor && !active ? "disabled" : ""} ${adventure ? `aria-pressed="${day.id === chosen}"` : ""} aria-label="第 ${depth + 1} 天 ${esc(day.name)}${done ? " 已通过" : active ? " 可选择" : ""}"><span class="route-day">${adventure && current ? "当前 · " : ""}第 ${depth + 1} 天</span><span class="route-medal">${done ? "✓" : day.kind === "shop" ? stall : end ? "⚑" : sword}</span><strong>${esc(day.name)}</strong><small>${day.kind === "shop" ? "商店" : `${day.waves.length} 波敌袭`}${end ? " · 终点" : ""}</small></button>`;
+    return `<button type="button" data-route-node="${esc(day.id)}" class="route-node ${done ? "done" : ""} ${active ? "available" : ""} ${current ? "current" : ""} ${day.id === chosen ? "chosen" : ""} ${editor ? "editable" : ""} ${editor && linkSource === day.id ? "link-source" : ""} ${editor && linkSource && depth === positions.get(linkSource)?.depth + 1 ? "link-target" : ""}" style="left:${x}px;top:${y}px" ${!editor && !active ? "disabled" : ""} ${adventure ? `aria-pressed="${day.id === chosen}"` : ""} aria-label="第 ${depth + 1} 天 ${esc(day.name)}${done ? " 已通过" : active ? " 可选择" : ""}"><span class="route-day">${adventure && current ? "当前 · " : ""}第 ${depth + 1} 天</span><span class="route-medal">${done ? "✓" : day.kind === "shop" ? stall : end ? "⚑" : sword}</span><strong>${esc(day.name)}</strong><small>${day.kind === "shop" ? "商店" : `${day.waves.length} 波敌袭`}${end ? " · 终点" : ""}</small></button>`;
   }).join("")}</div></div>`;
 }
 

@@ -20,10 +20,13 @@ export function migrateRewards(c) {
 }
 export function drawRewards(config, day) {
   const weights = config.rewardPools?.[day.rewardPool]?.cards || {};
+  return drawWeightedCards(config, weights, 3);
+}
+export function drawWeightedCards(config, weights, count) {
   const all = Object.keys(weights).filter(key => config.cards[key] && weights[key] > 0);
   let available = [...all]; const result = [];
   if (!all.length) return result;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < count; i++) {
     if (!available.length) available = [...all];
     let roll = Math.random() * available.reduce((sum, key) => sum + weights[key], 0);
     let index = available.length - 1;

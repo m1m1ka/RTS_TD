@@ -1,3 +1,4 @@
+import { redeployHeroes } from "./helpers/redeploy.mjs";
 import assert from "node:assert/strict";
 import { Game } from "../src/game.js";
 import { DEFAULT_CONFIG } from "../src/config/defaults.js";
@@ -32,6 +33,7 @@ function fixture() {
   }
   g.phase = "route"; const ordinary = g.cards.training;
   g.chooseDay(g.nextDays()[0]); assert.equal(g.cards.parts, undefined); assert.equal(g.cards.training, ordinary);
+  redeployHeroes(g);
   g.startDay(); g.tick(1); assert.equal(g.cards.parts, undefined, "next day starts fresh");
   g.tick(1); assert.equal(g.cards.parts, 1);
 }

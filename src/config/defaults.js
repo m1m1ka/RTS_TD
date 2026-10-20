@@ -1,5 +1,7 @@
+import { migrateCombatContent } from "../combat-content.js";
 import { migrateSkillCards } from "../skill-cards.js";
 import { migrateHeroRanks } from "../hero-ranks.js";
+import { migrateHeroTags } from "../hero-tags.js";
 import { migrateMarineContent } from "../marine-content.js";
 import { migrateSeaArrivals } from "../sea-arrivals.js";
 import { migrateHeroGrades } from "../hero-grades.js";
@@ -1565,5 +1567,7 @@ migrateMapPresets(DEFAULT_CONFIG);
 migrateMarineContent(DEFAULT_CONFIG);
 migrateSeaArrivals(DEFAULT_CONFIG);
 
+migrateCombatContent(DEFAULT_CONFIG);
 migrateSkillCards(DEFAULT_CONFIG);
 migrateHeroRanks(DEFAULT_CONFIG);
+migrateHeroTags(DEFAULT_CONFIG);

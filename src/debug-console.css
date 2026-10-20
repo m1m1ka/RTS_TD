@@ -1,0 +1,20 @@
+#debug-console {
+  position: fixed; inset: 20px 20px 20px auto; margin: 0; width: min(360px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px); box-sizing: border-box; overflow: auto;
+  padding: 18px; border: 3px solid #fff0b5; border-radius: 8px; background: #292834f5; color: #fff0b5;
+  box-shadow: 0 5px 24px #0009; text-align: left; font: 14px/1.5 var(--retro-font);
+}
+#debug-console::backdrop { background: transparent; backdrop-filter: none; }
+#debug-console header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#debug-console h2 { margin: 0; font-size: 21px; }
+#debug-console h3 { margin: 0 0 8px; font-size: 16px; }
+#debug-console section { padding: 13px 0; border-top: 1px solid #fff0b544; }
+#debug-console label { display: block; margin: 7px 0; }
+#debug-console select, #debug-console input { width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px; color: #fff0b5; background: #161822; border: 1px solid #a49381; border-radius: 3px; }
+#debug-console input[type=range] { padding: 0; accent-color: #ffcf55; }
+#debug-console button { cursor: pointer; padding: 6px 12px; color: #fff0b5; background: #507d58; border: 2px solid #c7be8b; border-radius: 4px; }
+#debug-console button:disabled { opacity: .45; cursor: default; }
+#debug-console output { float: right; }
+#debug-console .debug-note { color: #c6c3b5; font-size: 12px; }
+#debug-result { min-height: 1.5em; color: #b6f1cb; }
+#debug-toggle { font-size: 15px; }

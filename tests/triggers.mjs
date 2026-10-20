@@ -1,3 +1,4 @@
+import { redeployHeroes } from "./helpers/redeploy.mjs";
 import assert from "node:assert/strict";
 import { Game } from "../src/game.js";
 import { DEFAULT_CONFIG } from "../src/config/defaults.js";
@@ -54,6 +55,7 @@ const clearWave = (g) => {
   assert.equal(a.level, 3, "victory keeps current-day buffs and levels");
   g.chooseReward([0]);
   g.chooseDay(g.nextDays()[0]);
+  redeployHeroes(g);
   near(a.speed, baseSpeed);
   near(b.rate, baseRate);
   g.startDay();
@@ -188,6 +190,7 @@ for (const duration of ["day", "permanent"]) {
   const retained = duration === "day" ? .15 : .25;
   near(a.lifeSteal, .25, "victory retains today's lifesteal bonus until the next day");
   g.tick(6); g.chooseReward([0]); g.chooseDay(g.nextDays()[0]);
+  redeployHeroes(g);
   assert.equal(g.heroes[0], a); near(a.lifeSteal, retained);
   g.applyUnitEffect(a, { type: "stat", stat: "lifeSteal", mode: "multiply", value: 2 });
   near(a.lifeSteal, retained * 2);

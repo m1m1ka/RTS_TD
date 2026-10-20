@@ -204,14 +204,39 @@
       }
     },
     "boatSpeed": 1,
-    "landingKnockback": 2
+    "landingKnockback": 1,
+    "economy": {
+      "commonHeroPrice": 3,
+      "rareHeroPrice": 4,
+      "epicHeroPrice": 6,
+      "heroPackPrice": 4,
+      "resourcePackPrice": 2,
+      "equipmentPackPrice": 3,
+      "refreshCost": 1,
+      "refreshIncrease": 1,
+      "mineGold": 1,
+      "victoryGold": 3,
+      "commonHeroSellPrice": 1,
+      "rareHeroSellPrice": 2,
+      "epicHeroSellPrice": 4,
+      "battleSellPrice": 1,
+      "resourceSellPrice": 1,
+      "equipmentSellPrice": 1
+    },
+    "heroTagDescriptions": {
+      "battleStart": "点击迎战时触发的效果",
+      "preparation": "迎战前部署英雄时触发",
+      "sacrifice": "英雄死亡触发的效果",
+      "parts": "可使用在空地上建造炮台",
+      "follower": "英雄的削弱复制体"
+    }
   },
   "cards": {
     "hero_blue": {
-      "name": "阿蓝",
+      "name": "小骨",
       "category": "hero",
       "target": "ground",
-      "text": "开战：等级+1",
+      "text": "开战：自身等级增加",
       "icon": "blue",
       "useIcon": "blue",
       "visual": "fireball",
@@ -272,7 +297,16 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "battleStart"
+      ],
+      "rankDescriptions": {
+        "0": "开战时等级+1",
+        "1": "开战时等级+2",
+        "2": "开战时等级+3",
+        "3": "开战时等级+4"
+      }
     },
     "hero_green": {
       "name": "小叶",
@@ -353,13 +387,22 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "battleStart"
+      ],
+      "rankDescriptions": {
+        "0": "开战时为自身和最近的1位英雄提供0.2的攻速加成",
+        "1": "开战时为自身和最近的2位英雄提供0.3的攻速加成",
+        "2": "开战时为自身和最近的3英雄提供0.4的攻速加成",
+        "3": "开战时所有英雄提供0.8的攻速加成"
+      }
     },
     "hero_purple": {
       "name": "咕咕",
       "category": "hero",
       "target": "ground",
-      "text": "开战：获得一张等级牌",
+      "text": "开战：获得等级牌",
       "icon": "purple",
       "useIcon": "purple",
       "visual": "fireball",
@@ -425,49 +468,51 @@
         8,
         16,
         30
-      ]
-    },
-    "training": {
-      "name": "零件",
-      "category": "resource",
-      "target": "ground",
-      "text": "可以安装一个炮塔",
-      "icon": "tower",
-      "useIcon": "tower",
-      "visual": "fireball",
-      "effects": [
-        {
-          "type": "summon"
-        }
       ],
-      "unit": {
-        "type": "tower",
-        "maxHp": 260,
-        "atk": 24,
-        "range": 4,
-        "rate": 1,
-        "speed": 1,
-        "weapon": "coffeeCannon",
-        "levelGrowth": {
-          "maxHp": 0,
-          "atk": 0
-        },
-        "critChance": 0,
-        "attackModule": "coffeeCannon"
+      "tags": [
+        "battleStart"
+      ],
+      "rankDescriptions": {
+        "0": "开战时提供1张等级提升牌",
+        "1": "开战时提供2张等级提升牌",
+        "2": "开战时提供3张等级提升牌",
+        "3": "开战时提供4张等级提升牌"
       }
     },
     "coffee": {
       "name": "热咖啡",
-      "category": "resource",
+      "category": "battle",
       "target": "hero",
-      "text": "恢复 120 生命",
+      "text": "恢复 15% 生命",
       "icon": "coffee",
       "useIcon": "coffee",
       "visual": "fireball",
       "effects": [
         {
           "type": "heal",
-          "value": 120
+          "value": 15,
+          "valueMode": "percent"
+        }
+      ],
+      "cooldown": 12,
+      "skillTiers": [
+        {
+          "cooldown": 10,
+          "effects": [
+            {
+              "type": "heal",
+              "value": 360
+            }
+          ]
+        },
+        {
+          "cooldown": 8,
+          "effects": [
+            {
+              "type": "heal",
+              "value": 1080
+            }
+          ]
         }
       ]
     },
@@ -475,15 +520,16 @@
       "name": "爆裂火球",
       "category": "battle",
       "target": "area",
-      "text": "小范围 · 110 伤害",
+      "text": "小范围120伤害",
       "icon": "fireball",
       "useIcon": "fireball",
       "visual": "fireball",
       "effects": [
         {
           "type": "damage",
-          "value": 110,
-          "radius": 1
+          "value": 120,
+          "radius": 1,
+          "valueMode": "fixed"
         }
       ],
       "cooldown": 12,
@@ -493,7 +539,7 @@
           "effects": [
             {
               "type": "damage",
-              "value": 330,
+              "value": 600,
               "radius": 2
             }
           ]
@@ -503,7 +549,7 @@
           "effects": [
             {
               "type": "damage",
-              "value": 990,
+              "value": 2000,
               "radius": 3
             }
           ]
@@ -521,7 +567,7 @@
       "effects": [
         {
           "type": "damage",
-          "value": 240,
+          "value": 242,
           "radius": 0
         }
       ],
@@ -532,7 +578,7 @@
           "effects": [
             {
               "type": "damage",
-              "value": 720,
+              "value": 1000,
               "radius": 1
             }
           ]
@@ -542,7 +588,7 @@
           "effects": [
             {
               "type": "damage",
-              "value": 2160,
+              "value": 5000,
               "radius": 2
             }
           ]
@@ -553,7 +599,7 @@
       "name": "寒霜冲击",
       "category": "battle",
       "target": "area",
-      "text": "范围伤害 · 减速 3 秒",
+      "text": "范围伤害 · 无法移动3 秒",
       "icon": "frost",
       "useIcon": "frost",
       "visual": "frost",
@@ -565,7 +611,7 @@
         },
         {
           "type": "slow",
-          "value": 0.55,
+          "value": 0,
           "duration": 3,
           "radius": 2
         }
@@ -582,8 +628,8 @@
             },
             {
               "type": "slow",
-              "value": 0.65,
-              "duration": 6,
+              "value": 0,
+              "duration": 8,
               "radius": 3
             }
           ]
@@ -598,7 +644,7 @@
             },
             {
               "type": "slow",
-              "value": 0.75,
+              "value": 0,
               "duration": 12,
               "radius": 4
             }
@@ -610,7 +656,7 @@
       "name": "鹰眼箭袋",
       "category": "equipment",
       "target": "hero",
-      "text": "攻击 +8 · 射程 +1",
+      "text": "攻击 +10% · 射程 +1",
       "icon": "quiver",
       "useIcon": "quiver",
       "visual": "fireball",
@@ -618,8 +664,8 @@
         {
           "type": "stat",
           "stat": "atk",
-          "mode": "add",
-          "value": 8
+          "mode": "percent",
+          "value": 10
         },
         {
           "type": "stat",
@@ -633,7 +679,7 @@
       "name": "疾风徽章",
       "category": "equipment",
       "target": "hero",
-      "text": "攻击速度 +25%",
+      "text": "攻击速度 +50%",
       "icon": "haste",
       "useIcon": "haste",
       "visual": "fireball",
@@ -642,7 +688,7 @@
           "type": "stat",
           "stat": "rate",
           "mode": "multiply",
-          "value": 1.25
+          "value": 1.5
         }
       ]
     },
@@ -680,20 +726,20 @@
       "name": "星辉法杖",
       "category": "equipment",
       "target": "hero",
-      "text": "装备法杖 · 获得溅射",
+      "text": "攻击获得 30% 溅射 ",
       "icon": "arcane",
       "useIcon": "arcane",
       "visual": "fireball",
       "effects": [
         {
-          "type": "weapon",
-          "weapon": "staff",
-          "range": 3
+          "type": "splash",
+          "value": 0.3,
+          "radius": 1
         }
       ]
     },
     "hero_catgirl": {
-      "name": "米娅",
+      "name": "基米",
       "category": "hero",
       "target": "ground",
       "text": "开战：每触发一次开战效果暴击率增加",
@@ -705,14 +751,14 @@
         "name": "米娅",
         "type": "catgirl",
         "weapon": "",
-        "maxHp": 250,
-        "atk": 30,
+        "maxHp": 350,
+        "atk": 37.5,
         "range": 1,
-        "rate": 0.8,
+        "rate": 1,
         "speed": 6.5,
         "levelGrowth": {
-          "maxHp": 32,
-          "atk": 7
+          "maxHp": 60,
+          "atk": 8.75
         },
         "critChance": 30,
         "attackModule": "claw"
@@ -723,7 +769,7 @@
           "enabled": true,
           "trigger": {
             "event": "heroBattleStart",
-            "scope": "self",
+            "scope": "any",
             "radius": -1
           },
           "target": {
@@ -753,20 +799,29 @@
           ]
         }
       ],
-      "rarity": "common",
+      "rarity": "rare",
       "role": "assassin",
-      "statSource": "preset",
+      "statSource": "custom",
       "rankLevels": [
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "battleStart"
+      ],
+      "rankDescriptions": {
+        "0": "每有一位英雄触发开战效果，暴击率+5%",
+        "1": "每有一位英雄触发开战效果，暴击率+10%",
+        "2": "每有一位英雄触发开战效果，暴击率+20%",
+        "3": "每有一位英雄触发开战效果，暴击率+50%"
+      }
     },
     "hero_1": {
-      "name": "壳卫",
+      "name": "壳壳",
       "category": "hero",
       "target": "ground",
-      "text": "开战：场上随机3个英雄等级+1",
+      "text": "开战：场上随机3个英雄等级增加",
       "icon": "shellguard",
       "useIcon": "shellguard",
       "visual": "fireball",
@@ -838,7 +893,16 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "battleStart"
+      ],
+      "rankDescriptions": {
+        "0": "开战时随机3位英雄等级+1",
+        "1": "开战时随机4位英雄等级+2",
+        "2": "开战时随机5位英雄等级+3",
+        "3": "开战时所有英雄等级+4"
+      }
     },
     "hero_2": {
       "name": "浪人",
@@ -926,13 +990,22 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "battleStart"
+      ],
+      "rankDescriptions": {
+        "0": "每有一位英雄触发开战效果，攻击力+30，攻击速度+0.2",
+        "1": "每有一位英雄触发开战效果，攻击力+40，攻击速度+0.3",
+        "2": "每有一位英雄触发开战效果，攻击力+50，攻击速度+0.5",
+        "3": "每有一位英雄触发开战效果，攻击力+100，攻击速度+1"
+      }
     },
     "hero_3": {
       "name": "小鹿",
       "category": "hero",
       "target": "ground",
-      "text": "开战：为最近的一位英雄提供持续生命值恢复",
+      "text": "使用战斗牌后有概率刷新冷却",
       "icon": "antler",
       "useIcon": "antler",
       "visual": "fireball",
@@ -940,17 +1013,17 @@
       "unit": {
         "name": "阿蓝",
         "type": "blue",
-        "maxHp": 450,
-        "atk": 40,
-        "range": 1,
+        "maxHp": 350,
+        "atk": 30,
+        "range": 3,
         "rate": 0.5,
         "weapon": "staff",
         "speed": 2,
         "levelGrowth": {
-          "maxHp": 62.5,
-          "atk": 10
+          "maxHp": 52.5,
+          "atk": 2
         },
-        "critChance": 10,
+        "critChance": 0,
         "attackModule": "heal",
         "combatBehavior": "heal",
         "healing": {
@@ -970,42 +1043,70 @@
           }
         }
       },
-      "triggerRules": [],
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "cardPlayed",
+            "scope": "any",
+            "radius": -1,
+            "interval": 10,
+            "every": 1,
+            "category": "all"
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "resetBattleCooldown",
+              "chance": 30,
+              "rankValues": {
+                "1": {
+                  "chance": 40
+                },
+                "2": {
+                  "chance": 50
+                },
+                "3": {
+                  "chance": 70
+                }
+              }
+            }
+          ]
+        }
+      ],
       "rarity": "rare",
-      "role": "warrior",
+      "role": "support",
       "statSource": "preset",
       "rankLevels": [
         8,
         16,
         30
-      ]
+      ],
+      "tags": [],
+      "rankDescriptions": {
+        "0": "使用战斗牌时有30%概率重置冷却",
+        "1": "使用战斗牌时有40%概率重置冷却",
+        "2": "使用战斗牌时有50%概率重置冷却",
+        "3": "使用战斗牌时有70%概率重置冷却"
+      }
     },
     "coin_purse": {
       "name": "小金库",
       "icon": "coin_purse",
       "useIcon": "coin_purse",
-      "text": "立即获得 3 金币",
+      "text": "立即获得 5 金币",
       "target": "any",
       "category": "resource",
       "visual": "fireball",
       "effects": [
         {
           "type": "gold",
-          "value": 3
-        }
-      ]
-    },
-    "war_drum": {
-      "name": "再响战鼓",
-      "icon": "war_drum",
-      "useIcon": "war_drum",
-      "text": "触发目标一次开战效果",
-      "target": "hero",
-      "category": "resource",
-      "visual": "fireball",
-      "effects": [
-        {
-          "type": "battleStart"
+          "value": 5
         }
       ]
     },
@@ -1057,26 +1158,26 @@
       ]
     },
     "hero_4": {
-      "name": "盾兵",
+      "name": "大熊",
       "category": "hero",
       "target": "ground",
-      "text": "整备：召唤一位随从",
-      "icon": "footman",
-      "useIcon": "footman",
+      "text": "整备：召唤随从",
+      "icon": "ragebear",
+      "useIcon": "ragebear",
       "visual": "fireball",
       "effects": [],
       "unit": {
         "name": "阿蓝",
         "type": "blue",
-        "maxHp": 300,
-        "atk": 50,
+        "maxHp": 400,
+        "atk": 20,
         "range": 1,
         "rate": 0.5,
         "weapon": "",
-        "speed": 2,
+        "speed": 1.5,
         "levelGrowth": {
-          "maxHp": 50,
-          "atk": 10
+          "maxHp": 75,
+          "atk": 2
         },
         "critChance": 0,
         "attackModule": "slash"
@@ -1123,19 +1224,29 @@
         }
       ],
       "rarity": "common",
-      "role": "warrior",
+      "role": "tank",
       "statSource": "preset",
       "rankLevels": [
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "preparation",
+        "follower"
+      ],
+      "rankDescriptions": {
+        "0": "召唤1位随从",
+        "1": "召唤2位随从，拥有更强的属性",
+        "2": "召唤3位随从，拥有更强的属性",
+        "3": "召唤4位随从，拥有更强的属性"
+      }
     },
     "hero_5": {
       "name": "燧羽",
       "category": "hero",
       "target": "ground",
-      "text": "整备：召唤一位随从",
+      "text": "整备：召唤随从",
       "icon": "musketeer",
       "useIcon": "musketeer",
       "visual": "fireball",
@@ -1204,13 +1315,23 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "preparation",
+        "follower"
+      ],
+      "rankDescriptions": {
+        "0": "召唤1位随从",
+        "1": "召唤2位随从，拥有更强的属性",
+        "2": "召唤3位随从，拥有更强的属性",
+        "3": "召唤4位随从，拥有更强的属性"
+      }
     },
     "hero_6": {
       "name": "铜镜",
       "category": "hero",
       "target": "ground",
-      "text": "整备：随机3名英雄等级+1",
+      "text": "整备：随机3名英雄等级增加1",
       "icon": "gunner",
       "useIcon": "gunner",
       "visual": "fireball",
@@ -1282,13 +1403,22 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "preparation"
+      ],
+      "rankDescriptions": {
+        "0": "整备时为随机3位英雄等级+1",
+        "1": "整备时为随机4位英雄等级+2",
+        "2": "整备时为随机5位英雄等级+3",
+        "3": "整备时为所有英雄等级+1"
+      }
     },
     "hero_7": {
       "name": "粟骑",
       "category": "hero",
       "target": "ground",
-      "text": "整备：召唤一位随从",
+      "text": "整备：召唤随从",
       "icon": "cavalier",
       "useIcon": "cavalier",
       "visual": "fireball",
@@ -1296,17 +1426,17 @@
       "unit": {
         "name": "阿蓝",
         "type": "blue",
-        "maxHp": 350,
-        "atk": 37.5,
+        "maxHp": 450,
+        "atk": 50,
         "range": 1,
-        "rate": 1,
+        "rate": 0.5,
         "weapon": "",
         "speed": 6.5,
         "levelGrowth": {
-          "maxHp": 40,
-          "atk": 8.75
+          "maxHp": 62.5,
+          "atk": 10
         },
-        "critChance": 30,
+        "critChance": 10,
         "attackModule": "slash"
       },
       "triggerRules": [
@@ -1351,19 +1481,29 @@
         }
       ],
       "rarity": "rare",
-      "role": "assassin",
-      "statSource": "preset",
+      "role": "warrior",
+      "statSource": "custom",
       "rankLevels": [
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "preparation",
+        "follower"
+      ],
+      "rankDescriptions": {
+        "0": "召唤1位随从",
+        "1": "召唤2位随从，拥有更强的属性",
+        "2": "召唤3位随从，拥有更强的属性",
+        "3": "召唤4位随从，拥有更强的属性"
+      }
     },
     "hero_8": {
       "name": "棋手",
       "category": "hero",
       "target": "ground",
-      "text": "整备：触发最近一位英雄的整备效果",
+      "text": "整备：触发最近英雄的整备效果",
       "icon": "standardbearer",
       "useIcon": "standardbearer",
       "visual": "fireball",
@@ -1405,7 +1545,7 @@
                 "count": 3
               },
               "3": {
-                "count": 4
+                "count": 10
               }
             }
           },
@@ -1420,16 +1560,25 @@
       "role": "tank",
       "statSource": "preset",
       "rankLevels": [
-        5,
-        10,
-        15
-      ]
+        8,
+        16,
+        30
+      ],
+      "tags": [
+        "preparation"
+      ],
+      "rankDescriptions": {
+        "0": "整备时触发最近1位英雄的整备效果",
+        "1": "整备时触发最近2位英雄的整备效果",
+        "2": "整备时触发最近3位英雄的整备效果",
+        "3": "整备时触发最近所有英雄的整备效果"
+      }
     },
     "hero_9": {
       "name": "牧师",
       "category": "hero",
       "target": "ground",
-      "text": "整备：为最近的英雄召唤一位随从",
+      "text": "整备：为最近的英雄召唤随从",
       "icon": "chaplain",
       "useIcon": "chaplain",
       "visual": "fireball",
@@ -1462,7 +1611,18 @@
           "target": {
             "kind": "nearest",
             "radius": -1,
-            "count": 1
+            "count": 1,
+            "rankValues": {
+              "1": {
+                "count": 2
+              },
+              "2": {
+                "count": 3
+              },
+              "3": {
+                "count": 10
+              }
+            }
           },
           "effects": [
             {
@@ -1498,7 +1658,17 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "preparation",
+        "follower"
+      ],
+      "rankDescriptions": {
+        "0": "整备时为最近1位英雄召唤1位随从",
+        "1": "整备时为最近2位英雄召唤1位随从",
+        "2": "整备时为最近3位英雄召唤1位随从",
+        "3": "整备时为所有英雄召唤1位随从"
+      }
     },
     "hero_10": {
       "name": "指挥官",
@@ -1543,7 +1713,7 @@
             {
               "type": "stat",
               "stat": "atk",
-              "mode": "percent",
+              "mode": "add",
               "value": 50,
               "duration": "day",
               "whileSourceAlive": true,
@@ -1562,19 +1732,19 @@
             {
               "type": "stat",
               "stat": "rate",
-              "mode": "percent",
-              "value": 50,
+              "mode": "add",
+              "value": 0.5,
               "duration": "day",
               "whileSourceAlive": true,
               "rankValues": {
                 "1": {
-                  "value": 60
+                  "value": 1
                 },
                 "2": {
-                  "value": 70
+                  "value": 2
                 },
                 "3": {
-                  "value": 100
+                  "value": 3
                 }
               }
             }
@@ -1588,13 +1758,22 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "follower"
+      ],
+      "rankDescriptions": {
+        "0": "存活时，为所有随从和其英雄提供攻击力和攻击速度",
+        "1": "存活时，为所有随从和其英雄提供更多攻击力和攻击速度",
+        "2": "存活时，为所有随从和其英雄提供更多攻击力和攻击速度",
+        "3": "存活时，为所有随从和其英雄提供更多攻击力和攻击速度"
+      }
     },
     "hero_11": {
       "name": "斗士",
       "category": "hero",
       "target": "ground",
-      "text": "牺牲：阵亡时等级+2",
+      "text": "牺牲：阵亡时等级增加",
       "icon": "chainbreaker",
       "useIcon": "chainbreaker",
       "visual": "fireball",
@@ -1655,13 +1834,22 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "sacrifice"
+      ],
+      "rankDescriptions": {
+        "0": "牺牲时阵亡时等级+2",
+        "1": "牺牲时阵亡时等级+3",
+        "2": "牺牲时阵亡时等级+4",
+        "3": "牺牲时阵亡时等级+5"
+      }
     },
     "hero_12": {
       "name": "死士",
       "category": "hero",
       "target": "ground",
-      "text": "牺牲：第一次阵亡时复活",
+      "text": "牺牲：阵亡时复活",
       "icon": "bloodknight",
       "useIcon": "bloodknight",
       "visual": "fireball",
@@ -1726,13 +1914,22 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "sacrifice"
+      ],
+      "rankDescriptions": {
+        "0": "牺牲可以复活1次",
+        "1": "牺牲可以复活2次",
+        "2": "牺牲可以复活3次",
+        "3": "牺牲可以复活4次"
+      }
     },
     "hero_13": {
       "name": "铃公主",
       "category": "hero",
       "target": "ground",
-      "text": "胜利时英雄每有一位随从存活，其等级+1",
+      "text": "胜利时英雄每有一位随从存活，其等级增加",
       "icon": "frostwitch",
       "useIcon": "frostwitch",
       "visual": "fireball",
@@ -1793,7 +1990,16 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "follower"
+      ],
+      "rankDescriptions": {
+        "0": "胜利时英雄每有一位随从存活，其等级+1",
+        "1": "胜利时英雄每有一位随从存活，其等级+2",
+        "2": "胜利时英雄每有一位随从存活，其等级+3",
+        "3": "胜利时英雄每有一位随从存活，其等级+4"
+      }
     },
     "hero_14": {
       "name": "赤鬓",
@@ -1842,18 +2048,18 @@
               "type": "stat",
               "stat": "rate",
               "mode": "add",
-              "value": 0.2,
+              "value": 0.4,
               "duration": "day",
               "whileSourceAlive": true,
               "rankValues": {
                 "1": {
-                  "value": 0.3
+                  "value": 0.5
                 },
                 "2": {
-                  "value": 0.4
+                  "value": 0.6
                 },
                 "3": {
-                  "value": 0.5
+                  "value": 0.8
                 }
               }
             },
@@ -1866,7 +2072,7 @@
               "whileSourceAlive": true,
               "rankValues": {
                 "1": {
-                  "value": 0.07
+                  "value": 0.08
                 },
                 "2": {
                   "value": 0.1
@@ -1886,13 +2092,20 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [],
+      "rankDescriptions": {
+        "0": "每有一个英雄牺牲，攻击速度与吸血增加",
+        "1": "每有一个英雄牺牲，攻击速度与吸血增加更多",
+        "2": "每有一个英雄牺牲，攻击速度与吸血增加更多",
+        "3": "每有一个英雄牺牲，攻击速度与吸血增加更多"
+      }
     },
     "hero_15": {
       "name": "医疗兵",
       "category": "hero",
       "target": "ground",
-      "text": "整备：召唤一名随从",
+      "text": "整备：召唤随从",
       "icon": "fieldmedic",
       "useIcon": "fieldmedic",
       "visual": "fireball",
@@ -1975,16 +2188,25 @@
       "role": "support",
       "statSource": "preset",
       "rankLevels": [
-        5,
-        10,
-        15
-      ]
+        8,
+        16,
+        30
+      ],
+      "tags": [
+        "preparation"
+      ],
+      "rankDescriptions": {
+        "0": "召唤1名随从",
+        "1": "召唤2名随从",
+        "2": "召唤3名随从",
+        "3": "召唤4名随从"
+      }
     },
     "hero_16": {
       "name": "枪兵",
       "category": "hero",
       "target": "ground",
-      "text": "部署后无法移动，攻击击退敌人",
+      "text": "部署后无法移动，攻击附带击退效果",
       "icon": "pikeman",
       "useIcon": "pikeman",
       "visual": "fireball",
@@ -2030,7 +2252,14 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [],
+      "rankDescriptions": {
+        "0": "部署后无法移动，攻击附带击退效果",
+        "1": "部署后无法移动，攻击附带击退效果",
+        "2": "部署后无法移动，攻击附带击退效果",
+        "3": "部署后无法移动，攻击附带击退效果"
+      }
     },
     "hero_17": {
       "name": "烛尽",
@@ -2074,13 +2303,22 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "sacrifice"
+      ],
+      "rankDescriptions": {
+        "0": "所有英雄死亡视为牺牲",
+        "1": "所有英雄死亡视为牺牲",
+        "2": "所有英雄死亡视为牺牲",
+        "3": "所有英雄死亡视为牺牲"
+      }
     },
     "hero_18": {
       "name": "零件工人",
       "category": "hero",
       "target": "ground",
-      "text": "可以生成零件",
+      "text": "可以生成零件，零件生成的炮塔等级等于自身",
       "icon": "gearengineer",
       "useIcon": "gearengineer",
       "visual": "fireball",
@@ -2101,96 +2339,6 @@
         "critChance": 0,
         "attackModule": "musket"
       },
-      "triggerRules": [
-        {
-          "name": "开战成长",
-          "enabled": true,
-          "trigger": {
-            "event": "interval",
-            "scope": "any",
-            "radius": -1,
-            "interval": 5,
-            "rankValues": {
-              "1": {
-                "interval": 4
-              },
-              "2": {
-                "interval": 3
-              },
-              "3": {
-                "interval": 2
-              }
-            }
-          },
-          "target": {
-            "kind": "self",
-            "radius": -1,
-            "count": 1
-          },
-          "effects": [
-            {
-              "type": "generateCard",
-              "pool": "selected",
-              "category": "resource",
-              "cards": [
-                "training"
-              ],
-              "count": 1
-            }
-          ]
-        }
-      ],
-      "rarity": "rare",
-      "role": "support",
-      "statSource": "preset",
-      "rankLevels": [
-        8,
-        16,
-        30
-      ]
-    },
-    "hero_19": {
-      "name": "维修工人",
-      "category": "hero",
-      "target": "ground",
-      "text": "可以维修炮台",
-      "icon": "wrenchsmith",
-      "useIcon": "wrenchsmith",
-      "visual": "fireball",
-      "effects": [],
-      "unit": {
-        "name": "阿蓝",
-        "type": "blue",
-        "maxHp": 350,
-        "atk": 30,
-        "range": 3,
-        "rate": 0.5,
-        "weapon": "",
-        "speed": 2,
-        "levelGrowth": {
-          "maxHp": 52.5,
-          "atk": 2
-        },
-        "critChance": 0,
-        "attackModule": "heal",
-        "combatBehavior": "heal",
-        "healing": {
-          "targets": "towers",
-          "valueMode": "fixed",
-          "value": 30,
-          "rankValues": {
-            "1": {
-              "value": 50
-            },
-            "2": {
-              "value": 80
-            },
-            "3": {
-              "value": 150
-            }
-          }
-        }
-      },
       "triggerRules": [],
       "rarity": "rare",
       "role": "support",
@@ -2199,7 +2347,16 @@
         8,
         16,
         30
-      ]
+      ],
+      "tags": [
+        "parts"
+      ],
+      "rankDescriptions": {
+        "0": "每10秒生成1个零件",
+        "1": "每8秒生成1个零件",
+        "2": "每6秒生成1个零件",
+        "3": "每5秒生成1个零件"
+      }
     },
     "hero_20": {
       "name": "机器人",
@@ -2266,49 +2423,12 @@
         8,
         16,
         30
-      ]
-    },
-    "battle_1": {
-      "name": "新战斗牌",
-      "category": "battle",
-      "target": "area",
-      "text": "小范围 · 110 伤害",
-      "icon": "fireball",
-      "useIcon": "fireball",
-      "visual": "fireball",
-      "effects": [
-        {
-          "type": "damage",
-          "value": 110,
-          "radius": 1
-        }
       ],
-      "cooldown": 12,
-      "skillTiers": [
-        {
-          "cooldown": 10,
-          "effects": [
-            {
-              "type": "damage",
-              "value": 330,
-              "radius": 2
-            }
-          ]
-        },
-        {
-          "cooldown": 8,
-          "effects": [
-            {
-              "type": "damage",
-              "value": 990,
-              "radius": 3
-            }
-          ]
-        }
-      ]
+      "tags": [],
+      "rankDescriptions": {}
     },
     "resource_1": {
-      "name": "美食",
+      "name": "经验印记",
       "category": "resource",
       "target": "hero",
       "text": "英雄等级 +1",
@@ -2321,11 +2441,294 @@
           "value": 1
         }
       ]
+    },
+    "hero_21": {
+      "name": "祭司",
+      "category": "hero",
+      "target": "ground",
+      "text": "触发牺牲效果的英雄等级增加",
+      "icon": "bloodseer",
+      "useIcon": "bloodseer",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 240,
+        "atk": 20,
+        "range": 3,
+        "rate": 0.5,
+        "weapon": "staff",
+        "speed": 2,
+        "levelGrowth": {
+          "maxHp": 35,
+          "atk": 2
+        },
+        "critChance": 0,
+        "attackModule": "staff"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "heroSacrifice",
+            "scope": "any",
+            "radius": -1,
+            "interval": 10
+          },
+          "target": {
+            "kind": "eventHero",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "level",
+              "value": 1,
+              "rankValues": {
+                "1": {
+                  "value": 2
+                },
+                "2": {
+                  "value": 3
+                },
+                "3": {
+                  "value": 4
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "rarity": "common",
+      "role": "support",
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ],
+      "tags": [
+        "sacrifice"
+      ],
+      "rankDescriptions": {
+        "0": "触发牺牲效果的英雄等级+1",
+        "1": "触发牺牲效果的英雄等级+2",
+        "2": "触发牺牲效果的英雄等级+3",
+        "3": "触发牺牲效果的英雄等级+4"
+      }
+    },
+    "hero_22": {
+      "name": "盾兵",
+      "category": "hero",
+      "target": "ground",
+      "text": "抵挡50%远程伤害",
+      "icon": "footman",
+      "useIcon": "footman",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 625,
+        "atk": 20,
+        "range": 1,
+        "rate": 0.5,
+        "weapon": "",
+        "speed": 1.5,
+        "levelGrowth": {
+          "maxHp": 100,
+          "atk": 3
+        },
+        "critChance": 0,
+        "attackModule": "slash",
+        "mechanics": {
+          "arrowReduction": {
+            "mode": "percent",
+            "value": 50,
+            "rankValues": {
+              "1": {
+                "value": 60
+              },
+              "2": {
+                "value": 70
+              },
+              "3": {
+                "value": 80
+              }
+            }
+          }
+        }
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "battleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "level",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "name": "越战越勇",
+          "enabled": true,
+          "trigger": {
+            "event": "heroBattleStart",
+            "scope": "any",
+            "radius": -1
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "stat",
+              "stat": "speed",
+              "mode": "add",
+              "value": 0.5,
+              "duration": "day"
+            }
+          ]
+        }
+      ],
+      "rarity": "rare",
+      "role": "tank",
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ],
+      "tags": [],
+      "rankDescriptions": {
+        "0": "抵挡50%远程伤害",
+        "1": "抵挡60%远程伤害",
+        "2": "抵挡70%远程伤害",
+        "3": "抵挡80%远程伤害"
+      }
+    },
+    "hero_23": {
+      "name": "钟灵",
+      "category": "hero",
+      "target": "ground",
+      "text": "使用任意牌时自身获得随机属性的永久提升",
+      "icon": "windupbot",
+      "useIcon": "windupbot",
+      "visual": "fireball",
+      "effects": [],
+      "unit": {
+        "name": "阿蓝",
+        "type": "blue",
+        "maxHp": 384,
+        "atk": 51.2,
+        "range": 4,
+        "rate": 1,
+        "weapon": "staff",
+        "speed": 2,
+        "levelGrowth": {
+          "maxHp": 56,
+          "atk": 11.2
+        },
+        "critChance": 15,
+        "attackModule": "staff"
+      },
+      "triggerRules": [
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "cardPlayed",
+            "scope": "any",
+            "radius": -1,
+            "every": 1,
+            "category": "all",
+            "rankValues": {
+              "1": {
+                "every": 1
+              },
+              "2": {
+                "every": 1
+              },
+              "3": {
+                "every": 1
+              }
+            }
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "randomStat",
+              "maxHp": 20,
+              "atk": 2,
+              "lifeSteal": 1,
+              "critChance": 1,
+              "critDamage": 1,
+              "rankValues": {
+                "1": {
+                  "maxHp": 30,
+                  "atk": 3,
+                  "lifeSteal": 2,
+                  "critChance": 2,
+                  "critDamage": 2
+                },
+                "2": {
+                  "maxHp": 40,
+                  "atk": 4,
+                  "lifeSteal": 3,
+                  "critChance": 3,
+                  "critDamage": 3
+                },
+                "3": {
+                  "maxHp": 50,
+                  "atk": 5,
+                  "lifeSteal": 4,
+                  "critChance": 4,
+                  "critDamage": 4
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "rarity": "epic",
+      "role": "marksman",
+      "statSource": "preset",
+      "rankLevels": [
+        8,
+        16,
+        30
+      ],
+      "tags": [],
+      "rankDescriptions": {
+        "0": "使用任意牌时自身获得随机属性的永久提升",
+        "1": "使用任意牌时自身获得更强大的随机属性的永久提升",
+        "2": "使用任意牌时自身获得更强大的随机属性的永久提升",
+        "3": "使用任意牌时自身获得更强大的随机属性的永久提升"
+      }
     }
   },
   "enemies": {
     "grunt": {
-      "name": "普通海盗士兵",
+      "name": "海盗士兵",
       "type": "grunt",
       "useIcon": "grunt",
       "maxHp": 100,
@@ -2339,7 +2742,8 @@
         "atk": 5
       },
       "critChance": 0,
-      "attackModule": "slash"
+      "attackModule": "slash",
+      "description": "普通的海盗"
     },
     "runner": {
       "name": "海盗盾兵",
@@ -2362,38 +2766,40 @@
           "mode": "percent",
           "value": 80
         }
-      }
+      },
+      "description": "抵挡80%远程伤害"
     },
     "tank": {
       "name": "重装海盗",
       "type": "tank",
       "useIcon": "tank",
-      "maxHp": 300,
+      "maxHp": 1000,
       "atk": 20,
       "range": 1,
-      "rate": 0.6,
+      "rate": 0.5,
       "speed": 0.45,
       "weapon": "",
       "levelGrowth": {
-        "maxHp": 200,
+        "maxHp": 500,
         "atk": 5
       },
       "critChance": 0,
-      "attackModule": "claw"
+      "attackModule": "slash",
+      "description": "血量惊人的敌人"
     },
     "boss": {
       "name": "船长 Boss 海盗",
       "type": "boss",
       "useIcon": "boss",
-      "maxHp": 950,
-      "atk": 45,
+      "maxHp": 5000,
+      "atk": 80,
       "range": 1,
-      "rate": 0.75,
-      "speed": 0.38,
+      "rate": 0.5,
+      "speed": 0.5,
       "weapon": "",
       "levelGrowth": {
-        "maxHp": 0,
-        "atk": 0
+        "maxHp": 500,
+        "atk": 10
       },
       "critChance": 0,
       "attackModule": "claw"
@@ -2401,19 +2807,20 @@
     "enemy_1": {
       "name": "远程小兵",
       "type": "grunt",
-      "useIcon": "grunt",
+      "useIcon": "pirate_cannon",
       "maxHp": 80,
       "atk": 15,
       "range": 4,
       "rate": 0.7,
       "speed": 0.6,
-      "weapon": "bow",
+      "weapon": "musket",
       "levelGrowth": {
         "maxHp": 10,
         "atk": 5
       },
       "critChance": 0,
-      "attackModule": "bow"
+      "attackModule": "musket",
+      "description": "可以进行远程攻击的敌人"
     },
     "pirate_cannon": {
       "name": "海盗火炮",
@@ -2447,13 +2854,14 @@
       "levelGrowth": {
         "maxHp": 0,
         "atk": 0
-      }
+      },
+      "description": "治疗友军的海盗"
     }
   },
   "days": [
     {
       "id": "wave_1",
-      "name": "“就占用你五分钟”",
+      "name": "新的一天",
       "desc": "加班小兵 · 从四个方向出现",
       "waves": [
         {
@@ -2481,7 +2889,7 @@
         {
           "id": "wave_2",
           "name": "新波次",
-          "startDelay": 2,
+          "startDelay": 5,
           "hpScale": 1,
           "atkScale": 1,
           "spawns": [
@@ -2857,7 +3265,7 @@
               "x": 0,
               "y": 5,
               "delay": 0,
-              "interval": 5.5,
+              "interval": 0.5,
               "enemies": [
                 {
                   "type": "grunt",
@@ -3161,7 +3569,7 @@
         {
           "id": "wave_2",
           "name": "新波次",
-          "startDelay": 2,
+          "startDelay": 5,
           "hpScale": 1,
           "atkScale": 1,
           "spawns": [
@@ -3178,7 +3586,7 @@
                 },
                 {
                   "type": "enemy_1",
-                  "count": 3,
+                  "count": 2,
                   "level": 2
                 }
               ]
@@ -3457,7 +3865,7 @@
         }
       ],
       "mines": [],
-      "rewardPool": "pool_wave_1",
+      "rewardPool": "pool_4",
       "kind": "battle",
       "next": [
         "day_1"
@@ -3506,7 +3914,7 @@
         {
           "id": "wave_2",
           "name": "新波次",
-          "startDelay": 2,
+          "startDelay": 5,
           "hpScale": 1,
           "atkScale": 1,
           "spawns": [
@@ -3518,7 +3926,7 @@
               "enemies": [
                 {
                   "type": "grunt",
-                  "count": 2,
+                  "count": 1,
                   "level": 2
                 },
                 {
@@ -3531,17 +3939,17 @@
             {
               "x": 14,
               "y": 5,
-              "delay": 4,
+              "delay": 7,
               "interval": 0.5,
               "enemies": [
                 {
                   "type": "grunt",
-                  "count": 4,
+                  "count": 2,
                   "level": 2
                 },
                 {
                   "type": "enemy_1",
-                  "count": 4,
+                  "count": 2,
                   "level": 2
                 }
               ]
@@ -3792,7 +4200,7 @@
         }
       ],
       "mines": [],
-      "rewardPool": "pool_wave_1",
+      "rewardPool": "pool_4",
       "kind": "battle",
       "next": [
         "day_2"
@@ -4129,7 +4537,11 @@
         "refreshCost": 1,
         "heroPackPrice": 3,
         "resourcePackPrice": 2,
-        "equipmentPackPrice": 3
+        "equipmentPackPrice": 3,
+        "useDefaults": true,
+        "heroPool": "pool_4",
+        "resourcePackPool": "",
+        "heroPackPool": "pool_4"
       }
     },
     {
@@ -4147,7 +4559,7 @@
             {
               "x": 0,
               "y": 5,
-              "delay": 0,
+              "delay": 4,
               "interval": 0.5,
               "enemies": [
                 {
@@ -4162,7 +4574,7 @@
         {
           "id": "wave_2",
           "name": "新波次",
-          "startDelay": 2,
+          "startDelay": 5,
           "hpScale": 1,
           "atkScale": 1,
           "spawns": [
@@ -4486,7 +4898,7 @@
         }
       ],
       "mines": [],
-      "rewardPool": "pool_wave_1",
+      "rewardPool": "pool_4",
       "kind": "battle",
       "next": [
         "day_4"
@@ -4511,8 +4923,21 @@
               "interval": 0.5,
               "enemies": [
                 {
+                  "type": "grunt",
+                  "count": 5,
+                  "level": 3
+                }
+              ]
+            },
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 5,
+              "interval": 0.5,
+              "enemies": [
+                {
                   "type": "runner",
-                  "count": 3,
+                  "count": 2,
                   "level": 3
                 },
                 {
@@ -4527,7 +4952,307 @@
         {
           "id": "wave_2",
           "name": "新波次",
-          "startDelay": 2,
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 10,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "runner",
+                  "count": 2,
+                  "level": 3
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 3
+                }
+              ]
+            },
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 2,
+                  "level": 3
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 3
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 7,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "y": 1
+        },
+        {
+          "x": 5,
+          "y": 1
+        },
+        {
+          "x": 6,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "y": 1
+        },
+        {
+          "x": 8,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "y": 1
+        },
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "y": 9
+        },
+        {
+          "x": 4,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 9
+        },
+        {
+          "x": 8,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 7,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_4",
+      "kind": "battle",
+      "next": [
+        "day_5"
+      ]
+    },
+    {
+      "id": "day_5",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
           "hpScale": 1,
           "atkScale": 1,
           "spawns": [
@@ -4538,13 +5263,30 @@
               "interval": 0.5,
               "enemies": [
                 {
-                  "type": "runner",
-                  "count": 3,
+                  "type": "tank",
+                  "count": 1,
                   "level": 3
-                },
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
                 {
-                  "type": "grunt",
-                  "count": 4,
+                  "type": "tank",
+                  "count": 1,
                   "level": 3
                 },
                 {
@@ -4858,6 +5600,3917 @@
       "mines": [],
       "rewardPool": "pool_wave_1",
       "kind": "battle",
+      "next": [
+        "day_6"
+      ]
+    },
+    {
+      "id": "day_6",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 2,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 4
+                }
+              ]
+            },
+            {
+              "x": 0,
+              "y": 8,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 4
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 2,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 4
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 4,
+                  "level": 4
+                }
+              ]
+            },
+            {
+              "x": 0,
+              "y": 8,
+              "delay": 10,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 4
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 4,
+                  "level": 4
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 7,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 2
+        },
+        {
+          "x": 14,
+          "y": 3
+        },
+        {
+          "x": 14,
+          "y": 8
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 7
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 7,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 5
+        },
+        {
+          "x": 0,
+          "y": 4
+        },
+        {
+          "x": 1,
+          "y": 4
+        },
+        {
+          "x": 2,
+          "y": 4
+        },
+        {
+          "x": 2,
+          "y": 5
+        },
+        {
+          "x": 1,
+          "y": 5
+        },
+        {
+          "x": 2,
+          "y": 6
+        },
+        {
+          "x": 1,
+          "y": 6
+        },
+        {
+          "x": 0,
+          "y": 6
+        },
+        {
+          "x": 3,
+          "y": 4
+        },
+        {
+          "x": 3,
+          "y": 5
+        },
+        {
+          "x": 3,
+          "y": 6
+        },
+        {
+          "x": 0,
+          "y": 5
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_wave_1",
+      "kind": "battle",
+      "next": [
+        "day_7"
+      ]
+    },
+    {
+      "id": "day_7",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 3,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 4,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 7,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "y": 1
+        },
+        {
+          "x": 5,
+          "y": 1
+        },
+        {
+          "x": 6,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "y": 1
+        },
+        {
+          "x": 8,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "y": 1
+        },
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 2
+        },
+        {
+          "x": 14,
+          "y": 3
+        },
+        {
+          "x": 14,
+          "y": 8
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 5
+        },
+        {
+          "x": 14,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 7
+        },
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "y": 9
+        },
+        {
+          "x": 4,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 9
+        },
+        {
+          "x": 8,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 7,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        },
+        {
+          "x": 13,
+          "y": 2
+        },
+        {
+          "x": 13,
+          "y": 3
+        },
+        {
+          "x": 13,
+          "y": 4
+        },
+        {
+          "x": 13,
+          "y": 5
+        },
+        {
+          "x": 13,
+          "y": 6
+        },
+        {
+          "x": 13,
+          "y": 7
+        },
+        {
+          "x": 13,
+          "y": 8
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_wave_1",
+      "kind": "shop",
+      "next": [
+        "day_8"
+      ],
+      "shop": {
+        "useDefaults": true,
+        "heroPool": "pool_1",
+        "heroPackPool": "pool_1"
+      }
+    },
+    {
+      "id": "day_8",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 5,
+                  "level": 5
+                }
+              ]
+            },
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 6,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 3,
+                  "level": 5
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 5
+                }
+              ]
+            },
+            {
+              "x": 0,
+              "y": 6,
+              "delay": 15,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "runner",
+                  "count": 2,
+                  "level": 5
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 2,
+                  "level": 5
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 4,
+                  "level": 5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_3",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 5,
+                  "level": 5
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 0,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "boss",
+                  "count": 1,
+                  "level": 5
+                }
+              ]
+            },
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 5,
+                  "level": 5
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "y": 1
+        },
+        {
+          "x": 5,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "y": 1
+        },
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "y": 9
+        },
+        {
+          "x": 4,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 9
+        },
+        {
+          "x": 8,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 7,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_1",
+      "kind": "battle",
+      "next": [
+        "day_9"
+      ]
+    },
+    {
+      "id": "day_9",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 5,
+                  "level": 10
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 10
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 4,
+                  "level": 10
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 3,
+                  "level": 10
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 10
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 7,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "y": 1
+        },
+        {
+          "x": 5,
+          "y": 1
+        },
+        {
+          "x": 6,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "y": 1
+        },
+        {
+          "x": 8,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "y": 1
+        },
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 2
+        },
+        {
+          "x": 14,
+          "y": 3
+        },
+        {
+          "x": 14,
+          "y": 8
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 5
+        },
+        {
+          "x": 14,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 7
+        },
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "y": 9
+        },
+        {
+          "x": 4,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 9
+        },
+        {
+          "x": 8,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 7,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        },
+        {
+          "x": 13,
+          "y": 2
+        },
+        {
+          "x": 13,
+          "y": 3
+        },
+        {
+          "x": 13,
+          "y": 4
+        },
+        {
+          "x": 13,
+          "y": 5
+        },
+        {
+          "x": 13,
+          "y": 6
+        },
+        {
+          "x": 13,
+          "y": 7
+        },
+        {
+          "x": 13,
+          "y": 8
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_2",
+      "kind": "battle",
+      "next": [
+        "day_10"
+      ]
+    },
+    {
+      "id": "day_10",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 8,
+                  "level": 15
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 4,
+                  "level": 15
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 15
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 7,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "y": 1
+        },
+        {
+          "x": 5,
+          "y": 1
+        },
+        {
+          "x": 6,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "y": 1
+        },
+        {
+          "x": 8,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "y": 1
+        },
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 2
+        },
+        {
+          "x": 14,
+          "y": 3
+        },
+        {
+          "x": 14,
+          "y": 8
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 5
+        },
+        {
+          "x": 14,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 7
+        },
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "y": 9
+        },
+        {
+          "x": 4,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 9
+        },
+        {
+          "x": 8,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 7,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        },
+        {
+          "x": 13,
+          "y": 2
+        },
+        {
+          "x": 13,
+          "y": 3
+        },
+        {
+          "x": 13,
+          "y": 4
+        },
+        {
+          "x": 13,
+          "y": 5
+        },
+        {
+          "x": 13,
+          "y": 6
+        },
+        {
+          "x": 13,
+          "y": 7
+        },
+        {
+          "x": 13,
+          "y": 8
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_2",
+      "kind": "battle",
+      "next": [
+        "day_11"
+      ]
+    },
+    {
+      "id": "day_11",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 2,
+                  "level": 15
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 15
+                }
+              ]
+            },
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 8,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "runner",
+                  "count": 2,
+                  "level": 15
+                },
+                {
+                  "type": "grunt",
+                  "count": 2,
+                  "level": 15
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 8,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 4,
+                  "level": 15
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 15
+                }
+              ]
+            },
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 15
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 15
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 7,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "y": 1
+        },
+        {
+          "x": 5,
+          "y": 1
+        },
+        {
+          "x": 6,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "y": 1
+        },
+        {
+          "x": 8,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "y": 1
+        },
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "y": 9
+        },
+        {
+          "x": 4,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 9
+        },
+        {
+          "x": 8,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 7,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_wave_1",
+      "kind": "battle",
+      "next": [
+        "day_12"
+      ]
+    },
+    {
+      "id": "day_12",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 3,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 4,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 7,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "y": 1
+        },
+        {
+          "x": 5,
+          "y": 1
+        },
+        {
+          "x": 6,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "y": 1
+        },
+        {
+          "x": 8,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "y": 1
+        },
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 2
+        },
+        {
+          "x": 14,
+          "y": 3
+        },
+        {
+          "x": 14,
+          "y": 8
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 5
+        },
+        {
+          "x": 14,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 7
+        },
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "y": 9
+        },
+        {
+          "x": 4,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 9
+        },
+        {
+          "x": 8,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 7,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        },
+        {
+          "x": 13,
+          "y": 2
+        },
+        {
+          "x": 13,
+          "y": 3
+        },
+        {
+          "x": 13,
+          "y": 4
+        },
+        {
+          "x": 13,
+          "y": 5
+        },
+        {
+          "x": 13,
+          "y": 6
+        },
+        {
+          "x": 13,
+          "y": 7
+        },
+        {
+          "x": 13,
+          "y": 8
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_wave_1",
+      "kind": "shop",
+      "next": [
+        "day_13"
+      ],
+      "shop": {
+        "useDefaults": true,
+        "heroPool": "pool_3",
+        "heroPackPool": "pool_3"
+      }
+    },
+    {
+      "id": "day_13",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 4,
+                  "level": 20
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 4,
+                  "level": 20
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "runner",
+                  "count": 4,
+                  "level": 200
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 4,
+                  "level": 20
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_3",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 2,
+                  "level": 20
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 3,
+                  "level": 20
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 7,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "y": 1
+        },
+        {
+          "x": 5,
+          "y": 1
+        },
+        {
+          "x": 6,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "y": 1
+        },
+        {
+          "x": 8,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "y": 1
+        },
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 2
+        },
+        {
+          "x": 14,
+          "y": 3
+        },
+        {
+          "x": 14,
+          "y": 8
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 5
+        },
+        {
+          "x": 14,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 7
+        },
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "y": 9
+        },
+        {
+          "x": 4,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 9
+        },
+        {
+          "x": 8,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 7,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        },
+        {
+          "x": 13,
+          "y": 2
+        },
+        {
+          "x": 13,
+          "y": 3
+        },
+        {
+          "x": 13,
+          "y": 4
+        },
+        {
+          "x": 13,
+          "y": 5
+        },
+        {
+          "x": 13,
+          "y": 6
+        },
+        {
+          "x": 13,
+          "y": 7
+        },
+        {
+          "x": 13,
+          "y": 8
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_wave_1",
+      "kind": "battle",
+      "next": [
+        "day_15"
+      ]
+    },
+    {
+      "id": "day_15",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 5,
+                  "level": 25
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 3,
+                  "level": 25
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 0,
+              "delay": 10,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 3,
+                  "level": 25
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 3,
+                  "level": 25
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 2,
+                  "level": 25
+                },
+                {
+                  "type": "grunt",
+                  "count": 3,
+                  "level": 25
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 0,
+              "delay": 8,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 25
+                },
+                {
+                  "type": "grunt",
+                  "count": 3,
+                  "level": 25
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 25
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 10,
+              "delay": 20,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 25
+                },
+                {
+                  "type": "tank",
+                  "count": 3,
+                  "level": 25
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_3",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 2,
+                  "level": 25
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 0,
+              "delay": 10,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 2,
+                  "level": 25
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 10,
+              "delay": 15,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 2,
+                  "level": 25
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 2
+        },
+        {
+          "x": 14,
+          "y": 3
+        },
+        {
+          "x": 14,
+          "y": 8
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 5
+        },
+        {
+          "x": 14,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 7
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 2
+        },
+        {
+          "x": 13,
+          "y": 3
+        },
+        {
+          "x": 13,
+          "y": 4
+        },
+        {
+          "x": 13,
+          "y": 5
+        },
+        {
+          "x": 13,
+          "y": 6
+        },
+        {
+          "x": 13,
+          "y": 7
+        },
+        {
+          "x": 13,
+          "y": 8
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 10
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_wave_1",
+      "kind": "battle",
+      "next": [
+        "day_16"
+      ]
+    },
+    {
+      "id": "day_16",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 2,
+                  "level": 30
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 0,
+              "delay": 10,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 1,
+                  "level": 30
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 30
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 4,
+                  "level": 30
+                },
+                {
+                  "type": "grunt",
+                  "count": 2,
+                  "level": 30
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 0,
+              "delay": 10,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 2,
+                  "level": 30
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 1,
+                  "level": 1
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 10,
+              "delay": 20,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 3,
+                  "level": 30
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 3,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_3",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 2,
+                  "level": 30
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 2,
+                  "level": 30
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 0,
+              "delay": 10,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 3,
+                  "level": 30
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 3,
+                  "level": 30
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 10,
+              "delay": 20,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 4,
+                  "level": 30
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 4,
+                  "level": 30
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 2
+        },
+        {
+          "x": 14,
+          "y": 3
+        },
+        {
+          "x": 14,
+          "y": 8
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 5
+        },
+        {
+          "x": 14,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 7
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 13,
+          "y": 2
+        },
+        {
+          "x": 13,
+          "y": 3
+        },
+        {
+          "x": 13,
+          "y": 4
+        },
+        {
+          "x": 13,
+          "y": 5
+        },
+        {
+          "x": 13,
+          "y": 6
+        },
+        {
+          "x": 13,
+          "y": 7
+        },
+        {
+          "x": 13,
+          "y": 8
+        },
+        {
+          "x": 13,
+          "y": 1
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_wave_1",
+      "kind": "battle",
+      "next": [
+        "day_17"
+      ]
+    },
+    {
+      "id": "day_17",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 3,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 4,
+                  "level": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 6,
+          "y": 0
+        },
+        {
+          "x": 7,
+          "y": 0
+        },
+        {
+          "x": 8,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 0
+        },
+        {
+          "x": 11,
+          "y": 0
+        },
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 13,
+          "y": 0
+        },
+        {
+          "x": 14,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "y": 1
+        },
+        {
+          "x": 5,
+          "y": 1
+        },
+        {
+          "x": 6,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "y": 1
+        },
+        {
+          "x": 8,
+          "y": 1
+        },
+        {
+          "x": 9,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "y": 1
+        },
+        {
+          "x": 12,
+          "y": 1
+        },
+        {
+          "x": 13,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 1
+        },
+        {
+          "x": 14,
+          "y": 2
+        },
+        {
+          "x": 14,
+          "y": 3
+        },
+        {
+          "x": 14,
+          "y": 8
+        },
+        {
+          "x": 14,
+          "y": 9
+        },
+        {
+          "x": 14,
+          "y": 10
+        },
+        {
+          "x": 14,
+          "y": 4
+        },
+        {
+          "x": 14,
+          "y": 5
+        },
+        {
+          "x": 14,
+          "y": 6
+        },
+        {
+          "x": 14,
+          "y": 7
+        },
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 1,
+          "y": 9
+        },
+        {
+          "x": 2,
+          "y": 9
+        },
+        {
+          "x": 3,
+          "y": 9
+        },
+        {
+          "x": 4,
+          "y": 9
+        },
+        {
+          "x": 5,
+          "y": 9
+        },
+        {
+          "x": 6,
+          "y": 9
+        },
+        {
+          "x": 7,
+          "y": 9
+        },
+        {
+          "x": 8,
+          "y": 9
+        },
+        {
+          "x": 9,
+          "y": 9
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 11,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 9
+        },
+        {
+          "x": 13,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "y": 10
+        },
+        {
+          "x": 11,
+          "y": 10
+        },
+        {
+          "x": 10,
+          "y": 10
+        },
+        {
+          "x": 0,
+          "y": 10
+        },
+        {
+          "x": 1,
+          "y": 10
+        },
+        {
+          "x": 2,
+          "y": 10
+        },
+        {
+          "x": 3,
+          "y": 10
+        },
+        {
+          "x": 4,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 6,
+          "y": 10
+        },
+        {
+          "x": 7,
+          "y": 10
+        },
+        {
+          "x": 8,
+          "y": 10
+        },
+        {
+          "x": 9,
+          "y": 10
+        },
+        {
+          "x": 13,
+          "y": 2
+        },
+        {
+          "x": 13,
+          "y": 3
+        },
+        {
+          "x": 13,
+          "y": 4
+        },
+        {
+          "x": 13,
+          "y": 5
+        },
+        {
+          "x": 13,
+          "y": 6
+        },
+        {
+          "x": 13,
+          "y": 7
+        },
+        {
+          "x": 13,
+          "y": 8
+        }
+      ],
+      "mines": [],
+      "rewardPool": "pool_wave_1",
+      "kind": "shop",
+      "next": [
+        "day_18"
+      ],
+      "shop": {
+        "useDefaults": true,
+        "heroPool": "pool_3",
+        "heroPackPool": "pool_3"
+      }
+    },
+    {
+      "id": "day_18",
+      "name": "新的一天",
+      "desc": "加班小兵 · 从四个方向出现",
+      "waves": [
+        {
+          "id": "wave_1",
+          "name": "第一波",
+          "startDelay": 0,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 8,
+                  "level": 35
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 0,
+              "delay": 10,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "grunt",
+                  "count": 8,
+                  "level": 35
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 5,
+                  "level": 35
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_2",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 3,
+                  "level": 35
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 0,
+              "delay": 10,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 5,
+                  "level": 35
+                }
+              ]
+            },
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 20,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "tank",
+                  "count": 5,
+                  "level": 35
+                },
+                {
+                  "type": "enemy_1",
+                  "count": 4,
+                  "level": 35
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave_3",
+          "name": "新波次",
+          "startDelay": 5,
+          "hpScale": 1,
+          "atkScale": 1,
+          "spawns": [
+            {
+              "x": 0,
+              "y": 5,
+              "delay": 0,
+              "interval": 0.5,
+              "enemies": [
+                {
+                  "type": "boss",
+                  "count": 1,
+                  "level": 40
+                }
+              ]
+            },
+            {
+              "x": 14,
+              "y": 5,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "boss",
+                  "count": 1,
+                  "level": 40
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 0,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "boss",
+                  "count": 1,
+                  "level": 40
+                }
+              ]
+            },
+            {
+              "x": 7,
+              "y": 10,
+              "delay": 0,
+              "interval": 1,
+              "enemies": [
+                {
+                  "type": "boss",
+                  "count": 1,
+                  "level": 40
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "obstacles": [],
+      "mines": [],
+      "rewardPool": "pool_wave_1",
+      "kind": "battle",
       "next": []
     }
   ],
@@ -4867,111 +9520,173 @@
     "pool_wave_1": {
       "name": "普通池",
       "cards": {
-        "coffee": 2,
-        "fireball": 2,
-        "lightning": 2,
-        "frost": 2,
+        "coffee": 1,
+        "fireball": 1,
+        "lightning": 1,
         "hero_green": 2,
-        "haste": 2,
-        "coin_purse": 2,
+        "haste": 1,
         "hero_blue": 2,
         "hero_12": 2,
-        "hero_13": 2,
-        "hero_9": 2,
+        "hero_13": 1,
+        "hero_9": 1,
         "hero_4": 2,
         "hero_5": 2,
         "hero_11": 2,
-        "hero_purple": 2,
-        "quiver": 2,
-        "guard": 2,
-        "hero_catgirl": 2,
-        "hero_1": 1,
-        "hero_6": 1
-      }
-    },
-    "pool_wave_2": {
-      "name": "“这个需求很简单”奖励池",
-      "cards": {
-        "training": 3,
-        "coffee": 2,
-        "fireball": 2,
-        "lightning": 2,
-        "frost": 1,
         "hero_purple": 1,
-        "vampire": 1,
-        "coin_purse": 1,
-        "war_drum": 1,
-        "level_swap": 1,
-        "legacy": 1,
-        "siphon": 1
-      }
-    },
-    "pool_wave_3": {
-      "name": "“下班前再改一版”奖励池",
-      "cards": {
-        "training": 3,
-        "coffee": 2,
-        "fireball": 2,
-        "lightning": 2,
-        "frost": 1,
-        "hero_blue": 1,
-        "arcane": 1,
-        "coin_purse": 1,
-        "war_drum": 1,
-        "level_swap": 1,
-        "legacy": 1,
-        "siphon": 1
-      }
-    },
-    "pool_wave_4": {
-      "name": "“大家再坚持一下”奖励池",
-      "cards": {
-        "training": 3,
-        "coffee": 2,
-        "fireball": 2,
-        "lightning": 2,
-        "frost": 1,
-        "hero_green": 1,
         "quiver": 1,
-        "coin_purse": 1,
-        "war_drum": 1,
-        "level_swap": 1,
-        "legacy": 1,
-        "siphon": 1
-      }
-    },
-    "pool_wave_5": {
-      "name": "“周末方便带电脑吗”奖励池",
-      "cards": {
-        "training": 3,
-        "coffee": 2,
-        "fireball": 2,
-        "lightning": 2,
-        "frost": 1,
-        "hero_purple": 1,
         "guard": 1,
-        "coin_purse": 1,
-        "war_drum": 1,
-        "level_swap": 1,
-        "legacy": 1,
-        "siphon": 1
+        "hero_catgirl": 2,
+        "frost": 1,
+        "hero_21": 1,
+        "legacy": 2,
+        "level_swap": 2,
+        "siphon": 2
       }
     },
-    "pool_wave_6": {
-      "name": "“周五临时需求”奖励池",
+    "pool_4": {
+      "name": "普通+少稀有池",
       "cards": {
-        "training": 3,
-        "coffee": 2,
-        "fireball": 2,
-        "lightning": 2,
-        "frost": 1,
-        "hero_blue": 1,
+        "coffee": 1,
+        "fireball": 1,
+        "lightning": 1,
+        "hero_green": 2,
         "haste": 1,
+        "hero_blue": 2,
+        "hero_12": 1,
+        "hero_13": 2,
+        "hero_9": 1,
+        "hero_4": 2,
+        "hero_5": 1,
+        "hero_11": 2,
+        "hero_purple": 2,
+        "quiver": 1,
+        "guard": 1,
+        "hero_catgirl": 2,
+        "hero_6": 3,
+        "hero_15": 2,
+        "hero_8": 2,
+        "hero_1": 4,
+        "hero_7": 2,
+        "frost": 1,
+        "arcane": 1,
+        "level_swap": 2,
+        "siphon": 2,
         "coin_purse": 1,
-        "war_drum": 1,
-        "level_swap": 1,
-        "legacy": 1,
-        "siphon": 1
+        "hero_16": 1,
+        "hero_17": 1,
+        "hero_21": 1,
+        "hero_22": 1,
+        "legacy": 2,
+        "hero_3": 1
+      }
+    },
+    "pool_1": {
+      "name": "普通+多稀有池",
+      "cards": {
+        "coffee": 1,
+        "fireball": 1,
+        "lightning": 1,
+        "hero_green": 1,
+        "haste": 1,
+        "hero_blue": 1,
+        "hero_12": 1,
+        "hero_13": 1,
+        "hero_9": 1,
+        "hero_4": 1,
+        "hero_5": 1,
+        "hero_11": 1,
+        "hero_purple": 1,
+        "quiver": 1,
+        "guard": 1,
+        "hero_catgirl": 1,
+        "hero_6": 3,
+        "hero_15": 3,
+        "hero_8": 1,
+        "hero_1": 3,
+        "hero_7": 3,
+        "frost": 1,
+        "arcane": 1,
+        "level_swap": 2,
+        "siphon": 2,
+        "coin_purse": 1,
+        "hero_16": 3,
+        "hero_17": 1,
+        "hero_21": 1,
+        "hero_22": 3,
+        "legacy": 2,
+        "hero_3": 2
+      }
+    },
+    "pool_2": {
+      "name": "多稀有+史诗池",
+      "cards": {
+        "coffee": 1,
+        "fireball": 1,
+        "lightning": 1,
+        "haste": 1,
+        "hero_13": 1,
+        "hero_9": 1,
+        "hero_11": 1,
+        "hero_purple": 1,
+        "quiver": 1,
+        "guard": 1,
+        "hero_catgirl": 1,
+        "hero_6": 3,
+        "hero_15": 3,
+        "hero_8": 1,
+        "hero_1": 3,
+        "hero_7": 3,
+        "frost": 1,
+        "arcane": 1,
+        "level_swap": 2,
+        "siphon": 2,
+        "coin_purse": 1,
+        "hero_16": 3,
+        "hero_17": 1,
+        "hero_21": 1,
+        "hero_22": 3,
+        "legacy": 2,
+        "hero_10": 3,
+        "hero_14": 1,
+        "hero_2": 3,
+        "hero_23": 1,
+        "hero_3": 2
+      }
+    },
+    "pool_3": {
+      "name": "多稀有+多史诗",
+      "cards": {
+        "coffee": 1,
+        "fireball": 1,
+        "lightning": 1,
+        "haste": 1,
+        "hero_13": 1,
+        "hero_9": 1,
+        "hero_11": 1,
+        "hero_purple": 1,
+        "quiver": 1,
+        "guard": 1,
+        "hero_catgirl": 1,
+        "hero_6": 3,
+        "hero_15": 3,
+        "hero_8": 1,
+        "hero_1": 3,
+        "hero_7": 3,
+        "frost": 1,
+        "arcane": 1,
+        "level_swap": 3,
+        "siphon": 2,
+        "coin_purse": 1,
+        "hero_16": 3,
+        "hero_17": 1,
+        "hero_21": 1,
+        "hero_22": 3,
+        "legacy": 3,
+        "hero_10": 4,
+        "hero_14": 4,
+        "hero_2": 4,
+        "hero_3": 1,
+        "hero_23": 4
       }
     }
   },
@@ -6313,5 +11028,6 @@
     }
   },
   "marineContentVersion": 1,
-  "startDayId": "wave_1"
+  "startDayId": "wave_1",
+  "combatContentVersion": 1
 }

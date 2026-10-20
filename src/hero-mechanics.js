@@ -46,7 +46,7 @@ export function addVictoryBonus(settlement, hero, amount) {
 }
 export function finishVictoryBonuses(settlement) {
   if (!settlement.bonuses?.length) return;
-  const start = Math.max(...settlement.coins.map(c=>c.at)) + .5;
+  const start = Math.max(2.3, ...settlement.coins.map(c=>c.at)) + .5;
   for (const bonus of settlement.bonuses) {
     const count = Math.min(5, bonus.amount);
     for (let i=0;i<count;i++) settlement.coins.push({

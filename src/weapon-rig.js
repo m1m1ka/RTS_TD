@@ -337,8 +337,8 @@ export class WeaponRig {
   }
   pose() {
     this.root.rotation.z = this.angle;
-    // Behind the body when aiming up; in front when aiming down. HP is a separate layer.
-    this.root.position.z = Math.sin(this.angle) > 0.3 ? 0.016 : 0.12;
+    // Keep the weapon above the sprite for every aiming direction, below the HP layer.
+    this.root.position.z = 0.12;
     const kick =
       this.spec.kick *
       Math.sin((Math.min(1, this.recoil / 0.24) * Math.PI) / 2);

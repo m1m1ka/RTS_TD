@@ -1,4 +1,4 @@
-import { heroRarityClass, heroGradeLabel } from "./hero-grades.js";
+import { heroRarityClass, heroRoleLabel, heroGradeLabel } from "./hero-grades.js";
 import { iconURL } from "./config/icons.js";
 import { escapeHTML as esc } from "./config/schema.js";
 import { cardTypes } from "./cards.js";
@@ -41,7 +41,7 @@ export class RewardUI {
     this.reset(); this.signature = signature;
     this.dialog.innerHTML = `<div class="reward-content"><header class="reward-heading"><h2>战利品</h2><p>三选一</p></header><div class="reward-draft">${this.game.rewardOptions.map((key, i) => {
       const card = this.game.config.cards[key];
-      return `<div class="reward-deal" style="--deal:${i}"><button class="hand-card reward-card ${card.category} ${heroRarityClass(card)}" data-reward="${i}" aria-pressed="false" aria-label="${esc(card.name)}：${esc(card.text)}"><strong class="card-title">${esc(card.name)}</strong><div class="card-picture"><img src="${iconURL(card.icon, true)}" alt="" draggable="false"></div><span class="card-kind">${heroGradeLabel(card) || cardTypes[card.category] + "牌"}</span><small class="card-description">${esc(card.text)}</small><span class="reward-tick">✓</span><span class="card-flourish">◆</span></button></div>`;
+      return `<div class="reward-deal" style="--deal:${i}"><button class="hand-card reward-card ${card.category} ${heroRarityClass(card)}" ${card.category === "hero" ? `data-hero-card="${key}"` : ""} data-reward="${i}" aria-pressed="false" aria-label="${esc(card.name)}：${esc(card.text)}"><strong class="card-title">${esc(card.name)}</strong><div class="card-picture">${card.category === "hero" ? '<b class="hero-card-level">Lv.1</b>' : ""}<img src="${iconURL(card.icon, true)}" alt="" draggable="false"></div><span class="card-kind">${heroRoleLabel(card) || cardTypes[card.category] + "牌"}</span><small class="card-description">${esc(card.text)}</small><span class="reward-tick">✓</span><span class="card-flourish">◆</span></button></div>`;
     }).join("")}</div><button data-reward-confirm disabled>收下 0 / 1</button></div>`;
     this.dialog.showModal();
     this.fit();

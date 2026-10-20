@@ -1,9 +1,9 @@
 import { fusionOptions, skillDefinition, skillEffectText } from "./skill-cards.js";
-import { heroRarityClass, heroGradeLabel } from "./hero-grades.js";
+import { heroRarityClass, heroRoleLabel, heroGradeLabel } from "./hero-grades.js";
 import { iconURL } from "./config/icons.js";
 import { escapeHTML as esc } from "./config/schema.js";
 import { cardTypes } from "./cards.js";
-import { categoryCards, packNames, shopPrices } from "./shop.js";
+import { categoryCards, packNames, shopPrices, heroShopPrice, sellableCards, sellShopCard } from "./shop.js";
 import "./shop.css";
 
 const packIcons = { hero: "blue", resource: "coin_purse", equipment: "guard" };
@@ -14,7 +14,9 @@ export class ShopUI {
     this.dialog.addEventListener("click", e => {
       const button = e.target.closest("button");
       if (!button || button.disabled || this.busy) return;
-      if (button.dataset.shopHero !== undefined) this.buyHero(Number(button.dataset.shopHero));
+      if (button.dataset.shopSell !== undefined) {
+        if (sellShopCard(game, button.dataset.shopSell, button.dataset.instance || "")) { this.signature = ""; this.update(); onChange(); }
+      } else if (button.dataset.shopHero !== undefined) this.buyHero(Number(button.dataset.shopHero));
       else if (button.dataset.shopPack !== undefined) this.openPack(Number(button.dataset.shopPack));
       else if (button.dataset.skillFuse) {
         if (game.fuseSkillCards(button.dataset.skillFuse, Number(button.dataset.tier))) { this.signature = ""; this.update(); onChange(); }
@@ -33,24 +35,32 @@ export class ShopUI {
   }
   card(key, attributes, extra = "") {
     const card = this.game.config.cards[key];
-    return `<button class="hand-card reward-card ${card.category} ${heroRarityClass(card)} ${extra}" ${attributes} aria-label="${esc(card.name)}：${esc(card.text)}"><strong class="card-title">${esc(card.name)}</strong><div class="card-picture"><img src="${iconURL(card.icon, true)}" alt="" draggable="false"></div><span class="card-kind">${heroGradeLabel(card) || cardTypes[card.category] + "牌"}</span><small class="card-description">${esc(card.text)}</small><span class="reward-tick">✓</span><span class="card-flourish">◆</span></button>`;
+    return `<button class="hand-card reward-card ${card.category} ${heroRarityClass(card)} ${extra}" ${attributes} ${card.category === "hero" ? `data-hero-card="${key}"` : ""} aria-label="${esc(card.name)}：${esc(card.text)}"><strong class="card-title">${esc(card.name)}</strong><div class="card-picture">${card.category === "hero" ? '<b class="hero-card-level">Lv.1</b>' : ""}<img src="${iconURL(card.icon, true)}" alt="" draggable="false"></div><span class="card-kind">${heroRoleLabel(card) || cardTypes[card.category] + "牌"}</span><small class="card-description">${esc(card.text)}</small><span class="reward-tick">✓</span><span class="card-flourish">◆</span></button>`;
   }
   update() {
     if (this.game.phase !== "shop") { if (this.dialog.open) this.reset(); return; }
     if (this.busy) return;
     const { shop, gold, config, day } = this.game, prices = shopPrices(this.game);
     const keys = [...shop.heroes, ...(shop.opening?.options || [])].filter(Boolean);
-    const fusions = fusionOptions(this.game);
-    const signature = JSON.stringify([fusions, fusions.map(g => config.cards[g.cardId]), shop, gold, prices, config.days[day].name, keys.map(k => config.cards[k])]);
+    const fusions = fusionOptions(this.game), sales = sellableCards(this.game);
+    const signature = JSON.stringify([sales, sales.map(r => config.cards[r.key]), fusions, fusions.map(g => config.cards[g.cardId]), shop, gold, prices, config.days[day].name, keys.map(k => config.cards[k])]);
     if (signature === this.signature && this.dialog.open) return;
     this.signature = signature; this.selected = -1;
     const header = `<header class="shop-heading"><div class="shop-sign"><span>${esc(config.days[day].name)}</span><h2>商店</h2></div><b class="shop-purse" aria-label="持有金币">◉ ${gold}</b></header>`;
     if (shop.opening) {
       this.dialog.innerHTML = header + `<div class="pack-reveal"><h3>${packNames[shop.opening.category]}</h3><p>三选一</p><div class="reward-draft pack-choices">${shop.opening.options.map((key,i) => `<div class="reward-deal" style="--deal:${i}">${this.card(key, `data-pack-choice="${i}" aria-pressed="false"`)}</div>`).join("")}</div><button class="shop-action" data-pack-claim disabled>收下这张</button></div>`;
     } else {
-      this.dialog.innerHTML = header + `<div class="shop-stock"><section class="shop-heroes"><div class="shop-section-heading"><h3>旅途伙伴</h3><button class="shop-action refresh-stock" data-shop-refresh ${gold < prices.refreshCost || !categoryCards(this.game,"hero").length ? "disabled" : ""}>↻ <span>◉ ${prices.refreshCost}</span></button></div><div class="shop-shelf">${shop.heroes.map((key,i) => `<article class="shop-item">${key && config.cards[key] ? this.card(key, `data-shop-hero="${i}" ${gold < prices.heroPrice ? "disabled" : ""}`, "shop-hero") + `<span class="shop-price">◉ ${prices.heroPrice}</span>` : '<div class="sold-slot"><span>✓</span>已招募</div>'}</article>`).join("")}</div></section><section class="shop-packs"><div class="shop-section-heading"><h3>封存卡包</h3><small>限购 · 三选一</small></div><div class="shop-shelf">${shop.packs.map((pack,i) => `<article class="shop-item">${pack.sold ? '<div class="sold-slot"><span>✧</span>已售罄</div>' : `<button class="booster ${pack.category}" data-shop-pack="${i}" aria-label="购买${packNames[pack.category]}，${prices[pack.category+"PackPrice"]}金币" ${gold < prices[pack.category+"PackPrice"] || !categoryCards(this.game,pack.category).length ? "disabled" : ""}><span class="booster-rays"></span><span class="booster-lid"></span><span class="booster-seal"><img src="${iconURL(packIcons[pack.category],true)}" alt=""></span><strong>${packNames[pack.category]}</strong><small>◆ Ⅲ ◆</small></button><span class="shop-price">◉ ${prices[pack.category+"PackPrice"]}</span>`}</article>`).join("")}</div></section></div>${this.fusionShelf(fusions)}<footer class="shop-footer"><button class="shop-action" data-shop-leave>继续旅程 →</button></footer>`;
+      this.dialog.innerHTML = header + `<div class="shop-stock"><section class="shop-heroes"><div class="shop-section-heading"><h3>旅途伙伴</h3><button class="shop-action refresh-stock" data-shop-refresh ${gold < prices.refreshCost || !categoryCards(this.game,"hero").length ? "disabled" : ""}>↻ <span>◉ ${prices.refreshCost}</span></button></div><div class="shop-shelf">${shop.heroes.map((key,i) => `<article class="shop-item">${key && config.cards[key] ? this.card(key, `data-shop-hero="${i}" ${gold < heroShopPrice(this.game, key) ? "disabled" : ""}`, "shop-hero") + `<span class="shop-price">◉ ${heroShopPrice(this.game, key)}</span>` : '<div class="sold-slot"><span>✓</span>已招募</div>'}</article>`).join("")}</div></section><section class="shop-packs"><div class="shop-section-heading"><h3>封存卡包</h3><small>限购 · 三选一</small></div><div class="shop-shelf">${shop.packs.map((pack,i) => `<article class="shop-item">${pack.sold ? '<div class="sold-slot"><span>✧</span>已售罄</div>' : `<button class="booster ${pack.category}" data-shop-pack="${i}" aria-label="购买${packNames[pack.category]}，${prices[pack.category+"PackPrice"]}金币" ${gold < prices[pack.category+"PackPrice"] || !categoryCards(this.game,pack.category).length ? "disabled" : ""}><span class="booster-rays"></span><span class="booster-lid"></span><span class="booster-seal"><img src="${iconURL(packIcons[pack.category],true)}" alt=""></span><strong>${packNames[pack.category]}</strong><small>◆ Ⅲ ◆</small></button><span class="shop-price">◉ ${prices[pack.category+"PackPrice"]}</span>`}</article>`).join("")}</div></section></div>${this.saleShelf(sales)}${this.fusionShelf(fusions)}<footer class="shop-footer"><button class="shop-action" data-shop-leave>继续旅程 →</button></footer>`;
     }
     if (!this.dialog.open) this.dialog.showModal();
+  }
+  saleShelf(rows) {
+    return `<section class="skill-forge shop-sales"><div class="shop-section-heading"><h3>出售卡牌</h3><small>每次出售一张 · 仅出售手中卡牌</small></div>${rows.length
+      ? `<div class="fusion-list">${rows.map(row => {
+        const card = this.game.config.cards[row.key];
+        return `<article class="fusion-recipe"><img src="${iconURL(card.icon,true)}" alt=""><div><strong>${esc(card.name)}${card.category === "hero" ? ` · ${heroGradeLabel(card)}` : ""}</strong><small>持有 ${row.count} 张${row.detail ? " · " + esc(row.detail) : ""}</small></div><button class="shop-action" data-shop-sell="${row.key}" data-instance="${row.instance}" aria-label="出售${esc(card.name)}，获得${row.price}金币">出售 +${row.price} ◉</button></article>`;
+      }).join("")}</div>`
+      : '<p class="fusion-empty">暂无可出售的卡牌。</p>'}</section>`;
   }
   fusionShelf(groups) {
     return '<section class="skill-forge"><div class="shop-section-heading"><h3>技能合成</h3><small>同名同阶 · 三合一 · 免费</small></div>' +

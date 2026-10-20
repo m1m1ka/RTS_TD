@@ -1,0 +1,31 @@
+import assert from "node:assert/strict";
+import { Game, MAX_DEPLOYED_HEROES } from "../src/game.js";
+import { DEFAULT_CONFIG } from "../src/config/defaults.js";
+const config = structuredClone(DEFAULT_CONFIG);
+config.days[0].obstacles=[]; config.days[0].mines=[];
+config.initial.cards={};
+for(let i=0;i<6;i++){
+  const key=`limit_hero_${i}`;
+  config.cards[key]={...structuredClone(config.cards.hero_blue),effects:[],triggerRules:[]};
+  config.initial.cards[key]=2;
+}
+const game=new Game(()=>{},config);
+assert.equal(MAX_DEPLOYED_HEROES,5);
+assert.equal(game.deployedHeroCount(),0);
+for(let i=0;i<5;i++)assert.ok(game.playCard(`limit_hero_${i}`,i+1,2));
+assert.equal(game.deployedHeroCount(),5);
+assert.equal(game.cardTarget("limit_hero_5",6,2).valid,false);
+assert.equal(game.playCard("limit_hero_5",6,2),false);
+assert.equal(game.cards.limit_hero_5,2);
+const level=game.heroes[0].level;
+assert.ok(game.playCard("limit_hero_0",1,2),"duplicate upgrades remain usable at capacity");
+assert.equal(game.heroes[0].level,level+3);
+game.heroes[1].hp=0;
+assert.equal(game.deployedHeroCount(),5);
+assert.equal(game.playCard("limit_hero_5",6,2),false,"dead heroes reserve revival capacity");
+game.heroes[1].destroyed=true;
+assert.equal(game.deployedHeroCount(),4);
+assert.ok(game.playCard("limit_hero_5",6,2));
+assert.equal(game.deployedHeroCount(),5);
+game.reset();assert.equal(game.deployedHeroCount(),0);
+console.log("PASS hero capacity: five slots, failed deployment preserves cards, upgrades, death, destruction and reset");

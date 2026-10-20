@@ -10,6 +10,8 @@ import { valueModes, statModes } from "../effect-values.js";
 import { generationDefaults, generationCategories } from "../card-generation.js";
 import { RESOURCE_CARDS, resourceEffectTypes } from "../resource-effects.js";
 import { SHOP_DEFAULTS } from "../shop.js";
+import { ECONOMY_DEFAULTS } from "../economy.js";
+import { HERO_TAGS } from "../hero-tags.js";
 import { campaignErrors } from "../campaign.js";
 import { migrateConfig } from "./migrate.js";
 import { triggerEvents, triggerScopes, triggerTargets, triggerEffects, cardPlayCategories, randomStatLabels } from "./trigger-rules.js";
@@ -80,7 +82,7 @@ export const effectTypes = {
   },
   heal: {
     label: "恢复生命",
-    categories: ["hero", "resource"],
+    categories: ["hero", "resource", "battle"],
     defaults: { value: 120 },
   },
   stat: {
@@ -203,7 +205,7 @@ export function validateConfig(c) {
           "critChance",
           "useIcon",
           "levelGrowth",
-        ].includes(key)
+        ].includes(key) && !(enemy && key === "description")
       )
         fail(p, `未知单位字段 ${key}`);
     enumeration(u.type, p + "外观", skins);
@@ -309,12 +311,20 @@ export function validateConfig(c) {
     for (const [rank, card] of rankedCards.entries()) {
     const p = label + (baseCard.category === "hero" ? ` ${rank} 阶` : "");
     str(card.name, p + "名称", 32);
+    if (card.tags !== undefined && (card.category !== "hero" || !Array.isArray(card.tags) ||
+        card.tags.length > Object.keys(HERO_TAGS).length || new Set(card.tags).size !== card.tags.length || card.tags.some(tag => !Object.hasOwn(HERO_TAGS, tag))))
+      fail(p, `英雄词条只能选择${Object.values(HERO_TAGS).join("、")}，且不能重复`);
     if (card.category === "hero") {
       enumeration(card.rarity, p + "品质", Object.keys(heroRarities));
       enumeration(card.role, p + "定位", Object.keys(heroRoles));
       enumeration(card.statSource, p + "数值来源", ["preset", "custom"]);
     }
     str(card.text, p + "描述", 180);
+    if (card.rankDescriptions !== undefined) {
+      if (!isObject(card.rankDescriptions)) fail(p, "分阶描述必须为对象");
+      else for (const [rank, text] of Object.entries(card.rankDescriptions))
+        if (!["0","1","2","3"].includes(rank) || typeof text !== "string" || text.length > 180) fail(p, "分阶描述须为 0～3 阶、不超过 180 字");
+    }
     if (card.temporary !== undefined && typeof card.temporary !== "boolean") fail(p, "临时牌开关必须为布尔值");
     enumeration(card.category, p + "类型", [
       "hero",
@@ -328,7 +338,7 @@ export function validateConfig(c) {
       {
         hero: ["ground"],
         resource: ["hero", "ground", "any"],
-        battle: ["enemy", "area"],
+        battle: ["enemy", "area", "hero"],
         equipment: ["hero"],
       }[card.category] || [],
     );
@@ -370,6 +380,10 @@ export function validateConfig(c) {
           enumeration(effect.type, rp + "效果", Object.keys(triggerEffects));
           if (effect.type === "randomStat") for (const stat of Object.keys(randomStatLabels))
             num(effect[stat], rp + randomStatLabels[stat], 0, ["lifeSteal", "critChance"].includes(stat) ? 100 : 100000);
+          if (effect.type === "resetBattleCooldown") {
+            num(effect.chance, rp + "重置冷却概率", 0, 100);
+            if (rule.trigger.event !== "cardPlayed") fail(rp, "重置战斗牌冷却需要搭配用牌触发时机");
+          }
           if (effect.type === "refundCard") {
             num(effect.chance, rp + "返还概率", 0, 100);
             if (rule.trigger.event !== "cardPlayed") fail(rp, "返还卡牌需要搭配用牌触发时机");
@@ -444,6 +458,8 @@ export function validateConfig(c) {
         }
         if (variant.target === "any" && !["gold", "generateCard"].includes(e.type))
           fail(ep, "战场任意位置仅支持获得金币和生成卡牌；其他效果请选择英雄或地面目标");
+        if (variant.category === "battle" && e.type === "heal" && variant.target !== "hero") fail(ep, "治疗战斗牌需要我方英雄目标");
+        if (variant.category === "battle" && ["damage", "slow"].includes(e.type) && variant.target === "hero") fail(ep, "伤害与减速需要敌方或范围目标");
         if (e.type === "level") num(e.value, ep, 1, 99, true);
         if (e.type === "generateCard") generatedCards(e, ep);
         if (e.type === "gold") num(e.value, ep + "金币", 1, 999, true);
@@ -492,6 +508,7 @@ export function validateConfig(c) {
       continue;
     }
     str(e.name, key + "名称", 32);
+    if (e.description !== undefined && (typeof e.description !== "string" || e.description.length > 180)) fail(key + "描述", "请填写不超过 180 字的文本");
     icon(e.useIcon, key + "图标");
     unit(e, "敌人 " + key, false, true);
   }
@@ -506,6 +523,10 @@ export function validateConfig(c) {
     }
   };
   num(c.initial.baseHp, "核心生命", 1, 1000000);
+  if (!isObject(c.initial.heroTagDescriptions)) fail("英雄词条", "缺少词条说明文案");
+  else for (const [tag, label] of Object.entries(HERO_TAGS)) str(c.initial.heroTagDescriptions[tag], label + "词条说明", 180);
+  if (!isObject(c.initial.economy)) fail("经济配置", "缺少商店和金币默认参数");
+  else for (const key of Object.keys(ECONOMY_DEFAULTS)) num(c.initial.economy[key], "经济配置 " + key, 0, 999, true);
   num(c.initial.firstWaveDelay, "每天第一波等待时间", 0, 3600);
   num(c.initial.boatSpeed, "船航行速度", .1, 20);
   num(c.initial.landingKnockback, "登岸击退距离", 0, 10, true);
@@ -542,7 +563,22 @@ export function validateConfig(c) {
     if (day.kind !== undefined) enumeration(day.kind, dp + "节点类型", ["battle", "shop"]);
     if (day.kind === "shop") {
       if (!isObject(day.shop)) fail(dp, "缺少商店价格配置");
-      else for (const key of Object.keys(SHOP_DEFAULTS)) num(day.shop[key], dp + "商店 " + key, 0, 999, true);
+      else {
+        for (const [key, category] of Object.entries({hero:"hero",heroPack:"hero",resourcePack:"resource",equipmentPack:"equipment"})) {
+          const poolId = day.shop[key + "Pool"];
+          if (poolId) {
+            const pool = c.rewardPools?.[poolId];
+            if (!pool || !Object.entries(pool.cards || {}).some(([id, weight]) => weight > 0 && c.cards[id]?.category === category)) fail(dp, "商店奖励池须存在且包含对应类别的有效卡牌");
+          }
+        }
+        if (day.shop.useDefaults !== undefined && typeof day.shop.useDefaults !== "boolean") fail(dp, "使用默认商店价格必须为布尔值");
+        for (const key of [...Object.keys(SHOP_DEFAULTS), "refreshIncrease"])
+          if (day.shop[key] !== undefined) num(day.shop[key], dp + "商店 " + key, 0, 999, true);
+        if (day.shop.heroPrices !== undefined) {
+          if (!isObject(day.shop.heroPrices)) fail(dp, "品质价格必须为对象");
+          else for (const rarity of ["common", "rare", "epic"]) num(day.shop.heroPrices[rarity], dp + "商店 " + rarity, 0, 999, true);
+        }
+      }
       if (!Array.isArray(day.waves)) fail(dp, "商店的 waves 应为空数组或保留的战斗配置");
       continue;
     }

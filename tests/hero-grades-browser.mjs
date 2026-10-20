@@ -30,8 +30,8 @@ try {
   await input("cards.hero_blue.rarity").selectOption("epic");
   await input("cards.hero_blue.role").selectOption("tank");
   assert.equal(await input("cards.hero_blue.unit.maxHp").inputValue(), "800");
-  assert.ok(await input("cards.hero_blue.unit.maxHp").isDisabled());
-  assert.ok(await input("cards.hero_blue.unit.levelGrowth.atk").isDisabled());
+  assert.ok(await input("cards.hero_blue.unit.maxHp").isEnabled());
+  assert.ok(await input("cards.hero_blue.unit.levelGrowth.atk").isEnabled());
   assert.match(await editor.locator("#card-preview .card-kind").innerText(), /史诗 · 坦克/);
   await editor.locator('[data-select="hero_green"]').click();
   await input("cards.hero_green.rarity").selectOption("rare");
@@ -60,7 +60,7 @@ try {
   for (const [id, rarity, label] of [["hero_blue", "epic", "史诗"], ["hero_green", "rare", "稀有"], ["hero_purple", "common", "普通"]]) {
     const card = game.locator(`[data-card="${id}"].rarity-${rarity}`);
     assert.match(await card.innerText(), new RegExp(label));
-    colors.push(await card.evaluate(el => getComputedStyle(el).backgroundColor));
+    colors.push(await card.evaluate(el => getComputedStyle(el).getPropertyValue("--face")));
   }
   assert.equal(new Set(colors).size, 3, "three visibly different card backgrounds");
   await game.locator('[data-card="hero_blue"]').focus();
@@ -75,8 +75,13 @@ try {
   await game.waitForFunction(() => window.__game.snapshot().heroes[0].maxHp === 1400);
 
   await editor.locator('[data-section="cards"]').click();
-  await input("cards.hero_blue.statSource").selectOption("custom");
   await input("cards.hero_blue.unit.maxHp").fill("1555");
+  assert.equal(await input("cards.hero_blue.statSource").inputValue(), "custom");
+  await input("cards.hero_blue.unit.levelGrowth.atk").fill("17");
+  await editor.locator("#save-config").click();
+  await editor.reload();
+  assert.equal(await input("cards.hero_blue.unit.maxHp").inputValue(), "1555");
+  assert.equal(await input("cards.hero_blue.unit.levelGrowth.atk").inputValue(), "17");
   await editor.locator('[data-section="initial"]').click();
   await editor.locator(".hero-stat-tier.rarity-epic summary").click();
   await input("initial.heroStatPresets.epic.tank.maxHp").fill("1600");
@@ -115,7 +120,7 @@ try {
     const fixture = { config, phase: "reward", rewardOptions: keys };
     const ui = new RewardUI(fixture, () => {});
     ui.update();
-    const reward = [...document.querySelectorAll("[data-reward]")].map(el => ({ className: el.className, color: getComputedStyle(el).backgroundColor }));
+    const reward = [...document.querySelectorAll("[data-reward]")].map(el => ({ className: el.className, color: getComputedStyle(el).getPropertyValue("--face") }));
     const shop = keys.map(key => ShopUI.prototype.card.call({ game: fixture }, key, ""));
     ui.reset();
     return { reward, shop };

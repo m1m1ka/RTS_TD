@@ -1,3 +1,4 @@
+import { redeployHeroes } from "./helpers/redeploy.mjs";
 import assert from "node:assert/strict";
 import { Game, dist } from "../src/game.js";
 import { DEFAULT_CONFIG } from "../src/config/defaults.js";
@@ -38,7 +39,9 @@ const create = (c = config()) => {
   g.config.cards.hero_green.triggerRules = structuredClone(g.config.cards.hero_blue.triggerRules);
   g.cards.hero_green=1; assert.ok(g.playCard("hero_green",5,5)); assert.equal(g.followers.length,1,"waiting/battle deployment has no preparation");
   g.phase="route"; const next=g.nextDays()[0]; assert.ok(g.chooseDay(next));
-  assert.equal(g.followers.length,2,"both retained heroes prepare for next battle node");
+  assert.equal(g.followers.length,0,"returning heroes wait for manual deployment before preparation");
+  redeployHeroes(g);
+  assert.equal(g.followers.length,2,"each redeployed hero prepares once");
   assert.ok(!g.followers.includes(f)); assert.equal(events.filter(e=>e.type==="heroPreparation").length,3);
   g.reset(); assert.equal(g.followers.length,0);
 }
@@ -47,12 +50,13 @@ const create = (c = config()) => {
   const {g,events}=create(c);g.phase="route";g.chooseDay(g.nextDays()[0]);
   assert.equal(g.phase,"shop");assert.equal(g.followers.length,0);
   assert.equal(events.filter(e=>e.type==="heroPreparation").length,1);
-  g.leaveShop();g.chooseDay(g.nextDays()[0]);assert.equal(g.followers.length,1);
+  g.leaveShop();g.chooseDay(g.nextDays()[0]);assert.equal(g.followers.length,0);
+  redeployHeroes(g);assert.equal(g.followers.length,1);
 }
 {
   const c=config(); c.cards.hero_blue.triggerRules=[rule([{type:"level",value:1},{...summon,count:4}])];
   const g=new Game(()=>{},c); g.obstacles.add("7,2");g.obstacles.add("8,3");g.obstacles.add("6,3");
-  g.playCard("hero_blue",7,3);assert.equal(g.heroes[0].level,2);assert.equal(g.followers.length,1);
+  g.playCard("hero_blue",7,3);assert.equal(g.heroes[0].level,2);assert.equal(g.followers.length,4);
   assert.equal(g.followers[0].y,4);assert.equal(g.followers[0].atk,Math.ceil(g.heroes[0].atk*.6));
   assert.equal(g.summonFollowers(g.followers[0],summon).length,0,"no clone recursion");
 }

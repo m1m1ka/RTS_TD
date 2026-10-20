@@ -28,6 +28,7 @@ try {
   }
   browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"].find(existsSync), headless: true, args: ["--enable-unsafe-swiftshader"] });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  context.setDefaultTimeout(15000);
   await context.addInitScript((config) => {
     if (!localStorage.getItem("friday-defense-config-v1")) localStorage.setItem("friday-defense-config-v1", JSON.stringify(config));
   }, c);
@@ -35,6 +36,30 @@ try {
   for (const page of [editor, game]) page.on("pageerror", e => errors.push(e.message));
   await editor.goto("http://127.0.0.1:5177/config.html");
   await editor.locator('[data-section="waves"]').click();
+  const edgeSelector = '[data-route-from="' + a.id + '"][data-route-to="' + b.id + '"]';
+  const edgePoint = await editor.locator(edgeSelector).evaluate(path => {
+    const p = path.getPointAtLength(path.getTotalLength()/2), m = path.getScreenCTM();
+    return {x:p.x*m.a+p.y*m.c+m.e,y:p.x*m.b+p.y*m.d+m.f};
+  });
+  const oldLeft = await editor.locator('[data-route-node="' + b.id + '"]').evaluate(n=>n.style.left);
+  await editor.mouse.click(edgePoint.x,edgePoint.y);
+  assert.equal(await editor.locator('.edge-selected').count(),1);
+  await editor.mouse.click(edgePoint.x,edgePoint.y,{button:"right"});
+  assert.equal(await editor.locator(edgeSelector).count(),0);
+  assert.equal(await editor.locator('[data-route-node="' + b.id + '"]').evaluate(n=>n.style.left),oldLeft);
+  await editor.locator("#save-config").click();
+  assert.ok((await editor.locator("#config-message").textContent()).includes("抵达"));
+  await editor.locator('[data-route-node="' + a.id + '"]').click({button:"right"});
+  assert.equal(await editor.locator('.link-target').count(),1);
+  await editor.locator('[data-route-node="' + end.id + '"]').click();
+  assert.ok((await editor.locator("#config-message").textContent()).includes("下一天"));
+  await editor.keyboard.press("Escape");
+  assert.equal(await editor.locator('.link-source').count(),0);
+  await editor.locator('[data-route-node="' + a.id + '"]').click({button:"right"});
+  await editor.locator('[data-route-node="' + b.id + '"]').click();
+  assert.equal(await editor.locator(edgeSelector).count(),1);
+  await editor.locator("#save-config").click();
+  assert.ok(!(await editor.locator("#config-message").getAttribute("class")).includes("error"));
   await editor.locator(`[data-next-day="${branch.id}"]`).check();
   await editor.locator(`[data-route-node="${b.id}"]`).click();
   await editor.locator(`[data-next-day="${branch.id}"]`).uncheck();
@@ -61,7 +86,11 @@ try {
   await game.evaluate(() => window.__game.clickCell(7, 3));
   await game.bringToFront();
   const finishDay = async () => {
-    assert.equal((await state()).heroes.length, 1, "formation persists across days");
+    if (!(await state()).heroes.length) {
+      await game.locator('[data-card="hero_blue"]').first().click();
+      await game.evaluate(() => window.__game.clickCell(7, 3));
+    }
+    assert.equal((await state()).heroes.length, 1, "deploy before each battle day");
     await game.locator("#start").click();
     await game.evaluate(() => window.__game.advance(9));
     await game.locator('[data-reward="0"]').click();
@@ -98,7 +127,10 @@ try {
   await game.locator("[data-route-depart]").click();
   assert.equal((await state()).day, 2);
   assert.equal((await state()).dayId, branch.id);
-  assert.equal((await state()).heroes.length, 1);
+  assert.equal((await state()).heroes.length, 0);
+  assert.equal((await state()).heroReserve[0].level, 2);
+  await game.locator('[data-card="hero_blue"]').first().click();
+  await game.evaluate(() => window.__game.clickCell(7, 3));
   assert.equal((await state()).heroes[0].level, 2);
   assert.deepEqual([(await state()).heroes[0].x, (await state()).heroes[0].y], [7,3]);
   assert.equal((await state()).heroes[0].hp, (await state()).heroes[0].maxHp);

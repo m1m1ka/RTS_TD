@@ -31,10 +31,16 @@
           </button>
         </div>
         <div class="resources-hud">
+          <div class="resource-counters">
           <div class="loot">
             <span class="gold-counter" title="金币"><i aria-hidden="true">Ⅰ</i> <b id="gold-total">0</b></span>
           </div>
+          <div class="loot hero-counter" title="已上场英雄／上限（阵亡英雄仍占名额）" aria-label="已上场英雄 0 名，上限 5 名">
+            <b id="hero-deployment-count">0/5</b>
+          </div>
+          </div>
           <div class="system-controls">
+            <button id="debug-toggle" class="rune" title="测试控制台 · F2" aria-label="打开测试控制台">⌘</button>
             <button id="route-toggle" class="rune" title="远征路线" aria-label="打开远征路线">⚑</button>
             <a
               href="/config.html"
@@ -65,8 +71,8 @@
             <div><dt id="unit-range-label">攻击距离</dt><dd><b id="unit-range"></b><small>格</small></dd></div>
             <div id="unit-crit-row"><dt>暴击率</dt><dd id="unit-crit"></dd></div>
           </dl>
-          <div id="unit-profile" class="unit-profile" hidden><span id="unit-role"></span><p id="unit-description"></p></div>
         </aside>
+        <aside id="unit-profile" class="unit-profile" aria-label="英雄等级与技能说明" hidden><span id="unit-role"></span><p id="unit-description"></p></aside>
         <div id="toast" role="status"></div>
         <div id="wave-banner"></div>
         <div id="map-hint" class="map-hint"></div>

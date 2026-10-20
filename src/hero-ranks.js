@@ -62,3 +62,7 @@ export function migrateHeroRanks(config) {
       if (card?.category === "hero") card.rankLevels ??= [...DEFAULT_HERO_RANK_LEVELS];
   return config;
 }
+
+export function heroRankDescription(card, rank = 0) {
+  return card?.rankDescriptions?.[rank]?.trim() || card?.text || "暂无英雄描述";
+}

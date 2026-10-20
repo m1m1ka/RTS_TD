@@ -18,7 +18,7 @@ export const weaponSpecs = {
     mount: 0.47,
     muzzle: 0.79,
     kick: 0.04,
-    splash: 0.55,
+    splash: 0,
   },
   coffeeCannon: {
     kind: "coffee",

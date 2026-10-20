@@ -1,3 +1,4 @@
+import { redeployHeroes } from "./helpers/redeploy.mjs";
 import assert from "node:assert/strict";
 import { Game } from "../src/game.js";
 import { DEFAULT_CONFIG } from "../src/config/defaults.js";
@@ -29,6 +30,7 @@ const clear = g => { g.spawnQueues.forEach(q => q.spawned = q.types.length); g.e
   assert.equal(a.reviveUsage.used, 2); kill(g,a); assert.equal(a.hp, 0, "wave changes do not replenish effect charges");
   g.wave = g.dayPlan.waves.length - 1; g.beginWave(); clear(g); g.tick(6);
   g.chooseReward([0]); assert.ok(g.chooseDay(g.nextDays()[0]));
+  redeployHeroes(g);
   kill(g,a); assert.ok(a.hp > 0); assert.equal(a.reviveUsage.used, 1, "new day starts a fresh allowance");
 }
 {

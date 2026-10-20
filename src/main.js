@@ -35,9 +35,12 @@ import { getAudioConfig, subscribeAudioConfig } from "./audio/store.js";
 import { RetroRenderer, installCabinetPattern } from "./retro-renderer.js";
 import "./retro-theme.css";
 import "./retro-hud.css";
+import { StartScreen } from "./start-screen.js";
+let startScreen;
 
 const audioStats = { counts: {}, last: null };
 const gameAudio = new SoundPlayer(getAudioConfig(), {
+  enabled: true,
   onError: message => toast(message),
   onPlayed: event => { audioStats.counts[event.key] = (audioStats.counts[event.key] || 0) + 1; audioStats.last = event; },
 });
@@ -142,6 +145,12 @@ const ocean = imagePlane(oceanTexture, 90, 60);
 const oceanMotion = new OceanMotion(ocean.material);
 ocean.position.z = -0.1;
 scene.add(ocean);
+// Share the actual battlefield water texture, material and motion uniform.
+const titleScene = new THREE.Scene();
+titleScene.background = scene.background;
+titleScene.add(ocean.clone());
+const titleCamera = new THREE.OrthographicCamera(-12, 12, 8, -8, .1, 100);
+titleCamera.position.z = 20;
 const shoreTexture = new THREE.CanvasTexture(shorelineArt());
 shoreTexture.colorSpace = THREE.SRGBColorSpace;
 const shore = imagePlane(shoreTexture, 16.4, 12.4);
@@ -191,7 +200,7 @@ let game,
   moveCells = new Set(),
   paused = false,
   speed = 1,
-  sound = false,
+  sound = true,
   toastTimer,
   bannerTimer,
   resultTimer,
@@ -306,6 +315,11 @@ function resize() {
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
   renderer.setSize(w, h, false);
+  titleCamera.left = -9 * w / h;
+  titleCamera.right = 9 * w / h;
+  titleCamera.top = 9;
+  titleCamera.bottom = -9;
+  titleCamera.updateProjectionMatrix();
   retroRenderer.resize(w, h);
 }
 new ResizeObserver(resize).observe(arena);
@@ -591,7 +605,8 @@ const enemyPreview = new EnemyPreviewUI(game, (x, y) => {
 $("base-avatar").src = artUrls.base;
 const cardUI = new CardUI({
   game,
-  canInteract: () => !paused && !document.getElementById("debug-console")?.open && !$("route-dialog").open && !["shop", "victory", "reward", "won", "lost", "route"].includes(game.phase),
+  canShowRewards: () => !startScreen?.blocking && !document.body.classList.contains("at-title"),
+  canInteract: () => !startScreen?.blocking && !paused && !document.getElementById("debug-console")?.open && !$("route-dialog").open && !["initialDraft", "shop", "victory", "reward", "won", "lost", "route"].includes(game.phase),
   onSelect: () => {
     rangeKey = "";
     uiTimer = 1;
@@ -602,7 +617,41 @@ const cardUI = new CardUI({
     return game.playCard(key, p.x, p.y, slot);
   },
 });
-const debugConsole = new DebugConsole(game, () => { cardUI.signature = ""; updateUI(); }, () => cardUI.cancel());
+const debugConsole = new DebugConsole(game, () => { cardUI.signature = ""; updateUI(); }, () => cardUI.cancel(), () => {
+  gameAudio.stop();
+  clearTimeout(resultTimer);
+  clearTimeout(bannerTimer);
+  $("wave-banner").classList.remove("visible");
+  $("route-dialog").close();
+  $("dialog").close();
+  shopUI.reset();
+  cardUI.reset();
+  goldVisuals.reset();
+  boatVisuals.reset();
+  combatVFX.reset();
+  for (const v of unitMeshes.values()) {
+    v.weapon?.dispose();
+    v.healthBar.dispose();
+    scene.remove(v.group);
+    v.group.children.forEach(m => m.material.dispose());
+  }
+  unitMeshes.clear();
+  for (const e of effects) {
+    scene.remove(e.m); e.m.material.dispose(); e.texture?.dispose();
+  }
+  effects.length = 0;
+  inspectedUnitId = null;
+  paused = false;
+  rangeKey = moveKey = pathKey = "";
+  for (const group of [rangeGroup, moveGroup, pathGroup, cardRange]) clearGroup(group);
+  hover.visible = false;
+  baseMotion.hitTimer = baseMotion.attack = 0;
+  baseSprite.position.copy(pos(7, 5, 1));
+  baseSprite.rotation.z = 0;
+  baseSprite.scale.set(1.65, 1.65, 1);
+  baseWhite.material.opacity = 0;
+  toast("已跳转关卡");
+});
 const cardRange = new THREE.Group();
 scene.add(cardRange);
 function previewCard(e) {
@@ -682,6 +731,7 @@ function updateTerrain() {
   rangeKey = moveKey = pathKey = "";
 }
 function updateUI() {
+  if (startScreen?.blocking) return;
   routeMap.update();
   shopUI.update();
   updateTerrain();
@@ -693,28 +743,11 @@ function updateUI() {
   $("start").disabled = !["ready", "between"].includes(game.phase) || paused;
   $("start-label").textContent =
     "⚑ 迎战";
-  $("pause").textContent = paused ? "▶" : "Ⅱ";
-  $("speed").textContent = speed + "×";
   const c = game.cardDefinition(cardUI.activeKey, cardUI.activeSlot);
   $("map-hint").textContent =
     paused && !$("dialog").open
       ? "Ⅱ 暂停"
-      : c
-        ? c.name +
-          " · " +
-          (c.category === "hero"
-            ? (game.heroes.some(h => h.cardId === cardUI.activeKey && !h.destroyed) ? "对同名存活英雄使用 · 等级 +3" : "放置到空地 · 同名英雄限上场一名")
-            : c.target === "hero"
-            ? "选择我方英雄"
-            : c.target === "any"
-              ? "拖到战场"
-              : c.target === "ground"
-              ? "放置到空地"
-              : "选择敌人") +
-          " · Esc 取消"
-        : game.phase === "shop" ? "" : !game.heroes.length
-          ? "拖入英雄 · 守护美人鱼"
-          : "";
+      : "";
   $("map-hint").classList.toggle("paused", paused && !$("dialog").open);
   cardUI.render();
 }
@@ -884,7 +917,8 @@ function cellFromEvent(e) {
   return { x: Math.round(v.x + 7), y: Math.round(5 - v.y) };
 }
 function clickCell(x, y) {
-  if (["shop", "victory", "won", "lost", "reward", "route"].includes(game.phase) || $("route-dialog").open) return;
+  if (startScreen?.blocking) return;
+  if (["initialDraft", "shop", "victory", "won", "lost", "reward", "route"].includes(game.phase) || $("route-dialog").open) return;
   if (!inside(x, y)) { if (cardUI.activeKey) { cardUI.cancel(); updateUI(); } return; }
   if (cardUI.activeKey) {
     if (paused) return;
@@ -1041,19 +1075,31 @@ $("start").onclick = () => {
   game.startDay();
   updateUI();
 };
-$("pause").onclick = togglePause;
-$("speed").onclick = () => {
-  speed = speed === 1 ? 2 : 1;
-  updateUI();
-};
+
+
 $("sound").onclick = () => {
   sound = !sound;
   gameAudio.setEnabled(sound);
+  $("sound").setAttribute("aria-pressed", String(sound));
   $("sound").innerHTML = sound ? "♫" : '♫<span class="sound-slash">/</span>';
   $("sound").setAttribute("aria-label", sound ? "关闭声音" : "开启声音");
   $("sound").title = sound ? "关闭声音" : "开启声音";
   tone(600, 0.1);
 };
+function syncFullscreen(active) {
+  $("fullscreen").setAttribute("aria-pressed", String(active));
+  $("fullscreen").title = active ? "退出全屏" : "全屏";
+  $("fullscreen").setAttribute("aria-label", $("fullscreen").title);
+}
+$("fullscreen").onclick = async () => {
+  try {
+    if (window.cardHeroes) syncFullscreen(await window.cardHeroes.toggleFullscreen());
+    else if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch { toast("无法切换全屏"); }
+};
+document.addEventListener("fullscreenchange", () => syncFullscreen(!!document.fullscreenElement));
+window.cardHeroes?.onFullscreen(syncFullscreen);
 document.addEventListener("keydown", (e) => {
   if (debugConsole.dialog.open || $("dialog").open || $("route-dialog").open || $("shop-dialog").open || $("reward-dialog").open) return;
   if (
@@ -1108,7 +1154,7 @@ $("dialog").addEventListener("cancel", (e) => {
   e.preventDefault();
   closeDialog();
 });
-$("help").onclick = () =>
+const showHelp = () =>
   openDialog(
     `<h2>操作</h2><div class="help-row"><b>1–9</b><span>选择英雄</span></div><div class="help-row"><b>点击地面 / WASD</b><span>移动 · 自动攻击</span></div><div class="help-row"><b>滚轮 / 双指</b><span>缩放</span></div><div class="help-row"><b>拖动 / 0</b><span>移动视野 / 全图</span></div><div class="help-row"><b>拖拽卡牌</b><span>英雄放空地 · 资源与装备给英雄</span></div><div class="help-row"><b>战斗牌 / Esc</b><span>攻击敌人 / 取消选牌</span></div><div class="help-row"><b>空格</b><span>暂停</span></div><button class="primary-button" id="understood">继续</button>`,
   );
@@ -1119,7 +1165,7 @@ $("dialog-content").addEventListener("click", (e) => {
     reset();
   }
 });
-$("restart").onclick = () =>
+const showRestart = () =>
   openDialog(
     `<div class="result-icon">↻</div><h2>重新开局？</h2><button class="primary-button" id="confirm-restart">重开</button>`,
   );
@@ -1178,8 +1224,8 @@ function animate(now) {
   const realDt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
   wallTime += realDt;
-  const dt = paused || debugConsole.dialog.open || ["shop", "reward", "route"].includes(game.phase) || $("route-dialog").open ? 0 : realDt * speed;
-  if (!reducedOceanMotion.matches) oceanMotion.update(dt);
+  const dt = startScreen?.blocking || paused || debugConsole.dialog.open || ["initialDraft", "shop", "reward", "route"].includes(game.phase) || $("route-dialog").open ? 0 : realDt * speed;
+  if (!reducedOceanMotion.matches) oceanMotion.update(startScreen?.showingOcean ? realDt : dt);
   if (dt) {
     let left = dt;
     while (left > 0) {
@@ -1194,7 +1240,7 @@ function animate(now) {
   enemyPreview.update(realDt);
   $("gold-total").textContent = game.gold;
   const heroCount = game.deployedHeroCount();
-  const heroCountLabel = heroCount + "/" + MAX_DEPLOYED_HEROES;
+  const heroCountLabel = `上场英雄 ${heroCount}/${MAX_DEPLOYED_HEROES}`;
   if ($("hero-deployment-count").textContent !== heroCountLabel) {
     $("hero-deployment-count").textContent = heroCountLabel;
     $("hero-deployment-count").parentElement.setAttribute("aria-label", heroCountLabel);
@@ -1301,7 +1347,7 @@ function animate(now) {
     updateUI();
   }
   frame++;
-  retroRenderer.render(scene, camera);
+  retroRenderer.render(startScreen?.showingOcean ? titleScene : scene, startScreen?.showingOcean ? titleCamera : camera);
 }
 subscribeConfig((config, mode) => {
   cardUI.cancel();
@@ -1320,6 +1366,7 @@ subscribeConfig((config, mode) => {
   }
 });
 if (configLoadError) toast(configLoadError);
+startScreen = new StartScreen({ icons: artUrls, onReveal: updateTerrain, onStart: updateUI });
 updateUI();
 resize();
 requestAnimationFrame(animate);
@@ -1327,6 +1374,7 @@ if (import.meta.env.DEV)
   window.__game = {
     snapshot: () => ({
       ...game.snapshot(),
+      startScreen: startScreen.state,
       audio: { enabled: sound, counts: { ...audioStats.counts }, last: audioStats.last, voices: gameAudio.voices.size },
       paused,
       speed,

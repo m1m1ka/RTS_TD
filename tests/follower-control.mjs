@@ -4,9 +4,11 @@ import { DEFAULT_CONFIG } from "../src/config/defaults.js";
 import { withinFollowerArea, FOLLOW_DELAY } from "../src/followers.js";
 const setup = (count=1) => {
   const c=structuredClone(DEFAULT_CONFIG);
+  c.initial.cards = { hero_blue: 1 };
   for(const day of c.days){day.obstacles=[];day.mines=[];}
   for(const card of Object.values(c.cards))if(card.category==="hero")card.triggerRules=[];
   const events=[];let g;g=new Game(e=>events.push({...e,at:g?.time??0}),c);
+  g.chooseInitialHand([0, 1]);
   g.playCard("hero_blue",4,4);const h=g.heroes[0];
   g.summonFollowers(h,{count,hpPercent:50,atkPercent:50});
   return {g,h,f:g.followers[0],events};

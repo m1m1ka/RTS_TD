@@ -9,6 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "node tests/engine.mjs && node tests/config.mjs && node tests/waves.mjs && node tests/triggers.mjs && node tests/terrain.mjs && node tests/routes.mjs && node tests/gold.mjs && node tests/critical.mjs && node tests/effect-values.mjs && node tests/card-generation.mjs && node tests/rewards.mjs && node tests/shop.mjs && node tests/preparation.mjs && node tests/audio.mjs && node tests/attack-modules.mjs && node tests/follower-control.mjs && node tests/preparation-echo.mjs && node tests/friendly-movement.mjs && node tests/source-buffs.mjs && node tests/attack-range.mjs && node tests/lifecycle-triggers.mjs && node tests/revive.mjs && node tests/sacrifice-listeners.mjs && node tests/workshop.mjs && node tests/healing.mjs && node tests/hero-mechanics.mjs && node tests/death-sacrifice.mjs && node tests/hero-grades.mjs && node tests/hero-duplicates.mjs && node tests/map-presets.mjs && node tests/card-play-triggers.mjs && node tests/marine.mjs && node tests/sea-arrivals.mjs && node tests/skill-cards.mjs && node tests/enemy-mechanics.mjs && node tests/retaliation.mjs && node tests/hero-ranks.mjs && node tests/daily-deployment.mjs && node tests/economy.mjs && node tests/hero-tags.mjs && node tests/enemy-preview.mjs && node tests/card-selling.mjs && node tests/hero-deployment-limit.mjs && node tests/debug-actions.mjs && node tests/combat-content.mjs && node tests/profile-shop-pools.mjs",
     "test:browser": "node tests/smoke.mjs",
+    "test:start-screen": "node tests/start-screen-browser.mjs",
+    "test:initial-hand": "node tests/initial-hand.mjs && node tests/initial-hand-browser.mjs",
     "test:config": "node tests/config-browser.mjs",
     "test:routes": "node tests/routes-browser.mjs",
     "test:gold": "node tests/gold-browser.mjs",
@@ -43,13 +45,43 @@
     "test:card-interactions": "node tests/card-interactions-browser.mjs",
     "test:debug": "node tests/debug-console-browser.mjs",
     "test:combat-content": "node tests/combat-content-browser.mjs",
-    "test:profile-shop": "node tests/profile-shop-browser.mjs"
+    "test:profile-shop": "node tests/profile-shop-browser.mjs",
+    "package:win": "npm run build && node scripts/app-icon.mjs && electron-builder --win portable --x64",
+    "test:desktop": "node tests/desktop.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
     "three": "^0.180.0"
   },
   "devDependencies": {
-    "vite": "^7.1.7",
-    "@playwright/test": "^1.56.0"
+    "@capacitor/cli": "^8.5.3",
+    "@playwright/test": "^1.56.0",
+    "electron": "^44.9.2",
+    "electron-builder": "^26.15.3",
+    "vite": "^7.1.7"
+  },
+  "main": "desktop/main.cjs",
+  "build": {
+    "appId": "com.cardheroes.game",
+    "productName": "卡片勇者",
+    "files": [
+      "dist/**/*",
+      "desktop/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release/final"
+    },
+    "win": {
+      "icon": "desktop/icon.ico",
+      "target": [
+        "portable"
+      ]
+    },
+    "portable": {
+      "artifactName": "${productName}.exe"
+    },
+    "electronDist": "node_modules/electron/dist"
   }
 }

@@ -7,12 +7,28 @@
       content="width=device-width,initial-scale=1,viewport-fit=cover"
     />
     <meta name="theme-color" content="#101018" />
-    <title>周五保卫战</title>
+    <title>卡片勇者</title>
     <link rel="icon" href="data:," />
   </head>
-  <body>
+  <body class="at-title">
     <main id="app">
       <div id="arena" class="arena"><div class="map-vignette"></div></div>
+      <section id="start-screen" class="start-screen" aria-label="卡片勇者主菜单">
+        <div class="title-emblem">
+          <span class="title-spark one" aria-hidden="true">✦</span>
+          <h1 aria-label="卡片勇者"><span aria-hidden="true">卡</span><span aria-hidden="true">片</span><span aria-hidden="true">勇</span><span aria-hidden="true">者</span></h1>
+          <img class="menu-portrait menu-mermaid" data-menu-icon="base" alt="美人鱼" draggable="false" />
+          <img class="menu-portrait menu-hero-blue" data-menu-icon="blue" alt="" draggable="false" />
+          <img class="menu-portrait menu-hero-green" data-menu-icon="green" alt="" draggable="false" />
+          <img class="menu-portrait menu-hero-purple" data-menu-icon="purple" alt="" draggable="false" />
+          <span class="title-spark two" aria-hidden="true">✧</span>
+        </div>
+        <div class="title-actions">
+          <button id="new-game" type="button">开始游戏</button>
+          <button id="exit-game" type="button">退出游戏</button>
+          <p id="menu-status" role="status"></p>
+        </div>
+      </section>
       <div class="hud">
         <div class="core-hud" title="守护美人鱼">
           <img id="base-avatar" alt="美人鱼" />
@@ -35,28 +51,13 @@
           <div class="loot">
             <span class="gold-counter" title="金币"><i aria-hidden="true">Ⅰ</i> <b id="gold-total">0</b></span>
           </div>
-          <div class="loot hero-counter" title="已上场英雄／上限（阵亡英雄仍占名额）" aria-label="已上场英雄 0 名，上限 5 名">
-            <b id="hero-deployment-count">0/5</b>
+          <div class="loot hero-counter" title="已上场英雄／上限（阵亡英雄仍占名额）" aria-label="已上场英雄 0 名，上限 6 名">
+            <b id="hero-deployment-count">上场英雄 0/6</b>
           </div>
           </div>
           <div class="system-controls">
-            <button id="debug-toggle" class="rune" title="测试控制台 · F2" aria-label="打开测试控制台">⌘</button>
-            <button id="route-toggle" class="rune" title="远征路线" aria-label="打开远征路线">⚑</button>
-            <a
-              href="/config.html"
-              target="_blank"
-              rel="noopener"
-              class="rune config-link"
-              title="游戏配置"
-              aria-label="打开游戏配置"
-              >⚙</a
-            >
-            <button id="speed" class="rune" title="倍速">1×</button
-            ><button id="sound" class="rune" title="声音">
-              ♫<span class="sound-slash">/</span></button
-            ><button id="help" class="rune" title="操作">?</button
-            ><button id="restart" class="rune" title="重开">↻</button
-            ><button id="pause" class="rune" title="暂停 · 空格">Ⅱ</button>
+            <button id="sound" class="rune" title="关闭声音" aria-label="关闭声音" aria-pressed="true">♫</button>
+            <button id="fullscreen" class="rune" title="全屏" aria-label="全屏" aria-pressed="false">⛶</button>
           </div>
         </div>
         <aside id="unit-inspector" class="unit-inspector" aria-label="选中单位属性" hidden>
@@ -89,6 +90,7 @@
         </section>
       </div>
     </main>
+    <div id="scene-transition" aria-hidden="true" hidden></div>
     <dialog id="reward-dialog" aria-label="卡牌奖励五选二"></dialog>
     <dialog id="route-dialog" aria-label="选择关卡路线"></dialog>
     <dialog id="shop-dialog" aria-label="林间商店"></dialog>

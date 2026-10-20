@@ -1,9 +1,19 @@
+import { isHealer, healingDefaults } from "./healing-behavior.js";
+
 // The existing base attributes are the values at level 1.
 export function levelStats(spec, level = 1, fallbackGrowth = {}) {
   const steps = Math.max(0, level - 1);
-  return Object.fromEntries(["maxHp", "atk"].map((key) => [
+  const stats = Object.fromEntries(["maxHp", "atk"].map((key) => [
     key, spec[key] + (spec.levelGrowth?.[key] ?? fallbackGrowth[key] ?? 0) * steps,
   ]));
+  if (isHealer(spec)) {
+    const healing = structuredClone(spec.healing || healingDefaults);
+    healing.value += (spec.levelGrowth?.atk ?? fallbackGrowth.atk ?? 0) * steps;
+    if (healing.valueMode === "percent") healing.value = Math.min(100, healing.value);
+    stats.atk = spec.atk;
+    stats.healing = healing;
+  }
+  return stats;
 }
 
 export function migrateLevelGrowth(config) {

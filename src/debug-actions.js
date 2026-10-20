@@ -14,3 +14,20 @@ export function debugLevelHero(game, id, levels) {
   game.emit("upgrade", { unit: hero, levels });
   return true;
 }
+
+export function debugJumpToDay(game, id) {
+  if (!game.config.days.some(day => day.id === id)) return false;
+  game.rewardOptions = [];
+  game.initialHandOptions = [];
+  game.initialDraftVersion++;
+  game.completedDays = [];
+  game.routeHistory = [];
+  game.baseHp = game.baseMaxHp;
+  game.heroTriggers.timers.clear();
+  for (const hero of [...game.heroes, ...game.heroReserve, ...game.towers]) {
+    delete hero.preparedDayId;
+    delete hero.reviveUsage;
+    hero.cardPlayCounts = {};
+  }
+  return game.enterDay(id);
+}

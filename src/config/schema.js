@@ -533,14 +533,14 @@ export function validateConfig(c) {
   // Retain the legacy field for existing configuration files; waves no longer heal.
   if (c.initial.waveHeal !== undefined) num(c.initial.waveHeal, "旧版波后治疗比例（不再生效）", 0, 1);
   num(c.initial.reviveHp, "复活血量比例", 0.01, 1);
-  inventory(c.initial.cards, "初始手牌");
+  inventory(c.initial.cards, "初始手牌池");
   if (
     isObject(c.initial.cards) &&
     !Object.entries(c.initial.cards).some(
       ([k, n]) => n > 0 && c.cards[k]?.category === "hero",
     )
   )
-    fail("初始手牌", "至少需要一张英雄牌");
+    fail("初始手牌池", "至少需要一种权重大于 0 的英雄牌");
   if (!isObject(c.initial.levelGrowth)) fail("升级成长", "缺少配置");
   else
     for (const key of ["maxHp", "atk", "heal"])

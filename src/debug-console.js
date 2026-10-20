@@ -1,10 +1,10 @@
-import { debugGenerateCard, debugLevelHero } from "./debug-actions.js";
+import { debugGenerateCard, debugLevelHero, debugJumpToDay } from "./debug-actions.js";
 import { escapeHTML as esc } from "./config/schema.js";
 import { cardTypes } from "./cards.js";
 import "./debug-console.css";
 
 export class DebugConsole {
-  constructor(game, onChange, onOpen) {
+  constructor(game, onChange, onOpen, onJump = () => {}) {
     Object.assign(this, { game, onChange, onOpen });
     this.dialog = document.createElement("dialog");
     this.dialog.id = "debug-console";
@@ -17,6 +17,9 @@ export class DebugConsole {
       <section><h3>英雄升级</h3><label>已部署英雄<select id="debug-hero"></select></label>
         <label>提升等级<input id="debug-levels" type="number" min="1" max="999" step="1" value="1"></label>
         <button type="button" data-debug-level>提升等级</button></section>
+      <section><h3>跳转关卡</h3><label>指定关卡<select id="debug-day"></select></label>
+        <button type="button" data-debug-jump>跳转到此关</button>
+        <p class="debug-note">保留金币、手牌和英雄成长；重置当前战斗，不发放跳过关卡的奖励。</p></section>
       <section><h3>CRT 画面</h3>
         <label>扫描线密度（每 100 像素）<output id="debug-density-value">33.3</output><input id="debug-density" type="range" min="5" max="50" step=".1" value="33.3"></label>
         <label>扫描线宽度（像素）<output id="debug-width-value">1</output><input id="debug-width" type="range" min=".1" max="3" step=".1" value="1"></label>
@@ -24,12 +27,17 @@ export class DebugConsole {
         <button type="button" data-debug-reset-crt>恢复默认画面</button></section>
       <p id="debug-result" role="status"></p>`;
     document.body.append(this.dialog);
-    document.getElementById("debug-toggle").addEventListener("click", () => this.toggle());
+    document.getElementById("debug-toggle")?.addEventListener("click", () => this.toggle());
     document.addEventListener("keydown", e => {
       if (e.code !== "F2") return;
       e.preventDefault(); this.toggle();
     }, true);
     this.dialog.addEventListener("click", e => {
+      if (e.target.closest("[data-debug-jump]")) {
+        if (debugJumpToDay(game, this.$("debug-day").value)) {
+          this.dialog.close(); onJump(); onChange();
+        } else this.result("关卡不存在，请重新选择。");
+      }
       if (e.target.closest("[data-debug-close]")) this.dialog.close();
       if (e.target.closest("[data-debug-generate]")) {
         const key = this.$("debug-card").value;
@@ -64,6 +72,9 @@ export class DebugConsole {
   result(text) { this.$("debug-result").textContent = text; }
   updateLabels() { for (const key of ["density","width","opacity"]) this.$(`debug-${key}-value`).textContent = this.$("debug-"+key).value; }
   refresh() {
+    const day = this.$("debug-day");
+    day.innerHTML = this.game.config.days.map((d, i) => `<option value="${esc(d.id)}">${i + 1} · ${d.kind === "shop" ? "商店" : "战斗"} · ${esc(d.name || d.id)} (${esc(d.id)})</option>`).join("");
+    day.value = this.game.config.days[this.game.day].id;
     const card = this.$("debug-card"), hero = this.$("debug-hero"), oldCard = card.value, oldHero = hero.value;
     card.innerHTML = Object.entries(this.game.config.cards).map(([key,c]) => `<option value="${esc(key)}">${esc(c.name)} · ${cardTypes[c.category]} · ${esc(key)}</option>`).join("");
     if (this.game.config.cards[oldCard]) card.value = oldCard;

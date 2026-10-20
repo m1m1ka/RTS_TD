@@ -8,7 +8,7 @@ import "./editor.css";
 import "../cards.css";
 import { workshopRules } from "./workshop-content.js";
 import { mechanicsEditor, enemyMechanicsEditor } from "./mechanics-editor.js";
-import { combatBehaviors, healingTargets } from "../healing-behavior.js";
+import { combatBehaviors, healingTargets, isHealer } from "../healing-behavior.js";
 import {
   getConfig,
   saveConfig,
@@ -120,11 +120,12 @@ function heroRankEditor(card) {
 }
 function unitFields(path) {
   const hero = path.startsWith("cards.") && draft.cards[path.split(".")[1]]?.category === "hero";
-  const healing = hero && get(path + ".combatBehavior") === "heal";
+  const healing = hero && isHealer(get(path));
   const behavior = hero ? `<div class="fields">${field("战斗行为", path + ".combatBehavior", { options: combatBehaviors })}${healing ? field("治疗对象", path + ".healing.targets", { options: healingTargets }) + field("治疗量类型", path + ".healing.valueMode", { options: { fixed: "固定生命值", percent: "目标最大生命值百分比" } }) + field(get(path + ".healing.valueMode") === "percent" ? "每次治疗（最大生命的 %）" : "每次治疗生命值", path + ".healing.value", { type: "number", min: get(path + ".healing.valueMode") === "percent" ? .01 : 1, max: get(path + ".healing.valueMode") === "percent" ? 100 : 100000, step: "any" }) : ""}</div>${healing ? '<p class="hint">战斗中全图寻找最近的受伤队友，走入治疗距离后自动治疗。斜角为 1 格；不治疗自身、阵亡单位、核心或金矿，不攻击敌人。治疗不暴击，最多回到满血。手动移动优先，到达后重新选择目标。治疗速度、距离使用原攻速和射程属性，增益与装备仍有效。</p>' : ""}` : "";
   return `${behavior}${hero ? mechanicsEditor(get(path),path,field) : path.startsWith("enemies.") ? enemyMechanicsEditor(get(path),path,field) : ""}<p class="hint">攻击模组决定攻击动作、武器与弹道；选择治疗模组会自动治疗受伤友军，目标显示绿色光环与十字特效。外观由「实际使用 icon」配置，装备可覆盖武器。</p><div class="fields">${field("攻击模组", path + ".attackModule", { options: hero ? attackModuleOptions : damagingModuleOptions })}${Object.entries(
     statLabels,
   )
+    .filter(([k]) => !healing || k !== "atk")
     .map(([k, t]) =>
       field(healing && k === "rate" ? "治疗速度（次/秒）" : healing && k === "range" ? "治疗距离（格）" : ["maxHp", "atk"].includes(k) ? t + "（1 级基础值）" : t, path + "." + k, {
         type: "number",
@@ -133,14 +134,16 @@ function unitFields(path) {
         step: k === "range" ? 1 : "any",
       }),
     )
-    .join("")}</div><div class="level-growth"><h4>等级成长 · 一次函数</h4><p class="hint">属性 = 1 级基础值 + 每级增量 ×（等级 − 1）。装备和其他增益在此基础上计算。</p><div class="fields">${field("生命值每级增加", path + ".levelGrowth.maxHp", { type: "number", max: 100000, step: "any" })}${field("攻击力每级增加", path + ".levelGrowth.atk", { type: "number", max: 100000, step: "any" })}</div><div data-growth-preview="${path}">${growthPreview(path)}</div></div>`;
+    .join("")}</div><div class="level-growth"><h4>等级成长 · 一次函数</h4><p class="hint">属性 = 1 级基础值 + 每级增量 ×（等级 − 1）。${healing ? "治疗模式下，原攻击成长用于治疗量；百分比治疗按百分点成长，最高 100%。治疗随从按召唤的攻击比例继承治疗量。" : "装备和其他增益在此基础上计算。"}</p><div class="fields">${field("生命值每级增加", path + ".levelGrowth.maxHp", { type: "number", max: 100000, step: "any" })}${field(healing ? (get(path + ".healing.valueMode") === "percent" ? "治疗比例每级增加（百分点）" : "治疗量每级增加") : "攻击力每级增加", path + ".levelGrowth.atk", { type: "number", max: 100000, step: "any" })}</div><div data-growth-preview="${path}">${growthPreview(path)}</div></div>`;
 }
 function growthPreview(path) {
   const unit = get(path);
+  const healing = isHealer(unit), percent = healing && unit.healing?.valueMode === "percent";
+  const label = healing ? "治疗量" : "攻击力", suffix = percent ? "%" : "";
   const number = (value) => Number.isFinite(value) ? String(Number(value.toFixed(2))) : "—";
-  return `<p class="growth-formula">生命 = ${number(unit.maxHp)} + ${number(unit.levelGrowth?.maxHp ?? 0)} ×（等级 − 1）<br>攻击 = ${number(unit.atk)} + ${number(unit.levelGrowth?.atk ?? 0)} ×（等级 − 1）</p><table class="growth-preview"><thead><tr><th>等级</th><th>生命值</th><th>攻击力</th></tr></thead><tbody>${[1, 5, 10].map((level) => {
+  return `<p class="growth-formula">生命 = ${number(unit.maxHp)} + ${number(unit.levelGrowth?.maxHp ?? 0)} ×（等级 − 1）<br>${label} = ${number(healing ? unit.healing?.value : unit.atk)}${suffix} + ${number(unit.levelGrowth?.atk ?? 0)}${suffix} ×（等级 − 1）${percent ? "（最高 100%）" : ""}</p><table class="growth-preview"><thead><tr><th>等级</th><th>生命值</th><th>${label}</th></tr></thead><tbody>${[1, 5, 10].map((level) => {
     const stats = levelStats(unit, level);
-    return `<tr><td>Lv.${level}</td><td>${number(stats.maxHp)}</td><td>${number(stats.atk)}</td></tr>`;
+    return `<tr><td>Lv.${level}</td><td>${number(stats.maxHp)}</td><td>${number(healing ? stats.healing.value : stats.atk)}${suffix}</td></tr>`;
   }).join("")}</tbody></table>`;
 }
 function iconEditor(label, path, hint) {
@@ -156,7 +159,7 @@ function presetLibrary() {
 }
 function inventory(path) {
   const value = get(path);
-  const label = path.startsWith("rewardPools.") ? "权重" : "数量";
+  const label = path.startsWith("rewardPools.") || path === "initial.cards" ? "权重" : "数量";
   return `<div class="inventory">${Object.entries(value)
     .map(
       ([key, n]) =>
@@ -292,14 +295,14 @@ function heroPresetsEditor() {
   return panel("英雄基础数值预设", `<p class="hint">按品质与定位设置 1 级基础属性和每级成长。修改后会同步到所有选择「跟随品质与定位预设」的英雄，保存后生效；单独配置的英雄不受影响。</p><div class="hero-stat-presets">${Object.entries(heroRarities).map(([rarity, label]) => `<details class="hero-stat-tier rarity-${rarity}" ${rarity === "common" ? "open" : ""}><summary>${label}<small>5 种定位</small></summary>${Object.entries(heroRoles).map(([role, title]) => `<section class="hero-role-preset"><h4>${label} · ${title}</h4><div class="fields">${Object.entries(heroStatFields).map(([key, spec]) => field(spec.label, `initial.heroStatPresets.${rarity}.${role}.${key}`, { type: "number", ...spec })).join("")}</div></section>`).join("")}</details>`).join("")}</div>`);
 }
 function renderInitial() {
-  return `<div class="entity-title"><h2>初始默认配置</h2><span class="hint">每次开局的规则</span></div><div class="initial-layout"><div>${panel("核心与换天恢复", `<div class="fields">${field("每天第一波开始等待（秒）", "initial.firstWaveDelay", { type: "number", max: 3600 })}${field("核心初始生命", "initial.baseHp", { type: "number", min: 1 })}${field("返场英雄复活血量比例", "initial.reviveHp", { type: "number", min: 0.01, max: 1 })}</div><p class="hint">每波结束不会自动复活、回血或清除当天状态；进入下一天时英雄复活并恢复满血、清除当天临时加成。治疗与复活技能照常生效。</p>`)}${panel("海盗乘船登岸", `<div class="fields">${field("船航行速度（格 / 秒）", "initial.boatSpeed", { type: "number", min: .1, max: 20, step: .1 })}${field("登岸击退距离（格）", "initial.landingKnockback", { type: "number", min: 0, max: 10, step: 1 })}</div><p class="hint">每个出生点的一批敌人同乘一艘船，船宽 1 格、长 4 格，沿航向设 4 个站位；超过 4 人时在站位上站肩叠起。出生延迟控制启航时间，逐个出兵间隔控制登岸间隔。船上可按格子距离交战；可从正前方及沿岸两侧各一格登岸，优先正前方，有英雄时先击退；正前方无法使用时再尝试两侧空位或击退挡路英雄，遇障碍停止；三格都无法登陆时留船交战。0 格关闭击退；内陆出生点投影到最近的可达海岸。保存后立即生效。</p>`)}${panel(
+  return `<div class="entity-title"><h2>初始默认配置</h2><span class="hint">每次开局的规则</span></div><div class="initial-layout"><div>${panel("核心与换天恢复", `<div class="fields">${field("每天第一波开始等待（秒）", "initial.firstWaveDelay", { type: "number", max: 3600 })}<span class="hint">美人鱼：生命上限 50，每次受伤 1，每天恢复 1（不超过上限）。</span>${field("返场英雄复活血量比例", "initial.reviveHp", { type: "number", min: 0.01, max: 1 })}</div><p class="hint">每波结束不会自动复活、回血或清除当天状态；进入下一天时英雄复活并恢复满血、清除当天临时加成。治疗与复活技能照常生效。</p>`)}${panel("海盗乘船登岸", `<div class="fields">${field("船航行速度（格 / 秒）", "initial.boatSpeed", { type: "number", min: .1, max: 20, step: .1 })}${field("登岸击退距离（格）", "initial.landingKnockback", { type: "number", min: 0, max: 10, step: 1 })}</div><p class="hint">每个出生点的一批敌人同乘一艘船，船宽 1 格、长 4 格，沿航向设 4 个站位；超过 4 人时在站位上站肩叠起。出生延迟控制启航时间，逐个出兵间隔控制登岸间隔。船上可按格子距离交战；可从正前方及沿岸两侧各一格登岸，优先正前方，有英雄时先击退；正前方无法使用时再尝试两侧空位或击退挡路英雄，遇障碍停止；三格都无法登陆时留船交战。0 格关闭击退；内陆出生点投影到最近的可达海岸。保存后立即生效。</p>`)}${panel(
     "通用升级规则",
     `<div class="fields">${Object.entries({
       heal: "升级恢复生命",
     })
       .map(([k, t]) => field(t, "initial.levelGrowth." + k, { type: "number" }))
       .join("")}</div><p class="hint">生命值与攻击力的等级公式在各英雄、敌人的属性中分别配置。</p>`,
-  )}</div>${panel("初始手牌", inventory("initial.cards"))}</div>${economyEditor()}${tagDescriptionsEditor()}${heroPresetsEditor()}`;
+  )}</div>${panel("初始手牌池 · 五选二", `<p class="hint">开局按权重抽出 5 张候选牌，玩家选择 2 张加入手牌。数值为抽取权重，不是直接发放数量；优先抽取不同卡牌，种类不足 5 种时允许重复。修改牌池在下一次开局生效；尚未选定时会更新候选。</p>${inventory("initial.cards")}`)}</div>${economyEditor()}${tagDescriptionsEditor()}${heroPresetsEditor()}`;
 }
 function economyEditor() {
   const labels = {

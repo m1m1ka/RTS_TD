@@ -2,10 +2,16 @@
   "version": 2,
   "name": "周五保卫战 · 默认规则",
   "initial": {
-    "baseHp": 1000,
+    "baseHp": 50,
     "cards": {
       "hero_blue": 1,
-      "hero_green": 1
+      "hero_green": 1,
+      "hero_purple": 1,
+      "hero_11": 1,
+      "hero_12": 1,
+      "hero_5": 1,
+      "hero_4": 1,
+      "hero_13": 1
     },
     "levelGrowth": {
       "maxHp": 65,
@@ -14,7 +20,7 @@
     },
     "waveHeal": 0,
     "reviveHp": 1,
-    "firstWaveDelay": 1,
+    "firstWaveDelay": 3,
     "heroStatPresets": {
       "common": {
         "tank": {
@@ -411,14 +417,14 @@
         "name": "咕咕",
         "type": "purple",
         "weapon": "staff",
-        "maxHp": 120,
+        "maxHp": 240,
         "atk": 20,
         "range": 3,
-        "rate": 0.8,
-        "speed": 3,
+        "rate": 0.5,
+        "speed": 2,
         "levelGrowth": {
-          "maxHp": 25,
-          "atk": 3
+          "maxHp": 35,
+          "atk": 2
         },
         "critChance": 0,
         "attackModule": "staff"
@@ -462,8 +468,8 @@
         }
       ],
       "rarity": "common",
-      "role": "marksman",
-      "statSource": "custom",
+      "role": "support",
+      "statSource": "preset",
       "rankLevels": [
         8,
         16,
@@ -2005,7 +2011,7 @@
       "name": "赤鬓",
       "category": "hero",
       "target": "ground",
-      "text": "当场上其他所有英雄阵亡时苏醒，每有一个英雄牺牲，攻击速度与吸血增加\n",
+      "text": "每有一个英雄牺牲，获得等级提升与攻击速度与吸血增加\n",
       "icon": "emberblade",
       "useIcon": "emberblade",
       "visual": "fireball",
@@ -2024,10 +2030,7 @@
           "atk": 12.8
         },
         "critChance": 10,
-        "attackModule": "slash",
-        "mechanics": {
-          "dormant": true
-        }
+        "attackModule": "slash"
       },
       "triggerRules": [
         {
@@ -2083,6 +2086,38 @@
               }
             }
           ]
+        },
+        {
+          "name": "开战成长",
+          "enabled": true,
+          "trigger": {
+            "event": "heroSacrifice",
+            "scope": "any",
+            "radius": -1,
+            "interval": 10
+          },
+          "target": {
+            "kind": "self",
+            "radius": -1,
+            "count": 1
+          },
+          "effects": [
+            {
+              "type": "level",
+              "value": 5,
+              "rankValues": {
+                "1": {
+                  "value": 6
+                },
+                "2": {
+                  "value": 8
+                },
+                "3": {
+                  "value": 10
+                }
+              }
+            }
+          ]
         }
       ],
       "rarity": "epic",
@@ -2096,9 +2131,9 @@
       "tags": [],
       "rankDescriptions": {
         "0": "每有一个英雄牺牲，攻击速度与吸血增加",
-        "1": "每有一个英雄牺牲，攻击速度与吸血增加更多",
-        "2": "每有一个英雄牺牲，攻击速度与吸血增加更多",
-        "3": "每有一个英雄牺牲，攻击速度与吸血增加更多"
+        "1": "每有一个英雄牺牲，等级提升，攻击速度与吸血增加更多",
+        "2": "每有一个英雄牺牲，等级提升，攻击速度与吸血增加更多",
+        "3": "每有一个英雄牺牲，等级提升，攻击速度与吸血增加更多"
       }
     },
     "hero_15": {
@@ -7696,7 +7731,7 @@
         }
       ],
       "mines": [],
-      "rewardPool": "pool_wave_1",
+      "rewardPool": "pool_3",
       "kind": "battle",
       "next": [
         "day_12"
@@ -8448,7 +8483,7 @@
         }
       ],
       "mines": [],
-      "rewardPool": "pool_wave_1",
+      "rewardPool": "pool_3",
       "kind": "battle",
       "next": [
         "day_15"
@@ -8497,7 +8532,7 @@
                 },
                 {
                   "type": "enemy_1",
-                  "count": 3,
+                  "count": 2,
                   "level": 25
                 }
               ]
@@ -8519,12 +8554,12 @@
               "enemies": [
                 {
                   "type": "grunt",
-                  "count": 2,
+                  "count": 3,
                   "level": 25
                 },
                 {
-                  "type": "grunt",
-                  "count": 3,
+                  "type": "enemy_1",
+                  "count": 2,
                   "level": 25
                 }
               ]
@@ -8560,11 +8595,11 @@
               "enemies": [
                 {
                   "type": "tank",
-                  "count": 1,
+                  "count": 2,
                   "level": 25
                 },
                 {
-                  "type": "tank",
+                  "type": "enemy_1",
                   "count": 3,
                   "level": 25
                 }
@@ -8613,7 +8648,7 @@
               "enemies": [
                 {
                   "type": "tank",
-                  "count": 2,
+                  "count": 3,
                   "level": 25
                 }
               ]
@@ -8712,7 +8747,7 @@
         }
       ],
       "mines": [],
-      "rewardPool": "pool_wave_1",
+      "rewardPool": "pool_3",
       "kind": "battle",
       "next": [
         "day_16"
@@ -8864,7 +8899,7 @@
                 },
                 {
                   "type": "enemy_1",
-                  "count": 3,
+                  "count": 2,
                   "level": 30
                 }
               ]
@@ -8877,12 +8912,12 @@
               "enemies": [
                 {
                   "type": "tank",
-                  "count": 4,
+                  "count": 3,
                   "level": 30
                 },
                 {
                   "type": "enemy_1",
-                  "count": 4,
+                  "count": 3,
                   "level": 30
                 }
               ]
@@ -8981,7 +9016,7 @@
         }
       ],
       "mines": [],
-      "rewardPool": "pool_wave_1",
+      "rewardPool": "pool_3",
       "kind": "battle",
       "next": [
         "day_17"
@@ -9367,8 +9402,8 @@
               "enemies": [
                 {
                   "type": "grunt",
-                  "count": 8,
-                  "level": 35
+                  "count": 5,
+                  "level": 30
                 }
               ]
             },
@@ -9380,13 +9415,13 @@
               "enemies": [
                 {
                   "type": "grunt",
-                  "count": 8,
-                  "level": 35
+                  "count": 5,
+                  "level": 30
                 },
                 {
                   "type": "enemy_1",
                   "count": 5,
-                  "level": 35
+                  "level": 30
                 }
               ]
             }
@@ -9407,8 +9442,8 @@
               "enemies": [
                 {
                   "type": "tank",
-                  "count": 3,
-                  "level": 35
+                  "count": 2,
+                  "level": 30
                 }
               ]
             },
@@ -9420,8 +9455,8 @@
               "enemies": [
                 {
                   "type": "tank",
-                  "count": 5,
-                  "level": 35
+                  "count": 3,
+                  "level": 30
                 }
               ]
             },
@@ -9461,46 +9496,46 @@
                 {
                   "type": "boss",
                   "count": 1,
-                  "level": 40
+                  "level": 30
                 }
               ]
             },
             {
               "x": 14,
               "y": 5,
-              "delay": 0,
+              "delay": 5,
               "interval": 1,
               "enemies": [
                 {
                   "type": "boss",
                   "count": 1,
-                  "level": 40
+                  "level": 30
                 }
               ]
             },
             {
               "x": 7,
               "y": 0,
-              "delay": 0,
+              "delay": 8,
               "interval": 1,
               "enemies": [
                 {
                   "type": "boss",
                   "count": 1,
-                  "level": 40
+                  "level": 30
                 }
               ]
             },
             {
               "x": 7,
               "y": 10,
-              "delay": 0,
+              "delay": 12,
               "interval": 1,
               "enemies": [
                 {
                   "type": "boss",
                   "count": 1,
-                  "level": 40
+                  "level": 30
                 }
               ]
             }

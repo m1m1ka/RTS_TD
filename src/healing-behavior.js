@@ -5,6 +5,16 @@ export const healingTargets = { allies: "英雄、随从与炮台", heroes: "英
 export const healingDefaults = { targets: "allies", valueMode: "fixed", value: 30 };
 export const isHealer = unit => unit?.combatBehavior === "heal" || unit?.attackModule === "heal";
 
+// Healing followers may reposition to treat allies, but never roam beyond the
+// owner's nine cells. Returning to a moving owner belongs to delayed following.
+function treatmentArea(game, healer) {
+  if (!healer.isFollower) return null;
+  const owner = game.heroes.find(h => h.id === healer.ownerId);
+  if (!owner) return new Set();
+  const gates = new Set(game.currentDay().waves.flatMap(w => w.spawns).map(p => `${p.x},${p.y}`));
+  return new Set([-1, 0, 1].flatMap(dy => [-1, 0, 1].map(dx => `${owner.x + dx},${owner.y + dy}`)).filter(key => !gates.has(key)));
+}
+
 export function injuredAllies(game, healer) {
   const kind = healer.healing?.targets || "allies";
   return [...(kind === "towers" ? [] : [...game.heroes, ...game.followers]), ...(kind === "heroes" ? [] : game.towers)]
@@ -15,6 +25,8 @@ export function injuredAllies(game, healer) {
 // Search for a free treatment position, not the patient's occupied cell.
 // Use the existing eight-direction movement, friendly transit and corner rules.
 export function healingRoute(game, healer, patient = null) {
+  const allowed = treatmentArea(game, healer);
+  if (allowed && !allowed.has(`${healer.x},${healer.y}`)) return null;
   const queue = [{ x: healer.x, y: healer.y, path: [] }], seen = new Set([`${healer.x},${healer.y}`]);
   const directions = [[0,-1],[1,0],[0,1],[-1,0],[1,-1],[1,1],[-1,1],[-1,-1]];
   for (let i = 0; i < queue.length; i++) {
@@ -24,7 +36,7 @@ export function healingRoute(game, healer, patient = null) {
       .sort((a,b) => gridDistance(a, patient || healer) - gridDistance(b, patient || healer));
     for (const next of neighbors) {
       const key = `${next.x},${next.y}`;
-      if (seen.has(key) || !game.canStep(healer, cell, next, true, true)) continue;
+      if (seen.has(key) || (allowed && !allowed.has(key)) || !game.canStep(healer, cell, next, true, true)) continue;
       seen.add(key); queue.push({ ...next, path: [...cell.path, next] });
     }
   }
@@ -35,6 +47,8 @@ export function tickHealer(game, healer) {
   healer.healingTargetId = null;
   // A manual route is never overwritten by automatic treatment or chasing.
   if (healer.path.length || healer.hp <= 0 || healer.destroyed) return;
+  const allowed = treatmentArea(game, healer);
+  if (allowed && !allowed.has(`${healer.x},${healer.y}`)) return;
   for (const target of injuredAllies(game, healer)) {
     let inRange = gridDistance(healer, target) <= healer.range && !game.blocked(healer.x, healer.y, healer, true);
     if (!inRange) {

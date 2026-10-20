@@ -161,6 +161,14 @@
 }
 .reward-heading p { margin: 6px 0 0; font-size: 15px; font-weight: 900; letter-spacing: .15em; color: #203c30; text-shadow: 0 1px 2px #fff0b5, 0 -1px 2px #fff0b5; }
 .reward-draft { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding: 33px 5px 31px; perspective: 1000px; }
+.initial-hand-draft .reward-content { width: min(1120px, calc(100vw - 48px)); }
+.initial-hand-draft .reward-draft { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 700px) {
+  .initial-hand-draft .reward-content { width: calc(100vw - 24px); }
+  .initial-hand-draft .reward-draft { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .initial-hand-draft .reward-deal { grid-column: span 2; }
+  .initial-hand-draft .reward-deal:nth-child(4) { grid-column: 2 / span 2; }
+}
 .reward-deal { min-width: 0; animation: reward-deal-in .65s cubic-bezier(.16,1.3,.4,1) both; animation-delay: calc(var(--deal) * 95ms); }
 .reward-draft .reward-card { --card-width: 100%; --card-height: 264px; width: 100%; height: 264px; margin: 0; padding: 6px 7px 10px; border-width: 4px; transform: none; }
 .reward-card:hover { transform: translateY(-7px) !important; }

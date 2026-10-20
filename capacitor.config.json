@@ -1,0 +1,8 @@
+{
+  "appId": "com.cardheroes.game",
+  "appName": "卡片勇者",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#080b10"
+  }
+}

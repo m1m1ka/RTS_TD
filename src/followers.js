@@ -1,4 +1,5 @@
 import { gridDistance } from "./grid-distance.js";
+import { isHealer, injuredAllies, healingDefaults } from "./healing-behavior.js";
 // Followers are combat units, never heroes: no card ownership or trigger rules.
 export const FOLLOWER_SCALE = 0.65;
 export const MAX_FOLLOWERS = 40;
@@ -34,7 +35,12 @@ export function summonFollowers(game, owner, effect) {
     const unit = {
       id: ++game.id, ownerId: owner.id, isFollower: true, side: "hero",
       name: `${owner.name}·随从`, type: owner.type, useIcon: owner.useIcon,
-      attackModule: owner.attackModule === "heal" ? "staff" : owner.attackModule, weapon: owner.weapon, level: 0, equipment: [], ...cell,
+      attackModule: isHealer(owner) ? "heal" : owner.attackModule, weapon: owner.weapon, level: 0, equipment: [], ...cell,
+      combatBehavior: isHealer(owner) ? "heal" : "attack",
+      healing: isHealer(owner) ? {
+        ...structuredClone(owner.healing || healingDefaults),
+        value: (owner.healing || healingDefaults).value * effect.atkPercent / 100,
+      } : undefined,
       maxHp, hp: maxHp, atk: Math.max(0, Math.ceil(owner.atk * effect.atkPercent / 100)),
       rate: owner.rate, range: owner.range, speed: owner.speed, critChance: owner.critChance,
       cooldown: 0, moveCooldown: 0,
@@ -95,7 +101,9 @@ export function moveFollowers(game, dt) {
       continue;
     }
     // Staying to fight is allowed only while still inside the owner's vicinity.
-    if (withinFollowerArea(unit, owner) && game.phase === "battle" && game.enemies.some(e => e.hp > 0 && gridDistance(unit, e) <= unit.range)) continue;
+    if (withinFollowerArea(unit, owner) && game.phase === "battle" && (isHealer(unit)
+      ? injuredAllies(game, unit).some(u => gridDistance(unit, u) <= unit.range || u.id === unit.healingTargetId)
+      : game.enemies.some(e => e.hp > 0 && gridDistance(unit, e) <= unit.range))) continue;
     const anchor = unit.followAnchor, ideal = { x: anchor.x + unit.followOffset.x, y: anchor.y + unit.followOffset.y };
     const candidates = neighborhood(anchor).filter(p => !game.blocked(p.x, p.y, unit, true) && !gates.has(`${p.x},${p.y}`));
     if (same(unit, ideal) || (withinFollowerArea(unit, anchor) && !candidates.some(p => same(p, ideal)))) continue;

@@ -15,6 +15,9 @@ function fixture() {
 }
 function setup(c = fixture()) {
   const events = [], g = new Game(e => events.push(e), c);
+  g.chooseInitialHand([0, 1]);
+  // Arrange the three-unit treatment fixture independently of the opening draft.
+  g.cards = { hero_blue: 1, hero_green: 1, hero_purple: 1 };
   g.playCard("hero_blue", 2, 2); g.playCard("hero_green", 8, 2); g.playCard("hero_purple", 11, 8);
   g.startDay();
   return { g, events, healer:g.heroes[0], near:g.heroes[1], far:g.heroes[2] };

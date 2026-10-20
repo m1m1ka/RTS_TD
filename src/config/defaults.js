@@ -20,7 +20,7 @@ export const DEFAULT_CONFIG = {
   "version": 2,
   "name": "周五保卫战 · 默认规则",
   "initial": {
-    "baseHp": 1000,
+    "baseHp": 50,
     "cards": {
       "hero_blue": 1,
       "hero_green": 1,

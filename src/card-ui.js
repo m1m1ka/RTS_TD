@@ -8,13 +8,14 @@ import { getConfigRevision } from "./config/store.js";
 import { HeroTagTooltip } from "./hero-tag-tooltip.js";
 
 export class CardUI {
-  constructor({ game, onAim, onDrop, onSelect, canInteract }) {
+  constructor({ game, onAim, onDrop, onSelect, canInteract, canShowRewards = () => true }) {
     Object.assign(this, {
       game,
       onAim,
       onDrop,
       onSelect,
       canInteract,
+      canShowRewards,
     });
     this.activeKey = null;
     this.activeSlot = null;
@@ -204,7 +205,10 @@ export class CardUI {
       document.getElementById(id).style.visibility = overflow
         ? "visible"
         : "hidden";
-    if (this.game.phase === "reward") { if (!this.reward.open) this.cancel(); this.rewardChoice.update(); }
+    if (["initialDraft", "reward"].includes(this.game.phase) && this.canShowRewards()) {
+      if (!this.reward.open) this.cancel();
+      this.rewardChoice.update();
+    }
   }
 
   reset() {

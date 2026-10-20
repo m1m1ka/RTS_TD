@@ -1,5 +1,6 @@
 node_modules/
 dist/
+release/
 logs/
 .DS_Store
 public/config/*.tmp

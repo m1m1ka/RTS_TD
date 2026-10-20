@@ -14,6 +14,8 @@ for (let i = 0; i < c.days.length; i++) {
   d.waves[0].spawns = [{ x: 7, y: 0, delay: 0, interval: 1, enemies: [{ type: "grunt", count: 1, level: 1 }] }];
 }
 b.obstacles = [{ x: 1, y: 1 }]; branch.obstacles = [{ x: 2, y: 2 }];
+b.kind = "shop";
+c.initial.cards = { hero_blue: 1, training: 1, hero_green: 1, hero_purple: 1, fireball: 1 };
 c.initial.firstWaveDelay = 0;
 c.enemies.grunt.maxHp = 1;
 c.cards.hero_blue.unit.atk = 999;
@@ -77,9 +79,16 @@ try {
   await game.goto("http://127.0.0.1:5177");
   await game.waitForFunction(() => window.__game?.snapshot().frames > 5);
   const state = () => game.evaluate(() => window.__game.snapshot());
+  await game.locator("#new-game").click();
+  await game.locator("#reward-dialog").waitFor({state:"visible"});
+  const offers = (await state()).initialHandOptions;
+  for (const key of ["hero_blue", "training"]) await game.locator(`[data-reward="${offers.indexOf(key)}"]`).click();
+  await game.locator("[data-reward-confirm]").click();
+  await game.waitForFunction(() => window.__game.snapshot().phase === "ready");
   await game.locator("#route-toggle").click();
   assert.equal(await game.locator("#route-dialog .route-node.available").count(), 0);
-  await game.locator("[data-route-close]").click();
+  await game.locator("#route-dialog .route-node.current").click();
+  assert.equal(await game.locator("#route-dialog").isVisible(), false);
   await game.locator('[data-card="hero_blue"]').click();
   await game.evaluate(() => window.__game.clickCell(7, 3));
   await game.locator('[data-card="training"]').click();
@@ -92,7 +101,7 @@ try {
     }
     assert.equal((await state()).heroes.length, 1, "deploy before each battle day");
     await game.locator("#start").click();
-    await game.evaluate(() => window.__game.advance(9));
+    await game.evaluate(() => window.__game.advance(120));
     await game.locator('[data-reward="0"]').click();
     await game.locator("[data-reward-confirm]").click();
     await game.waitForFunction(() => window.__game.snapshot().phase !== "reward");
@@ -101,7 +110,18 @@ try {
   await game.waitForFunction(() => window.__game.snapshot().phase === "route");
   await game.locator("#route-dialog .route-node.available").first().waitFor({ state: "visible" });
   assert.ok(await game.locator("#route-dialog").evaluate(el => { const r = el.getBoundingClientRect(); return r.x === 0 && r.y === 0 && r.width === innerWidth && r.height === innerHeight; }), "route screen fills viewport");
-  assert.equal(await game.locator("[data-route-depart]").isDisabled(), true);
+  assert.equal(await game.locator("[data-route-depart], #route-dialog header, #route-dialog footer, #route-dialog .route-landscape").count(), 0);
+  assert.ok(await game.locator("#route-dialog").evaluate(el => getComputedStyle(el).backgroundColor === "rgb(0, 0, 0)"));
+  assert.ok(await game.locator("#route-dialog .route-lines path").evaluateAll(paths => paths.every(p => p.getAttribute("d").includes(" L ") && !p.getAttribute("d").includes(" C "))));
+  assert.deepEqual(new Set(await game.locator("#route-dialog .route-node strong").allTextContents()), new Set(["战斗", "商店"]));
+  const centered = async () => game.locator("#route-dialog .route-node.available").evaluateAll(nodes => {
+    const rects = nodes.map(n => n.getBoundingClientRect());
+    const x = (Math.min(...rects.map(r => r.left)) + Math.max(...rects.map(r => r.right))) / 2;
+    const y = (Math.min(...rects.map(r => r.top)) + Math.max(...rects.map(r => r.bottom))) / 2;
+    return Math.abs(x - innerWidth / 2) <= 2 && Math.abs(y - innerHeight / 2) <= 2;
+  });
+  await game.waitForTimeout(100);
+  assert.ok(await centered(), "unlocked branch cluster is centered");
   assert.equal(await game.locator("#route-dialog .route-node.available").count(), 2);
   assert.equal(await game.locator(`#route-dialog [data-route-node="${end.id}"]`).isDisabled(), true);
   const pausedAt = (await state()).time;
@@ -109,22 +129,20 @@ try {
   assert.equal((await state()).time, pausedAt);
   await game.keyboard.press("Escape");
   assert.equal(await game.locator("#route-dialog").isVisible(), true);
-  await game.locator(`#route-dialog [data-route-node="${b.id}"]`).click();
-  assert.equal(await game.locator("[data-route-choice]").textContent(), b.name);
-  await game.locator(`#route-dialog [data-route-node="${branch.id}"]`).click();
-  assert.equal((await state()).phase, "route", "changing preview leaves campaign unchanged");
+  await game.locator(`#route-dialog [data-route-node="${end.id}"]`).dispatchEvent("click");
+  assert.equal((await state()).phase, "route", "locked nodes cannot enter a level");
   await game.screenshot({ path: "logs/routes-game.png" });
   await game.setViewportSize({ width: 390, height: 844 });
   await game.waitForTimeout(150);
+  assert.ok(await centered(), "resize keeps the unlocked branches centered");
+  assert.equal(await game.locator("#route-dialog .route-scroll").evaluate(el => getComputedStyle(el).scrollbarWidth), "none");
   await game.screenshot({ path: "logs/routes-mobile.png" });
   const scrollLeft = await game.locator("#route-dialog .route-scroll").evaluate(el => el.scrollLeft);
   await game.keyboard.press("ArrowLeft");
   assert.ok(await game.locator("#route-dialog .route-scroll").evaluate((el, before) => el.scrollLeft < before, scrollLeft), "keyboard pans the full-screen map");
   assert.ok(await game.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await game.locator(`#route-dialog [data-route-node="${branch.id}"]`).click();
-  assert.equal(await game.locator("[data-route-choice]").textContent(), branch.name);
-  assert.equal((await state()).phase, "route", "preview does not enter a level");
-  await game.locator("[data-route-depart]").click();
+  assert.equal((await state()).phase, "between", "one click enters the unlocked day");
   assert.equal((await state()).day, 2);
   assert.equal((await state()).dayId, branch.id);
   assert.equal((await state()).heroes.length, 0);
@@ -137,8 +155,9 @@ try {
   assert.deepEqual((await state()).obstacles, branch.obstacles);
   await game.setViewportSize({ width: 1440, height: 1000 });
   await finishDay();
+  await game.waitForTimeout(100);
+  assert.ok(await centered(), "the last node centers despite being at the graph edge");
   await game.locator(`#route-dialog [data-route-node="${end.id}"]`).click();
-  await game.locator("[data-route-depart]").click();
   await finishDay();
   assert.equal((await state()).phase, "won");
   assert.deepEqual((await state()).routeHistory, [a.id, branch.id, end.id]);

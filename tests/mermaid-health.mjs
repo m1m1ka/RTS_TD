@@ -1,0 +1,36 @@
+import assert from "node:assert/strict";
+import { Game, BASE } from "../src/game.js";
+import { DEFAULT_CONFIG } from "../src/config/defaults.js";
+
+const config = structuredClone(DEFAULT_CONFIG);
+config.initial.baseHp = 1000; // Old imported configs must use the new fixed rules.
+const events = [], game = new Game(e => events.push(e), config);
+assert.equal(game.baseHp, 50);
+assert.equal(game.baseMaxHp, 50);
+for (const amount of [1, 100, 99999, .2]) game.hit(BASE, amount, { side: "enemy" }, true);
+assert.equal(game.baseHp, 46);
+assert.ok(events.filter(e => e.type === "hit").every(e => e.damage === 1 && !e.critical));
+game.hit(BASE, 0, {});
+assert.equal(game.baseHp, 46);
+game.phase = "between";
+game.applyConfig(structuredClone(config));
+assert.equal(game.baseHp, 46, "config sync cannot heal the mermaid");
+game.enterDay(config.days[1].id);
+assert.equal(game.baseHp, 47);
+game.enterDay(config.days[1].id);
+assert.equal(game.baseHp, 47, "same day cannot repeatedly heal");
+config.days[2].kind = "shop";
+game.enterDay(config.days[2].id);
+assert.equal(game.baseHp, 48, "shop days also restore one HP");
+game.baseHp = 50;
+game.enterDay(config.days[0].id);
+assert.equal(game.baseHp, 50);
+for (let i = 0; i < 50; i++) game.hit(BASE, 1000, {});
+assert.equal(game.baseHp, 0);
+game.hit(BASE, 1000, {});
+assert.equal(game.baseHp, 0);
+game.enterDay(config.days[1].id);
+assert.equal(game.baseHp, 0, "changing days cannot revive a defeated mermaid");
+game.reset();
+assert.equal(game.baseHp, 50);
+console.log("PASS mermaid health: fixed damage/max HP, config compatibility, daily recovery, shops, caps and reset");

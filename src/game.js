@@ -5,7 +5,7 @@ import { criticalChance, criticalDamage } from "./critical.js";
 import { attackModules, attackModuleId, attackProfile } from "./attack-modules.js";
 import { effectAmount } from "./effect-values.js";
 import { generationPool } from "./card-generation.js";
-import { drawRewards } from "./rewards.js";
+import { drawRewards, drawWeightedCards } from "./rewards.js";
 import { enterShop, refreshShop, buyShopHero, buyShopPack, choosePackCard, reconcileShop, shopPrices } from "./shop.js";
 import { resourceTargets, applyResourceEffect } from "./resource-effects.js";
 import { getWeaponSpec } from "./weapons.js";
@@ -25,7 +25,8 @@ import { launchBoat, tickBoats, landingGate } from "./sea-arrivals.js";
 export const W = 15,
   H = 11,
   BASE = { x: 7, y: 5 };
-export const MAX_DEPLOYED_HEROES = 5;
+export const MAX_DEPLOYED_HEROES = 6;
+export const BASE_MAX_HP = 50;
 export let days = getConfig().days;
 export let heroSpecs = Object.values(getConfig().cards)
   .filter((c) => c.category === "hero")
@@ -71,7 +72,9 @@ export class Game {
     this.settlement = null;
     this.mines = [];
     this.time = 0;
-    this.cards = { ...this.config.initial.cards };
+    this.cards = {};
+    this.initialHandOptions = drawWeightedCards(this.config, this.config.initial.cards, 5);
+    this.initialDraftVersion = (this.initialDraftVersion || 0) + 1;
     this.skillCards = [];
     this.skillCardId = 0;
     syncSkillCards(this);
@@ -88,8 +91,8 @@ export class Game {
     this.waveWait = 0;
     this.spawnQueues = [];
     this.boats = [];
-    this.phase = "ready";
-    this.baseMaxHp = this.config.initial.baseHp;
+    this.phase = "initialDraft";
+    this.baseMaxHp = BASE_MAX_HP;
     this.baseHp = this.baseMaxHp;
     this.selected = 0;
     this.selectedFollowerId = null;
@@ -105,8 +108,21 @@ export class Game {
     this.obstacles = new Set();
     this.syncMines();
     this.syncTerrain();
-    if (this.config.days[this.day].kind === "shop") enterShop(this);
     this.emit("reset");
+  }
+  chooseInitialHand(indices, version = this.initialDraftVersion) {
+    if (this.phase !== "initialDraft" || version !== this.initialDraftVersion ||
+        !Array.isArray(indices) || indices.length !== 2 || new Set(indices).size !== 2 ||
+        indices.some(i => !Number.isInteger(i) || i < 0 || i >= this.initialHandOptions.length ||
+          !this.config.cards[this.initialHandOptions[i]])) return false;
+    const chosen = indices.map(i => this.initialHandOptions[i]);
+    for (const key of chosen) this.cards[key] = (this.cards[key] || 0) + 1;
+    this.initialHandOptions = [];
+    syncSkillCards(this);
+    this.phase = "ready";
+    if (this.currentDay().kind === "shop") enterShop(this);
+    this.emit("initialHandChosen", { cards: chosen });
+    return true;
   }
   syncMines(preserve = false) {
     const old = new Map(this.mines.map((m) => [`${m.x},${m.y}`, m]));
@@ -388,7 +404,6 @@ export class Game {
   playCard(key, x, y, instanceId) {
     const check = this.cardTarget(key, x, y, instanceId);
     if (!check.valid) {
-      this.emit("toast", { text: check.reason });
       return false;
     }
     const card = this.cardDefinition(key, instanceId);
@@ -636,13 +651,14 @@ export class Game {
     const previous = this.config,
       oldDay = previous.days[this.day];
     this.config = config;
-    const untouched =
-      this.phase === "ready" && !this.heroes.length && !this.towers.length;
-    this.baseHp = untouched
-      ? config.initial.baseHp
-      : (this.baseHp / this.baseMaxHp) * config.initial.baseHp;
-    this.baseMaxHp = config.initial.baseHp;
-    if (untouched) this.cards = { ...config.initial.cards };
+    const untouched = this.phase === "initialDraft";
+    this.baseMaxHp = BASE_MAX_HP;
+    this.baseHp = untouched ? BASE_MAX_HP : Math.min(BASE_MAX_HP, this.baseHp);
+    if (untouched && (JSON.stringify(previous.initial.cards) !== JSON.stringify(config.initial.cards) ||
+        this.initialHandOptions.some(key => !config.cards[key]))) {
+      this.initialHandOptions = drawWeightedCards(config, config.initial.cards, 5);
+      this.initialDraftVersion++;
+    }
     for (const key of Object.keys(this.cards))
       if (!config.cards[key]) delete this.cards[key];
     syncSkillCards(this);
@@ -738,6 +754,12 @@ export class Game {
   }
   chooseDay(id) {
     if (this.phase !== "route" || !this.nextDays().includes(id)) return false;
+    return this.enterDay(id);
+  }
+  enterDay(id) {
+    if (!this.config.days.some(day => day.id === id)) return false;
+    if (this.config.days[this.day].id !== id && this.baseHp > 0)
+      this.baseHp = Math.min(BASE_MAX_HP, this.baseHp + 1);
     this.clearTemporaryCards();
     this.removeFollowers();
     this.heroReserve = this.heroReserve.filter(hero => !hero.destroyed && this.config.cards[hero.cardId]?.category === "hero" && !this.config.cards[hero.cardId].temporary);
@@ -762,6 +784,9 @@ export class Game {
     this.selected = -1;
     this.selectedFollowerId = null;
     this.attacks = [];
+    this.enemies = [];
+    this.boats = [];
+    this.waveElapsed = this.waveWait = 0;
     this.day = this.config.days.findIndex((d) => d.id === id);
     this.routeHistory.push(id);
     this.wave = 0;
@@ -892,8 +917,9 @@ export class Game {
   hit(target, damage, source, critical = false, kind = null, heroAttack = this.heroes.includes(source)) {
     if (damage <= 0) return;
     if (target === BASE) {
-      this.baseHp = Math.max(0, this.baseHp - damage);
-      this.emit("hit", { unit: BASE, damage, source, critical });
+      if (this.baseHp <= 0) return;
+      this.baseHp = Math.max(0, this.baseHp - 1);
+      this.emit("hit", { unit: BASE, damage: 1, source, critical: false });
       return;
     }
     if (target.hp <= 0) return;
@@ -1010,7 +1036,7 @@ export class Game {
       }
       return;
     }
-    if (["shop", "won", "lost", "reward", "route"].includes(this.phase)) return;
+    if (["initialDraft", "shop", "won", "lost", "reward", "route"].includes(this.phase)) return;
     this.time += dt;
     for (const h of this.heroes) {
       if (!canMoveHero(this,h)) { h.path = []; continue; }
@@ -1043,7 +1069,7 @@ export class Game {
     for (const h of [...this.heroes, ...this.followers, ...this.towers]) {
       if (h.hp <= 0 || isDormant(this,h)) continue;
       h.cooldown -= dt;
-      if (isHealer(h) && this.heroes.includes(h)) { tickHealer(this, h); continue; }
+      if (isHealer(h)) { tickHealer(this, h); continue; }
       const retaliationTarget = this.heroes.includes(h) ? tickRetaliation(this, h) : null;
       const targets = this.enemies
         .filter((e) => e.hp > 0 && gridDistance(h, e) <= h.range)
@@ -1149,6 +1175,8 @@ export class Game {
       skillCards: syncSkillCards(this).map(copy => ({ ...copy, remaining: Math.max(0, copy.readyAt - this.time) })),
       heroReserve: this.heroReserve.map((h) => ({ id: h.id, cardId: h.cardId, level: h.level, rank: h.rank ?? 0, hp: h.hp, maxHp: h.maxHp, equipment: [...h.equipment] })),
       rewardOptions: [...this.rewardOptions],
+      initialHandOptions: [...this.initialHandOptions],
+      initialDraftVersion: this.initialDraftVersion,
       shop: this.shop ? { ...structuredClone(this.shop), prices: shopPrices(this) } : null,
       kills: this.kills,
       spawned: this.spawned,
